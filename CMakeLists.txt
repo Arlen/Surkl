@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 find_package(Qt6 COMPONENTS REQUIRED Widgets Gui Core)
 
-set(SOURCES src/main.cpp)
+set(SOURCES main.cpp)
 add_executable(Ksed ${SOURCES})
 
 target_link_libraries(Ksed Qt6::Widgets Qt6::Core Qt6::Gui)
