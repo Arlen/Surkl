@@ -1,20 +1,41 @@
 #include "core/Scene.hpp"
+#include "core/SessionManager.hpp"
 
 #include <QPainter>
+#include <theme.hpp>
 
 
 using namespace core;
+
+namespace
+{
+    QColor invert(const QColor& color)
+    {
+        auto H = 1.0 - color.hueF();
+        if (std::abs(H) > 1.0) { H = 0.65; }
+
+        const auto S = 1.0 - color.saturationF();
+        const auto V = 1.0 - color.valueF();
+
+        return QColor::fromHsvF(H, S, V);
+    }
+}
 
 Scene::Scene(QObject* parent)
     : QGraphicsScene(parent)
 {
     setSceneRect(QRect(-7680 * 4, -4320 * 4, 7680 * 8, 4320 * 8));
+
+    connect(session()->tm(), &gui::ThemeManager::bgColorChanged, this,
+        [this] { update(sceneRect()); });
+    connect(session()->tm(), &gui::ThemeManager::resetTriggered, this,
+        [this] { update(sceneRect()); });
 }
 
 void Scene::drawBackground(QPainter *p, const QRectF& rec)
 {
     p->save();
-    constexpr auto bgColor = QColor(67, 67, 67, 255);
+    const auto bgColor = session()->tm()->bgColor();
     p->fillRect(rec, bgColor);
     drawCrosses(p, rec);
     p->restore();;
@@ -38,7 +59,10 @@ void Scene::drawCrosses(QPainter* p, const QRectF& rec) const
     constexpr auto dx0 = QPointF{-8, 0};
     constexpr auto dx1 = QPointF{ 8, 0};
 
-    p->setPen(QPen(QColor(48, 48, 48, 255), 1));
+    const auto bgColor = session()->tm()->bgColor();
+    const auto fgColor = invert(bgColor);
+
+    p->setPen(QPen(fgColor, 1));
     for (qreal x = x0; x < x1; x += grid) {
         for (qreal y = y0; y < y1; y += grid) {
             const auto pos = QPointF{x, y};
@@ -48,7 +72,7 @@ void Scene::drawCrosses(QPainter* p, const QRectF& rec) const
     }
 
     if (rec.contains(QPoint{0, 0})) {
-        p->setPen(QPen(QColor(48, 48, 48, 255), 2));
+        p->setPen(QPen(fgColor, 2));
         const auto pos = QPointF{0, 0};
         p->drawLine({pos+dy0, pos+dy1});
         p->drawLine({pos+dx0, pos+dx1});
