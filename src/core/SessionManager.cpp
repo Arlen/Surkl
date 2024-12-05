@@ -1,6 +1,7 @@
 #include "core/SessionManager.hpp"
 #include "core/Scene.hpp"
 #include "core/bookmark.hpp"
+#include "gui/MainWindow.hpp"
 #include "gui/theme.hpp"
 
 #include <QApplication>
@@ -47,6 +48,11 @@ gui::ThemeManager* SessionManager::tm() const
     return _tm;
 }
 
+gui::MainWindow* SessionManager::mw() const
+{
+    return _mw;
+}
+
 void SessionManager::initialize()
 {
     _tm = new gui::ThemeManager(this);
@@ -56,6 +62,8 @@ void SessionManager::initialize()
     BookmarkManager::configure(_bm);
 
     _scene = new Scene(this);
+
+    _mw = new gui::MainWindow(_scene);
 }
 
 SessionManager* core::session()
