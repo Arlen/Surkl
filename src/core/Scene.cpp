@@ -1,8 +1,10 @@
-#include "core/Scene.hpp"
-#include "core/SessionManager.hpp"
+#include "Scene.hpp"
+#include "SessionManager.hpp"
+#include "bookmark.hpp"
+#include "gui/theme.hpp"
+#include "nodes.hpp"
 
 #include <QPainter>
-#include <theme.hpp>
 
 
 using namespace core;
@@ -30,6 +32,16 @@ Scene::Scene(QObject* parent)
         [this] { update(sceneRect()); });
     connect(session()->tm(), &gui::ThemeManager::resetTriggered, this,
         [this] { update(sceneRect()); });
+
+    for (const auto& bm : session()->bm()->sceneBookmarks()) {
+        addItem(new nodes::SceneBookmarkItem{bm.pos, bm.name});
+    }
+}
+
+void Scene::addSceneBookmark(const QPoint& pos, const QString& name)
+{
+    session()->bm()->insertBookmark({pos, name});
+    addItem(new nodes::SceneBookmarkItem(pos, name));
 }
 
 void Scene::drawBackground(QPainter *p, const QRectF& rec)
@@ -38,7 +50,7 @@ void Scene::drawBackground(QPainter *p, const QRectF& rec)
     const auto bgColor = session()->tm()->bgColor();
     p->fillRect(rec, bgColor);
     drawCrosses(p, rec);
-    p->restore();;
+    p->restore();
 }
 
 void Scene::drawCrosses(QPainter* p, const QRectF& rec) const
