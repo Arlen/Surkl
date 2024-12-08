@@ -33,15 +33,19 @@ Scene::Scene(QObject* parent)
     connect(session()->tm(), &gui::ThemeManager::resetTriggered, this,
         [this] { update(sceneRect()); });
 
-    for (const auto& bm : session()->bm()->sceneBookmarks()) {
-        addItem(new nodes::SceneBookmarkItem{bm.pos, bm.name});
+    for (const auto& [pos, name] : session()->bm()->sceneBookmarksAsList()) {
+        addItem(new nodes::SceneBookmarkItem{pos, name});
     }
 }
 
 void Scene::addSceneBookmark(const QPoint& pos, const QString& name)
 {
-    session()->bm()->insertBookmark({pos, name});
-    addItem(new nodes::SceneBookmarkItem(pos, name));
+    auto* bm = session()->bm();
+
+    if (const auto data = SceneBookmarkData{pos, name}; !bm->sceneBookmarks().contains(data)) {
+        session()->bm()->insertBookmark(data);
+        addItem(new nodes::SceneBookmarkItem(pos, name, true));
+    }
 }
 
 void Scene::drawBackground(QPainter *p, const QRectF& rec)

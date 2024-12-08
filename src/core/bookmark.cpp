@@ -50,7 +50,7 @@ void BookmarkManager::configure(BookmarkManager* bm)
                 .arg(POSITION_Y_COL)
                 .arg(NAME_COL));
             q.exec();
-            for (const auto& x : bm->sceneBookmarks()) {
+            for (const auto& x : bm->sceneBookmarksAsList()) {
                 addToDatabase(x);
             }
 
@@ -68,7 +68,7 @@ void BookmarkManager::saveToDatabase(BookmarkManager* bm)
 {
     if (auto db = db::get(); db.isOpen()) {
         db.transaction();
-        for (const auto& x : bm->sceneBookmarks()) {
+        for (const auto& x : bm->sceneBookmarksAsList()) {
             addToDatabase(x);
         }
 
@@ -118,9 +118,14 @@ void BookmarkManager::removeBookmark(const SceneBookmarkData& bm)
     }
 }
 
-QList<SceneBookmarkData> BookmarkManager::sceneBookmarks() const
+QList<SceneBookmarkData> BookmarkManager::sceneBookmarksAsList() const
 {
     return _scene_bms.values();
+}
+
+QSet<SceneBookmarkData> BookmarkManager::sceneBookmarks() const
+{
+    return _scene_bms;
 }
 
 void BookmarkManager::addToDatabase(const SceneBookmarkData& sbm)
