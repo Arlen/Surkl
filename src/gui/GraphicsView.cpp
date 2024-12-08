@@ -156,9 +156,9 @@ void GraphicsView::zoom()
 {
     const auto velocity = mouseMoveVelocity();
     if (velocity.x() > 0) {
-        zoomOut();
-    } else if (velocity.x() < 0) {
         zoomIn();
+    } else if (velocity.x() < 0) {
+        zoomOut();
     }
 }
 
