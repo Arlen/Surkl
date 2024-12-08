@@ -31,6 +31,53 @@ void GraphicsView::requestSceneBookmark()
     }
 }
 
+void GraphicsView::focusQuadrant1()
+{
+    if (auto* bm = getSelectedSceneBookmark(); bm) {
+        const auto bookmarkCenter = bm->sceneBoundingRect().center();
+        auto region = mapToScene(rect()).boundingRect();
+        region.moveBottomRight(bookmarkCenter);
+        ensureVisible(region, 0, 0);
+    }
+}
+
+void GraphicsView::focusQuadrant2()
+{
+    if (const auto* bm = getSelectedSceneBookmark(); bm) {
+        const auto bookmarkCenter = bm->sceneBoundingRect().center();
+        auto region = mapToScene(rect()).boundingRect();
+        region.moveBottomLeft(bookmarkCenter);
+        ensureVisible(region, 0, 0);
+    }
+}
+
+void GraphicsView::focusQuadrant3()
+{
+    if (const auto* bm = getSelectedSceneBookmark(); bm) {
+        const auto bookmarkCenter = bm->sceneBoundingRect().center();
+        auto region = mapToScene(rect()).boundingRect();
+        region.moveTopRight(bookmarkCenter);
+        ensureVisible(region, 0, 0);
+    }
+}
+
+void GraphicsView::focusQuadrant4()
+{
+    if (const auto* bm = getSelectedSceneBookmark(); bm) {
+        const auto bookmarkCenter = bm->sceneBoundingRect().center();
+        auto region = mapToScene(rect()).boundingRect();
+        region.moveTopLeft(bookmarkCenter);
+        ensureVisible(region, 0, 0);
+    }
+}
+
+void GraphicsView::focusAllQuadrants()
+{
+    if (const auto* bm = getSelectedSceneBookmark(); bm) {
+        centerOn(bm);
+    }
+}
+
 void GraphicsView::enterEvent(QEnterEvent* event)
 {
     togglePanOrZoom(Qt::NoModifier);
@@ -228,4 +275,13 @@ void GraphicsView::addSceneBookmark(const QPoint& pos)
     if (auto* gs = qobject_cast<core::Scene*>(scene())) {
         gs->addSceneBookmark(mapToScene(pos).toPoint(), "test");
     }
+}
+
+core::nodes::SceneBookmarkItem* GraphicsView::getSelectedSceneBookmark() const
+{
+    if (auto sel = scene()->selectedItems(); !sel.isEmpty()) {
+        return qgraphicsitem_cast<core::nodes::SceneBookmarkItem*>(sel.first());
+    }
+
+    return nullptr;
 }

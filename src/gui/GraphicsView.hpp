@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/nodes.hpp"
+
 #include <QtWidgets/QGraphicsView>
 
 
@@ -19,6 +21,11 @@ namespace gui
 
     public slots:
         void requestSceneBookmark();
+        void focusQuadrant1(); // top right
+        void focusQuadrant2(); // top left
+        void focusQuadrant3(); // bottom left
+        void focusQuadrant4(); // bottom right
+        void focusAllQuadrants(); // center
 
     protected:
         void enterEvent(QEnterEvent* event) override;
@@ -45,6 +52,8 @@ namespace gui
         void destroyBookmarkAnimation();
         void drawBookmarkAnimation(QPainter& p);
         void addSceneBookmark(const QPoint& pos);
+
+        core::nodes::SceneBookmarkItem* getSelectedSceneBookmark() const;
 
         QVariantAnimation* _bookmarkAnimation = nullptr;
     };
