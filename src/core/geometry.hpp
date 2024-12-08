@@ -3,15 +3,17 @@
 #include <QPolygonF>
 #include <QTransform>
 
+#include <array>
+
 
 namespace core::geometry
 {
     /// Returns a square that fits inside the unit square, centered at (0,0).
     /// The square is rotated 45 deg so that a corner points up.
-    constexpr QPolygonF square()
+    inline QPolygonF square()
     {
-        constexpr auto zero = qreal(0);
-        constexpr auto half = qreal(0.5);
+        constexpr auto zero = 0.0;
+        constexpr auto half = 0.5;
 
         return QPolygonF()
             << QPointF( zero,  half)
@@ -23,7 +25,7 @@ namespace core::geometry
 
     class SceneBookmarkIcon final
     {
-        QPolygonF scaled(const QPolygonF& pg, qreal size)
+        static QPolygonF scaled(const QPolygonF& pg, qreal size)
         {
             /// flip the y-coordinate b/c of Qt's coordinate system.
             return pg * QTransform().scale(size, -size);
@@ -53,8 +55,7 @@ namespace core::geometry
             Frame18,
             Frame19,
             Frame20,
-            Frame21,
-            Final
+            Last
         };
 
         SceneBookmarkIcon()
@@ -65,28 +66,29 @@ namespace core::geometry
             _square4 = _square1 * QTransform().rotate(90 * 0.75);
         }
 
-        QPolygonF square1(qreal size = 1) { return scaled(_square1, size); }
-        QPolygonF square2(qreal size = 1) { return scaled(_square2, size); }
-        QPolygonF square3(qreal size = 1) { return scaled(_square3, size); }
-        QPolygonF square4(qreal size = 1) { return scaled(_square4, size); }
+        QPolygonF square1(qreal size = 1) const { return scaled(_square1, size); }
+        QPolygonF square2(qreal size = 1) const { return scaled(_square2, size); }
+        QPolygonF square3(qreal size = 1) const { return scaled(_square3, size); }
+        QPolygonF square4(qreal size = 1) const { return scaled(_square4, size); }
 
-        QList<QPolygonF> generate(qreal size)
+        std::array<QPolygonF, TimeLine::Last> generate(qreal size)
         {
-            QList<QPolygonF> intersections;
+            const std::array intersections =
+            {
+                square1().intersected(square2()),
+                square1().intersected(square3()),
+                square1().intersected(square4()),
 
-            intersections.append(square1().intersected(square2()));
-            intersections.append(square1().intersected(square3()));
-            intersections.append(square1().intersected(square4()));
+                square2().intersected(square3()),
+                square2().intersected(square4()),
 
-            intersections.append(square2().intersected(square3()));
-            intersections.append(square2().intersected(square4()));
+                square3().intersected(square4()),
 
-            intersections.append(square3().intersected(square4()));
-
-            intersections.append(square1());
-            intersections.append(square2());
-            intersections.append(square3());
-            intersections.append(square4());
+                square1(),
+                square2(),
+                square3(),
+                square4(),
+            };
 
             auto get = [&](int i, int j) -> auto
             {
@@ -120,41 +122,40 @@ namespace core::geometry
 
             const auto xform = QTransform().scale(size, size);
 
-            QList<QPolygonF> result;
+            return
+            {
+                square1(size),
+                square4(size),
+                square3(size),
+                square2(size),
 
-            result.append(square1(size));
-            result.append(square4(size));
-            result.append(square3(size));
-            result.append(square2(size));
+                north_left  * xform,
+                north_right * xform,
 
-            result.append(north_left  * xform);
-            result.append(north_right * xform);
+                east_top    * xform,
+                east_bottom * xform,
 
-            result.append(east_top    * xform);
-            result.append(east_bottom * xform);
+                south_right * xform,
+                south_left  * xform,
 
-            result.append(south_right * xform);
-            result.append(south_left  * xform);
+                west_bottom * xform,
+                west_top    * xform,
 
-            result.append(west_bottom * xform);
-            result.append(west_top    * xform);
+                /// one more square3, used at background.
+                square3(size),
 
-            /// one more square3, used at background.
-            result.append(square3(size));
+                nw0 * xform,
+                nw1 * xform,
 
-            result.append(nw0 * xform);
-            result.append(nw1 * xform);
+                ne0 * xform,
+                ne1 * xform,
 
-            result.append(ne0 * xform);
-            result.append(ne1 * xform);
+                se0 * xform,
+                se1 * xform,
 
-            result.append(se0 * xform);
-            result.append(se1 * xform);
-
-            result.append(sw0 * xform);
-            result.append(sw1 * xform);
-
-            return result;
+                sw0 * xform,
+                sw1 * xform
+            };
         }
 
     private:
