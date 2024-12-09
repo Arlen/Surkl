@@ -48,7 +48,6 @@ SceneBookmarkItem::SceneBookmarkItem(const QPoint& pos, const QString& name, boo
     setPos(pos.x() - RECT_SIZE/2, pos.y() - RECT_SIZE/2);
 
     _name = name;
-    //_polygons = geometry::SceneBookmarkIcon().generate(recSize);
     using TimeLine = geometry::SceneBookmarkIcon::TimeLine;
 
     if (born) {

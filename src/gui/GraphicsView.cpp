@@ -20,9 +20,9 @@ void GraphicsView::requestSceneBookmark()
         destroyBookmarkAnimation();
     } else {
         _bookmarkAnimation = new QVariantAnimation(this);
-        _bookmarkAnimation->setDuration(250);
-        _bookmarkAnimation->setStartValue(QSize(16, 16));
-        _bookmarkAnimation->setEndValue(QSize(64, 64));
+        _bookmarkAnimation->setDuration(200);
+        _bookmarkAnimation->setStartValue(8);
+        _bookmarkAnimation->setEndValue(32);
         _bookmarkAnimation->setLoopCount(-1);
         _bookmarkAnimation->setEasingCurve(QEasingCurve::OutCubic);
         connect(_bookmarkAnimation, &QVariantAnimation::valueChanged, this,
@@ -139,7 +139,7 @@ void GraphicsView::paintEvent(QPaintEvent *event)
 
     if (_bookmarkAnimation) {
         QPainter p(viewport());
-        drawBookmarkAnimation(p);
+        drawBookmarkingCursorAnimation(p);
     }
 }
 
@@ -254,20 +254,30 @@ void GraphicsView::destroyBookmarkAnimation()
     _bookmarkAnimation = nullptr;
 }
 
-void GraphicsView::drawBookmarkAnimation(QPainter& p)
+void GraphicsView::drawBookmarkingCursorAnimation(QPainter& p) const
 {
-    QRect rec = QRect(QPoint(0,0), _bookmarkAnimation->currentValue().toSize());
-    const auto pos = mousePosition();
-    rec.moveCenter(pos);
-    p.setPen(QPen(QColor(32, 32, 32, 255), 2));
-    p.drawLine(QLine{rec.center(), {rec.left(), rec.center().y()}});
-    p.drawLine(QLine{rec.center(), {rec.right(), rec.center().y()}});
-    p.drawLine(QLine{rec.center(), {rec.center().x(), rec.top()}});
-    p.drawLine(QLine{rec.center(), {rec.center().x(), rec.bottom()}});
+    p.save();
+    p.setPen(QPen(QColor(160, 160, 160, 255), 2));
+    p.setCompositionMode(QPainter::CompositionMode_Exclusion);
 
-    const auto coord = mapToScene(pos);
-    const auto text = QString("(%1, %2)").arg(coord.x()).arg(coord.y());
-    p.drawText(pos + QPoint(-32, 48), text);
+    const auto len  = _bookmarkAnimation->currentValue().toInt();
+    const auto line = QLine(QPoint(0, 0), QPoint(len, 0));
+    const auto pos  = mousePosition();
+
+    auto xform = QTransform();
+
+    p.drawLine(line * xform.translate(pos.x(), pos.y()));
+    p.drawLine(line * xform.rotate(90));
+    p.drawLine(line * xform.rotate(90*2));
+    p.drawLine(line * xform.rotate(90*3));
+
+    const auto coord = mapToScene(pos).toPoint();
+    const auto text  = QString("(%1, %2)").arg(coord.x()).arg(coord.y());
+    const auto fmt   = QFontMetrics(p.font());
+    const auto bbox  = fmt.boundingRect(text);
+
+    p.drawText(pos + QPoint(-bbox.width()/2, 48), text);
+    p.restore();
 }
 
 void GraphicsView::addSceneBookmark(const QPoint& pos)

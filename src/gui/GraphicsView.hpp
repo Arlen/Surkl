@@ -50,7 +50,7 @@ namespace gui
         void togglePanOrZoom(Qt::KeyboardModifiers modifiers);
 
         void destroyBookmarkAnimation();
-        void drawBookmarkAnimation(QPainter& p);
+        void drawBookmarkingCursorAnimation(QPainter& p) const;
         void addSceneBookmark(const QPoint& pos);
 
         core::nodes::SceneBookmarkItem* getSelectedSceneBookmark() const;
