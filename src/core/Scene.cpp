@@ -21,12 +21,184 @@ namespace
 
         return QColor::fromHsvF(H, S, V);
     }
+
+    void drawCrosses(QPainter* p, const QRectF& rec)
+    {
+        p->save();
+        constexpr qreal grid = 512;
+        const auto l = rec.left();
+        const auto r = rec.right();
+        const auto t = rec.top();
+        const auto b = rec.bottom();
+
+        const auto x0 = std::floor(std::abs(l) / grid) * grid * (std::signbit(l) ? -1.0 : 1.0) - grid;
+        const auto x1 = std::floor(std::abs(r) / grid) * grid * (std::signbit(r) ? -1.0 : 1.0) + grid;
+        const auto y0 = std::floor(std::abs(t) / grid) * grid * (std::signbit(t) ? -1.0 : 1.0) - grid;
+        const auto y1 = std::floor(std::abs(b) / grid) * grid * (std::signbit(b) ? -1.0 : 1.0) + grid;
+
+        constexpr auto dy0 = QPointF{ 0,-8};
+        constexpr auto dy1 = QPointF{ 0, 8};
+        constexpr auto dx0 = QPointF{-8, 0};
+        constexpr auto dx1 = QPointF{ 8, 0};
+
+        const auto bgColor = session()->tm()->bgColor();
+        const auto fgColor = invert(bgColor);
+
+        p->setPen(QPen(fgColor, 1));
+        for (qreal x = x0; x < x1; x += grid) {
+            for (qreal y = y0; y < y1; y += grid) {
+                const auto pos = QPointF{x, y};
+                p->drawLine({pos+dy0, pos+dy1});
+                p->drawLine({pos+dx0, pos+dx1});
+            }
+        }
+
+        if (rec.contains(QPoint{0, 0})) {
+            p->setPen(QPen(fgColor, 2));
+            const auto pos = QPointF{0, 0};
+            p->drawLine({pos+dy0, pos+dy1});
+            p->drawLine({pos+dx0, pos+dx1});
+        }
+        p->restore();
+    }
+
+
+    void drawBorder(QPainter* p, const QRectF& viewRec, const QRectF& sceneRec)
+    {
+        p->save();
+        p->setPen(Qt::NoPen);
+        constexpr auto borderThickness = 16.0;
+        constexpr auto borderSize      = 128.0;
+        constexpr auto increment       = borderSize*2.0;
+
+        /// viewRec is the rect() of the QGraphicsView widget mapped to the scene; it
+        /// can cover the entire scene rect, in theory.  But it's usually smaller than
+        /// the scene rect.
+        /// sceneRec is the entire scene rect.
+        const auto center   = viewRec.center();
+
+        /// The view rect can actually be larger than the scene rect, and we only
+        /// want to draw a border around where the scene rect ends.
+        /// With current scene size and max zoom range, the view rect will never
+        /// get larger than the scene rect, but in any case, only draw borders
+        /// around the scene rect.
+        const auto l = std::max(viewRec.left(), sceneRec.left());
+        const auto r = std::min(viewRec.right(), sceneRec.right());
+        const auto t = std::max(viewRec.top(), sceneRec.top());
+        const auto b = std::min(viewRec.bottom(), sceneRec.bottom());
+
+        const auto x0 = std::ceil(std::abs(l) / borderSize) * borderSize * (std::signbit(l) ? -1.0 : 1.0);
+        const auto x1 = std::ceil(std::abs(r) / borderSize) * borderSize * (std::signbit(r) ? -1.0 : 1.0);
+        const auto y0 = std::ceil(std::abs(t) / borderSize) * borderSize * (std::signbit(t) ? -1.0 : 1.0);
+        const auto y1 = std::ceil(std::abs(b) / borderSize) * borderSize * (std::signbit(b) ? -1.0 : 1.0);
+
+        const bool x0IsEven = int(std::abs(x0)/borderSize) % 2;
+        const bool y0IsEven = int(std::abs(y0)/borderSize) % 2;
+
+        auto doDrawH = [increment, p](qreal start, qreal end, qreal y, qreal w, qreal h, const QColor& color)
+        {
+            p->setBrush(color);
+            for (qreal x = start; x < end; x += increment) {
+                p->drawRect(QRectF(x, y, w, h));
+            }
+        };
+
+        if (viewRec.contains(QPointF(center.x(), sceneRec.top() + borderThickness))) {
+            doDrawH
+            ( x0
+            , x1
+            , sceneRec.top()
+            , borderSize
+            , borderThickness
+            , x0IsEven ? Qt::black : Qt::white
+            );
+
+            doDrawH
+            ( x0+borderSize
+            , x1
+            , sceneRec.top()
+            , borderSize
+            , borderThickness
+            , x0IsEven ? Qt::white : Qt::black
+            );
+        }
+
+        if (viewRec.contains(QPointF(center.x(), sceneRec.bottom() - borderThickness))) {
+            doDrawH
+            ( x0
+            , x1
+            , sceneRec.bottom()
+            , borderSize
+            , -borderThickness
+            , x0IsEven ? Qt::white : Qt::black
+            );
+
+            doDrawH
+            ( x0+borderSize
+            , x1
+            , sceneRec.bottom()
+            , borderSize
+            , -borderThickness
+            , x0IsEven ? Qt::black : Qt::white
+            );
+        }
+
+        auto doDrawV = [increment, p](qreal start, qreal end, qreal x, qreal w, qreal h, const QColor& color)
+        {
+            p->setBrush(color);
+            for (qreal y = start; y < end; y += increment) {
+                p->drawRect(QRectF(x, y, w, h));
+            }
+        };
+
+        if (viewRec.contains(QPointF(sceneRec.left() + borderThickness, center.y()))) {
+            doDrawV
+            ( y0
+            , y1
+            , sceneRec.left()
+            , borderThickness
+            , borderSize
+            , y0IsEven ? Qt::black : Qt::white
+            );
+
+            doDrawV
+            ( y0+borderSize
+            , y1
+            , sceneRec.left()
+            , borderThickness
+            , borderSize
+            , y0IsEven ? Qt::white : Qt::black
+            );
+        }
+
+        if (viewRec.contains(QPointF(sceneRec.right() - borderThickness, center.y()))) {
+            doDrawV
+            ( y0
+            , y1
+            , sceneRec.right()
+            , -borderThickness
+            , borderSize
+            , y0IsEven ? Qt::white : Qt::black
+            );
+
+            doDrawV
+            ( y0+borderSize
+            , y1
+            , sceneRec.right()
+            , -borderThickness
+            , borderSize
+            , y0IsEven ? Qt::black : Qt::white
+            );
+        }
+
+        p->restore();
+    }
 }
 
 Scene::Scene(QObject* parent)
     : QGraphicsScene(parent)
 {
-    setSceneRect(QRect(-7680 * 4, -4320 * 4, 7680 * 8, 4320 * 8));
+    setSceneRect(QRect(-1024 * 32, -1024 * 32, 1024 * 64, 1024 * 64));
 
     connect(session()->tm(), &gui::ThemeManager::bgColorChanged, this,
         [this] { update(sceneRect()); });
@@ -40,7 +212,7 @@ Scene::Scene(QObject* parent)
 
 void Scene::addSceneBookmark(const QPoint& pos, const QString& name)
 {
-    auto* bm = session()->bm();
+    const auto* bm = session()->bm();
 
     if (const auto data = SceneBookmarkData{pos, name}; !bm->sceneBookmarks().contains(data)) {
         session()->bm()->insertBookmark(data);
@@ -54,43 +226,6 @@ void Scene::drawBackground(QPainter *p, const QRectF& rec)
     const auto bgColor = session()->tm()->bgColor();
     p->fillRect(rec, bgColor);
     drawCrosses(p, rec);
+    drawBorder(p, rec, sceneRect());
     p->restore();
-}
-
-void Scene::drawCrosses(QPainter* p, const QRectF& rec) const
-{
-    constexpr qreal grid = 512;
-    const auto l = rec.left();
-    const auto r = rec.right();
-    const auto t = rec.top();
-    const auto b = rec.bottom();
-
-    const auto x0 = std::floor(std::abs(l) / grid) * grid * (std::signbit(l) ? -1.0 : 1.0) - grid;
-    const auto x1 = std::floor(std::abs(r) / grid) * grid * (std::signbit(r) ? -1.0 : 1.0) + grid;
-    const auto y0 = std::floor(std::abs(t) / grid) * grid * (std::signbit(t) ? -1.0 : 1.0) - grid;
-    const auto y1 = std::floor(std::abs(b) / grid) * grid * (std::signbit(b) ? -1.0 : 1.0) + grid;
-
-    constexpr auto dy0 = QPointF{ 0,-8};
-    constexpr auto dy1 = QPointF{ 0, 8};
-    constexpr auto dx0 = QPointF{-8, 0};
-    constexpr auto dx1 = QPointF{ 8, 0};
-
-    const auto bgColor = session()->tm()->bgColor();
-    const auto fgColor = invert(bgColor);
-
-    p->setPen(QPen(fgColor, 1));
-    for (qreal x = x0; x < x1; x += grid) {
-        for (qreal y = y0; y < y1; y += grid) {
-            const auto pos = QPointF{x, y};
-            p->drawLine({pos+dy0, pos+dy1});
-            p->drawLine({pos+dx0, pos+dx1});
-        }
-    }
-
-    if (rec.contains(QPoint{0, 0})) {
-        p->setPen(QPen(fgColor, 2));
-        const auto pos = QPointF{0, 0};
-        p->drawLine({pos+dy0, pos+dy1});
-        p->drawLine({pos+dx0, pos+dx1});
-    }
 }
