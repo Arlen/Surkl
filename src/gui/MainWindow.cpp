@@ -1,5 +1,5 @@
 #include "MainWindow.hpp"
-#include "GraphicsView.hpp"
+#include "view/GraphicsView.hpp"
 
 #include <QShortcut>
 

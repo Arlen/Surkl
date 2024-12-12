@@ -16,14 +16,18 @@ set_property(TARGET Ksed PROPERTY AUTOMOC ON)
 ## Source Files
 file(GLOB CORE_SRC_FILES "src/core/*.cpp")
 file(GLOB GUI_SRC_FILES "src/gui/*.cpp")
+file(GLOB GUI_VIEW_SRC_FILES "src/gui/view/*.cpp")
 
 target_sources(Ksed PUBLIC ${CORE_SRC_FILES})
 target_sources(Ksed PUBLIC ${GUI_SRC_FILES})
+target_sources(Ksed PUBLIC ${GUI_VIEW_SRC_FILES})
+
 
 ## Headers
 target_include_directories(Ksed PUBLIC "src")
 target_include_directories(Ksed PUBLIC "src/core")
 target_include_directories(Ksed PUBLIC "src/gui")
+target_include_directories(Ksed PUBLIC "src/gui/view")
 
 
 ## disables all the APIs deprecated before Qt 6.5.0
