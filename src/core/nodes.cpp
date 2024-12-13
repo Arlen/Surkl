@@ -31,9 +31,7 @@ void core::nodes::drawBoundingRect(QPainter* p, QGraphicsItem* item)
 
 SceneBookmarkItem::SceneBookmarkItem(const QPoint& pos, const QString& name, bool born)
 {
-    //setFlags(ItemIsSelectable);
-    setFlags(ItemIsMovable | ItemIsSelectable);
-
+    setFlags(ItemIsSelectable);
     setCursor(Qt::ArrowCursor);
 
     // pen size affects the bounding box size.
@@ -52,7 +50,7 @@ SceneBookmarkItem::SceneBookmarkItem(const QPoint& pos, const QString& name, boo
 
     if (born) {
         _frame = TimeLine::Frame0;
-        auto* timeline = new QTimeLine(400);
+        auto* timeline = new QTimeLine(500);
         timeline->setFrameRange(0, POLYGONS.size());
         timeline->setEasingCurve(QEasingCurve::InBounce);
 
@@ -117,10 +115,12 @@ void SceneBookmarkItem::paint(QPainter* p, const QStyleOptionGraphicsItem* /*opt
         }
     }
 
+    const auto isSel = isSelected();
+
     /// draw the dark unit square as background after the main four leaves
     /// have finished drawing.
     if (_frame >= TimeLine::Frame13) {
-        p->setBrush(QColor(32, 32, 32, 255));
+        p->setBrush(isSel ? QColor(48, 48, 48, 255) : QColor(32, 32, 32, 255));
         p->setPen(Qt::NoPen);
         p->drawPolygon(POLYGONS[TimeLine::Frame12]);
     }
@@ -131,7 +131,10 @@ void SceneBookmarkItem::paint(QPainter* p, const QStyleOptionGraphicsItem* /*opt
         /// draw the four main leaves, starting from top left, going CW.
         int color_index =  0;
         for (int i = TimeLine::Frame4; i < std::min(_frame, static_cast<int>(TimeLine::Frame12)); ++i) {
-            p->setBrush(_bigLeafColors[color_index]);
+            const auto color = isSel
+                ? _bigLeafColors[color_index].lighter()
+                : _bigLeafColors[color_index];
+            p->setBrush(color);
             p->drawPolygon(POLYGONS[i]);
             color_index = (color_index + 1) % _bigLeafColors.size();
         }
@@ -140,7 +143,10 @@ void SceneBookmarkItem::paint(QPainter* p, const QStyleOptionGraphicsItem* /*opt
         /// left off, going CW.
         color_index = 0;
         for (int i = TimeLine::Frame13; i < std::min(_frame, static_cast<int>(TimeLine::Last)); ++i) {
-            p->setBrush(_smallLeafColors[color_index]);
+            const auto color = isSel
+                ? _smallLeafColors[color_index].lighter()
+                : _smallLeafColors[color_index];
+            p->setBrush(color);
             p->drawPolygon(POLYGONS[i]);
             color_index = (color_index + 1) % _smallLeafColors.size();
         }
