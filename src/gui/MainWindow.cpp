@@ -9,6 +9,8 @@ using namespace gui;
 MainWindow::MainWindow(QGraphicsScene* scene, QWidget* parent)
     : QWidget(parent)
 {
+    using namespace view;
+
     _layout = new QVBoxLayout(this);
     _layout->setContentsMargins(0, 0, 0, 0);
     _layout->setSpacing(0);

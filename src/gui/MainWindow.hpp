@@ -7,7 +7,10 @@
 
 namespace gui
 {
-    class GraphicsView;
+    namespace view
+    {
+        class GraphicsView;
+    }
 
     class MainWindow : public QWidget
     {
@@ -16,6 +19,6 @@ namespace gui
 
     private:
         QVBoxLayout* _layout;
-        GraphicsView* _view;
+        view::GraphicsView* _view;
     };
 }

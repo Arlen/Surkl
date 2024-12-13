@@ -6,7 +6,7 @@
 #include <QVariantAnimation>
 
 
-using namespace gui;
+using namespace gui::view;
 
 GraphicsView::GraphicsView(QGraphicsScene *scene, QWidget *parent)
     : QGraphicsView(scene, parent)

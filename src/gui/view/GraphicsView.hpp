@@ -7,7 +7,7 @@
 
 class QVariantAnimation;
 
-namespace gui
+namespace gui::view
 {
     class GraphicsView : public QGraphicsView
     {
