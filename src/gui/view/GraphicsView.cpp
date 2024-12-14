@@ -1,4 +1,5 @@
 #include "GraphicsView.hpp"
+#include "QuadrantButton.hpp"
 #include "core/nodes.hpp"
 #include "core/Scene.hpp"
 
@@ -12,6 +13,17 @@ GraphicsView::GraphicsView(QGraphicsScene *scene, QWidget *parent)
     : QGraphicsView(scene, parent)
 {
     configure();
+
+    connect(scene, &QGraphicsScene::selectionChanged, this, &GraphicsView::processSelection);
+
+    _quadrantButton = new QuadrantButton(this);
+    _quadrantButton->hide();
+
+    connect(_quadrantButton, &QuadrantButton::quad1Pressed, this, &GraphicsView::focusQuadrant1);
+    connect(_quadrantButton, &QuadrantButton::quad2Pressed, this, &GraphicsView::focusQuadrant2);
+    connect(_quadrantButton, &QuadrantButton::quad3Pressed, this, &GraphicsView::focusQuadrant3);
+    connect(_quadrantButton, &QuadrantButton::quad4Pressed, this, &GraphicsView::focusQuadrant4);
+    connect(_quadrantButton, &QuadrantButton::centerPressed, this, &GraphicsView::focusAllQuadrants);
 }
 
 void GraphicsView::requestSceneBookmark()
@@ -33,28 +45,28 @@ void GraphicsView::requestSceneBookmark()
 
 void GraphicsView::focusQuadrant1()
 {
-    if (auto* bm = getSelectedSceneBookmark(); bm) {
-        const auto bookmarkCenter = bm->sceneBoundingRect().center();
-        auto region = mapToScene(rect()).boundingRect();
-        region.moveBottomRight(bookmarkCenter);
-        ensureVisible(region, 0, 0);
-    }
-}
-
-void GraphicsView::focusQuadrant2()
-{
-    if (const auto* bm = getSelectedSceneBookmark(); bm) {
-        const auto bookmarkCenter = bm->sceneBoundingRect().center();
+    if (_selectedSceneBookmark) {
+        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
         auto region = mapToScene(rect()).boundingRect();
         region.moveBottomLeft(bookmarkCenter);
         ensureVisible(region, 0, 0);
     }
 }
 
+void GraphicsView::focusQuadrant2()
+{
+    if (_selectedSceneBookmark) {
+        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
+        auto region = mapToScene(rect()).boundingRect();
+        region.moveBottomRight(bookmarkCenter);
+        ensureVisible(region, 0, 0);
+    }
+}
+
 void GraphicsView::focusQuadrant3()
 {
-    if (const auto* bm = getSelectedSceneBookmark(); bm) {
-        const auto bookmarkCenter = bm->sceneBoundingRect().center();
+    if (_selectedSceneBookmark) {
+        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
         auto region = mapToScene(rect()).boundingRect();
         region.moveTopRight(bookmarkCenter);
         ensureVisible(region, 0, 0);
@@ -63,8 +75,8 @@ void GraphicsView::focusQuadrant3()
 
 void GraphicsView::focusQuadrant4()
 {
-    if (const auto* bm = getSelectedSceneBookmark(); bm) {
-        const auto bookmarkCenter = bm->sceneBoundingRect().center();
+    if (_selectedSceneBookmark) {
+        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
         auto region = mapToScene(rect()).boundingRect();
         region.moveTopLeft(bookmarkCenter);
         ensureVisible(region, 0, 0);
@@ -73,8 +85,8 @@ void GraphicsView::focusQuadrant4()
 
 void GraphicsView::focusAllQuadrants()
 {
-    if (const auto* bm = getSelectedSceneBookmark(); bm) {
-        centerOn(bm);
+    if (_selectedSceneBookmark) {
+        centerOn(_selectedSceneBookmark);
     }
 }
 
@@ -141,6 +153,15 @@ void GraphicsView::paintEvent(QPaintEvent *event)
         QPainter p(viewport());
         drawBookmarkingCursorAnimation(p);
     }
+}
+
+void GraphicsView::resizeEvent(QResizeEvent* event)
+{
+    QGraphicsView::resizeEvent(event);
+
+    auto rec = _quadrantButton->rect();
+    rec.moveTopRight(rect().topRight() + QPoint(-16, 16));
+    _quadrantButton->setGeometry(rec);
 }
 
 void GraphicsView::configure()
@@ -287,11 +308,27 @@ void GraphicsView::addSceneBookmark(const QPoint& pos)
     }
 }
 
-core::nodes::SceneBookmarkItem* GraphicsView::getSelectedSceneBookmark() const
+void GraphicsView::processSelection()
 {
-    if (auto sel = scene()->selectedItems(); !sel.isEmpty()) {
-        return qgraphicsitem_cast<core::nodes::SceneBookmarkItem*>(sel.first());
-    }
+    using namespace core::nodes;
 
-    return nullptr;
+    /// TODO: once more item types are added to the project, a momre
+    /// sophisticated approach to selection will be needed to handle different
+    /// sets of rules.
+    /// A. only one SceneBookmarkItem can be selected at a time.
+    /// B. selecting a SceneBookmarkItem when other types of items have already
+    ///    been selected should unselect the other items.
+    /// C. ...other rules!?
+
+    /// 1. toggle quadrant button.
+    bool visible = false;
+    _selectedSceneBookmark = nullptr;
+
+    if (auto sel = scene()->selectedItems(); !sel.isEmpty()) {
+        /// always select the last; last is not always the most recent selection.
+        if ((_selectedSceneBookmark = qgraphicsitem_cast<SceneBookmarkItem*>(sel.last()))) {
+            visible = true;
+        }
+    }
+    _quadrantButton->setVisible(visible);
 }

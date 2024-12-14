@@ -9,6 +9,8 @@ class QVariantAnimation;
 
 namespace gui::view
 {
+    class QuadrantButton;
+
     class GraphicsView : public QGraphicsView
     {
         Q_OBJECT
@@ -36,6 +38,7 @@ namespace gui::view
         void mousePressEvent(QMouseEvent* event) override;
         void mouseReleaseEvent(QMouseEvent* event) override;
         void paintEvent(QPaintEvent* event) override;
+        void resizeEvent(QResizeEvent* event) override;
 
     private:
         void configure();
@@ -53,8 +56,10 @@ namespace gui::view
         void drawBookmarkingCursorAnimation(QPainter& p) const;
         void addSceneBookmark(const QPoint& pos);
 
-        core::nodes::SceneBookmarkItem* getSelectedSceneBookmark() const;
+        void processSelection();
 
         QVariantAnimation* _bookmarkAnimation = nullptr;
+        QuadrantButton* _quadrantButton = nullptr;
+        core::nodes::SceneBookmarkItem* _selectedSceneBookmark = nullptr;
     };
 }
