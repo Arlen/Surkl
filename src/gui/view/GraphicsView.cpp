@@ -216,7 +216,45 @@ void GraphicsView::scaleView(qreal factor)
     const auto candidate = QRectF(QPointF(0, 0), zoom);
 
     if (zoomInLimit.contains(candidate) && candidate.contains(zoomOutLimit)) {
-        scale(sx, sy);
+        /// If a bookmark is selected and it's at one of the corners, then use
+        /// it as an anchor.
+        if (_selectedSceneBookmark) {
+            /// the quadrant test must be performed before scale() operation,
+            /// because the test region is only couple pixels wide.
+
+            auto regionOfInterest = [this](const QPoint& corner) -> QRectF
+            {
+                constexpr auto offset = QPoint(2, 2);
+
+                return mapToScene(QRect(corner - offset, corner + offset)).boundingRect();
+            };
+
+            const auto rec         = rect();
+            const auto bmCenter    = _selectedSceneBookmark->sceneBoundingRect().center();
+            const auto atQuadrant1 = regionOfInterest(rec.bottomLeft()).contains(bmCenter);
+            const auto atQuadrant2 = regionOfInterest(rec.bottomRight()).contains(bmCenter);
+            const auto atQuadrant3 = regionOfInterest(rec.topRight()).contains(bmCenter);
+            const auto atQuadrant4 = regionOfInterest(rec.topLeft()).contains(bmCenter);
+
+            if (atQuadrant1) {
+                scale(sx, sy);
+                focusQuadrant1();
+            } else if (atQuadrant2) {
+                scale(sx, sy);
+                focusQuadrant2();
+            } else if (atQuadrant3) {
+                scale(sx, sy);
+                focusQuadrant3();
+            } else if (atQuadrant4) {
+                scale(sx, sy);
+                focusQuadrant4();
+            } else {
+                scale(sx, sy);
+            }
+        } else {
+            /// otherwise, use the mouse position as anchor.
+            scale(sx, sy);
+        }
     }
 }
 
