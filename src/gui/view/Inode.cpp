@@ -31,7 +31,7 @@ namespace
     constexpr qreal INODE_CLOSED_PEN_WIDTH = INODEEDGE_WIDTH * GOLDEN;
 
     /// ---- These will need to go into theme.[hpp,cpp]
-    QFont inodeFont() { return {"Fire Coda", 10}; }
+    QFont inodeFont() { return {"Arial", 10}; }
     QColor inodeColor() { return {41, 117, 156, 255}; }
     QLinearGradient openNodeHighlight()
     {
