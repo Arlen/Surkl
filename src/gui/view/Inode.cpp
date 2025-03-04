@@ -364,25 +364,9 @@ QPainterPath InodeEdge::shape() const
 }
 
 /// animation functions
-void gui::view::animateRotCW(QGraphicsScene* scene, const EdgeStringMap& input)
+void gui::view::animateRotation(QSharedPointer<QVariantAnimation> animation, const EdgeStringMap& input)
 {
-    assert(scene);
-
-    if (input.empty()) {
-        return;
-    }
-
-    using AnimPtr = QSharedPointer<QVariantAnimation>;
-    auto oldAnimation = scene->property("InodeEdgeAnimation").value<AnimPtr>();
-
-    if (!oldAnimation.isNull() && oldAnimation->state() == QAbstractAnimation::Running) {
-        oldAnimation->pause();
-    }
-
-    auto animation = getVariantAnimation();
-    scene->setProperty("InodeEdgeAnimation", QVariant::fromValue(animation));
-
-    auto start = [](InodeEdge* edge, const QString& text)
+    auto startCW    = [](InodeEdge* edge, const QString& text)
     {
         assert(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->alignToAxis(edge->line());
@@ -392,71 +376,21 @@ void gui::view::animateRotCW(QGraphicsScene* scene, const EdgeStringMap& input)
         edge->nextLabel()->updatePosCW(0, LabelFade::FadeIn);
         edge->nextLabel()->show();
     };
-
-    auto progress = [](InodeEdge* edge, qreal t)
+    auto progressCW = [](InodeEdge* edge, qreal t)
     {
         edge->currLabel()->alignToAxis(edge->line());
         edge->nextLabel()->alignToAxis(edge->line());
         edge->currLabel()->updatePosCW(t, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCW(t, LabelFade::FadeIn);
     };
-
-    auto finish = [](InodeEdge* edge)
+    auto finishCW   = [](InodeEdge* edge)
     {
         edge->nextLabel()->updatePosCW(0, LabelFade::FadeOut);
         edge->currLabel()->hide();
         edge->swapLabels();
     };
 
-    for (auto [edge, text] : input) {
-        QObject::connect(animation.data(), &QVariantAnimation::stateChanged,
-            [edge, text, start, finish] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
-            {
-                if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
-                    start(edge, text);
-                } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
-                    /// This happens when the user triggers another rotation
-                    /// while the current animation is still running.  The pause
-                    /// comes from 'oldAnimation->pause()'.
-                    finish(edge);
-                }
-            });
-
-        QObject::connect(animation.data(), &QVariantAnimation::valueChanged,
-            [edge, progress] (const QVariant& value)
-            {
-                progress(edge, value.toReal());
-            });
-
-        QObject::connect(animation.data(), &QVariantAnimation::finished,
-            [edge, finish]
-            {
-                finish(edge);
-            });
-    }
-
-    animation->start();
-}
-
-void gui::view::animateRotCCW(QGraphicsScene* scene, const EdgeStringMap& input)
-{
-    assert(scene);
-
-    if (input.empty()) {
-        return;
-    }
-
-    using AnimPtr = QSharedPointer<QVariantAnimation>;
-    auto oldAnimation = scene->property("InodeEdgeAnimation").value<AnimPtr>();
-
-    if (!oldAnimation.isNull() && oldAnimation->state() == QAbstractAnimation::Running) {
-        oldAnimation->pause();
-    }
-
-    auto animation = getVariantAnimation();
-    scene->setProperty("InodeEdgeAnimation", QVariant::fromValue(animation));
-
-    auto start = [](InodeEdge* edge, const QString& text)
+    auto startCCW    = [](InodeEdge* edge, const QString& text)
     {
         assert(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->alignToAxis(edge->line());
@@ -466,50 +400,76 @@ void gui::view::animateRotCCW(QGraphicsScene* scene, const EdgeStringMap& input)
         edge->nextLabel()->updatePosCCW(0, LabelFade::FadeIn);
         edge->nextLabel()->show();
     };
-
-    auto progress = [](InodeEdge* edge, qreal t)
+    auto progressCCW = [](InodeEdge* edge, qreal t)
     {
         edge->currLabel()->alignToAxis(edge->line());
         edge->nextLabel()->alignToAxis(edge->line());
         edge->currLabel()->updatePosCCW(t, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCCW(t, LabelFade::FadeIn);
     };
-
-    auto finish = [](InodeEdge* edge)
+    auto finishCCW   = [](InodeEdge* edge)
     {
         edge->nextLabel()->updatePosCCW(0, LabelFade::FadeOut);
         edge->currLabel()->hide();
         edge->swapLabels();
     };
 
-    for (auto [edge, text] : input) {
-        QObject::connect(animation.data(), &QVariantAnimation::stateChanged,
-            [edge, text, start, finish] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
-            {
-                if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
-                    start(edge, text);
-                } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
-                    /// This happens when the user triggers another rotation
-                    /// while the current animation is still running.  The pause
-                    /// comes from 'oldAnimation->pause()'.
-                    finish(edge);
-                }
-            });
 
-        QObject::connect(animation.data(), &QVariantAnimation::valueChanged,
-            [edge, progress] (const QVariant& value)
-            {
-                progress(edge, value.toReal());
-            });
+    for (auto [edge, sr] : input) {
+        const auto [text, rot] = sr;
+        if (rot == Rotation::CW) {
+            QObject::connect(animation.data(), &QVariantAnimation::stateChanged,
+                [edge, text, startCW, finishCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
+                {
+                    if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
+                        startCW(edge, text);
+                    } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
+                        /// This happens when the user triggers another rotation
+                        /// while the current animation is still running.  The pause
+                        /// comes from 'oldAnimation->pause()'.
+                        finishCW(edge);
+                    }
+                });
 
-        QObject::connect(animation.data(), &QVariantAnimation::finished,
-            [edge, finish]
-            {
-                finish(edge);
-            });
+            QObject::connect(animation.data(), &QVariantAnimation::valueChanged,
+                [edge, progressCW] (const QVariant& value)
+                {
+                    progressCW(edge, value.toReal());
+                });
+
+            QObject::connect(animation.data(), &QVariantAnimation::finished,
+                [edge, finishCW]
+                {
+                    finishCW(edge);
+                });
+        }
+        if (rot == Rotation::CCW) {
+            QObject::connect(animation.data(), &QVariantAnimation::stateChanged,
+                [edge, text, startCCW, finishCCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
+                {
+                    if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
+                        startCCW(edge, text);
+                    } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
+                        /// This happens when the user triggers another rotation
+                        /// while the current animation is still running.  The pause
+                        /// comes from 'oldAnimation->pause()'.
+                        finishCCW(edge);
+                    }
+                });
+
+            QObject::connect(animation.data(), &QVariantAnimation::valueChanged,
+                [edge, progressCCW] (const QVariant& value)
+                {
+                    progressCCW(edge, value.toReal());
+                });
+
+            QObject::connect(animation.data(), &QVariantAnimation::finished,
+                [edge, finishCCW]
+                {
+                    finishCCW(edge);
+                });
+        }
     }
-
-    animation->start();
 }
 
 
@@ -634,14 +594,10 @@ void Inode::keyPressEvent(QKeyEvent *event)
 
         if (event->key() == Qt::Key_Left) {
             //rotateCCW(event->modifiers() == Qt::ShiftModifier);
-            auto anm = doInternalRotation(Rotation::CW);
-            qDebug() << to_string(anm.status);
-            animateRotCW(scene(), anm.input);
+            internalRotation(Rotation::CW);
         } else if (event->key() == Qt::Key_Right) {
             //rotateCW(event->modifiers() == Qt::ShiftModifier);
-            auto anm = doInternalRotation(Rotation::CCW);
-            qDebug() << to_string(anm.status);
-            animateRotCCW(scene(), anm.input);
+            internalRotation(Rotation::CCW);
         }
     }
 }

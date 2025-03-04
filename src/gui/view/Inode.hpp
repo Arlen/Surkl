@@ -7,6 +7,7 @@
 
 
 class QVariantAnimation;
+class QSequentialAnimationGroup;
 
 namespace  gui::view
 {
@@ -62,9 +63,6 @@ namespace  gui::view
     }
 
 
-    using AnimPtr = QSharedPointer<QVariantAnimation>;
-
-
     class InodeEdgeLabel final : public QGraphicsSimpleTextItem
     {
     public:
@@ -112,12 +110,20 @@ namespace  gui::view
         InodeEdgeLabel* _nextLabel{nullptr};
     };
 
+
+    struct StringRotation
+    {
+        QString text;
+        Rotation rot;
+    };
+
+    using EdgeStringMap = std::unordered_map<InodeEdge*, StringRotation>;
+    using SharedVariantAnimation = QSharedPointer<QVariantAnimation>;
+    using SharedSequentialAnimation = QSharedPointer<QSequentialAnimationGroup>;
     using InodeEdges    = std::vector<std::pair<InodeEdge*, qsizetype>>;
     using EdgeStringMap = std::unordered_map<InodeEdge*, QString>;
 
-
-    void animateRotCW(QGraphicsScene* scene, const EdgeStringMap& input);
-    void animateRotCCW(QGraphicsScene* scene, const EdgeStringMap& input);
+    void animateRotation(SharedVariantAnimation animation, const EdgeStringMap& input);
 
 
     struct InternalRotState
@@ -176,5 +182,8 @@ namespace  gui::view
         InodeEdge* _parentEdge{nullptr};
         InodeEdges _childEdges;
         QDir _dir;
+
+        SharedVariantAnimation _singleRotAnimation;
+        SharedSequentialAnimation _seqRotAnimation;
     };
 }
