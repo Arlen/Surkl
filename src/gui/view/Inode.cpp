@@ -132,13 +132,13 @@ namespace
 
     AnimPtr getVariantAnimation()
     {
-        auto animation = AnimPtr::create();
+        auto animation = SharedVariantAnimation::create();
         animation->setDuration(250);
         animation->setStartValue(0.0);
         animation->setEndValue(1.0);
         animation->setLoopCount(1);
         //animation->setEasingCurve(QEasingCurve::Linear);
-        animation->setEasingCurve(QEasingCurve::OutCirc);
+        animation->setEasingCurve(QEasingCurve::OutSine);
 
         return animation;
     }
@@ -634,7 +634,10 @@ void Inode::close()
     _state = FolderState::Closed;
     reduce();
 
-    asInode(_parentEdge->source())->doInternalRotationAfterClose(_parentEdge);
+    if (auto* pr = asInode(_parentEdge->source())) {
+        pr->onChildInodeClosed(_parentEdge);
+        pr->doInternalRotationAfterClose(_parentEdge);
+    }
 }
 
 void Inode::halfClose()
@@ -648,76 +651,126 @@ void Inode::open()
         _state = FolderState::Open;
         extend();
         init();
+
+        if (auto* pr = asInode(_parentEdge->source())) {
+            pr->onChildInodeOpened(_parentEdge);
+        }
     }
 }
 
-InternalRotState Inode::doInternalRotation(Rotation rot, qsizetype customBegin)
+void Inode::onChildInodeOpened(const InodeEdge* edge)
 {
-    auto result             = InternalRotState{rot};
-    const auto el           = _dir.entryInfoList();
+    for (auto [e,i] : _childEdges) {
+        if (e == edge) {
+            _openEdges.insert(i);
+            break;
+        }
+    }
+}
+
+void Inode::onChildInodeClosed(const InodeEdge* edge)
+{
+    for (auto [e,i] : _childEdges) {
+        if (e == edge) {
+            _openEdges.erase(i);
+            break;
+        }
+    }
+}
+
+void Inode::internalRotation(Rotation rot)
+{
+    const auto result = doInternalRotation(rot);
+
+    if (result.input.empty()) {
+        return;
+    }
+    assert(scene());
+
+    if (!_singleRotAnimation.isNull() && _singleRotAnimation->state() == QAbstractAnimation::Running) {
+        _singleRotAnimation->pause();
+    }
+    _singleRotAnimation = getVariantAnimation();
+
+    animateRotation(_singleRotAnimation, result.input);
+
+    _singleRotAnimation->start();
+}
+
+
+InternalRotState Inode::doInternalRotation(Rotation rot)
+{
+    using InodeEdgeMap = std::map<qsizetype, InodeEdge*>;
+
+    auto result       = InternalRotState{rot};
+    const auto el     = _dir.entryInfoList();
     const auto elLast = el.size() - 1;
-    const auto inc = rot == Rotation::CW ? -1 : rot == Rotation::CCW ? 1 : 0;
+    const auto inc    = rot == Rotation::CW ? -1 : rot == Rotation::CCW ? 1 : 0;
 
-    size_t Begin = rot == Rotation::CW ? 0 : _childEdges.size() - 1;
-    size_t End   = rot == Rotation::CW ? _childEdges.size()    : -1;
-    size_t Step  = rot == Rotation::CW ? 1 : -1;
-
-    auto isWithinRange = [](qsizetype min, qsizetype val, qsizetype max)
-    {
-        return val >= min && val <= max;
-    };
-
-    /// _childEdges.size() should never be greater than el.size().
-    /// _childEdges is filled, up to _winSize.
-    assert(_childEdges.size() <= el.size());
-
-    if (_childEdges.size() == el.size()) {
+    if (_childEdges.empty()) {
         result.status = InternalRotationStatus::MovementImpossible;
         return result;
     }
 
-    if (customBegin != -1) {
-        if (!isWithinRange(0, customBegin, _childEdges.size() - 1)) {
-            result.status = InternalRotationStatus::MovementImpossible;
-            return result;
-        }
-        Begin = customBegin;
-    }
+    /// 1. populate index->edge map
+    InodeEdgeMap edges;
+    for (auto [e,i] : _childEdges) { edges.insert({i, e}); }
 
-    std::unordered_set<qsizetype> inUse;
-    for (auto [e,i] : _childEdges) {
-        auto* target = asInode(e->target());
-        if (target->isOpen()) {
-            inUse.insert(i);
-        }
-    }
-
-    int movements = 0;
-    for (auto k = Begin; k != End; k += Step) {
-        auto& [e,i] = _childEdges[k];
-        auto* target = asInode(e->target());
-        if (target->isOpen()) {
+    const auto haveOpenEdges = !_openEdges.empty();
+    InodeEdgeMap t;
+    /// 2. attempt to rotate the edges
+    for (auto [i,e] : edges) {
+        /// exclude the open edges from 't' so we don't have to try and find
+        /// them again in the if/else that follows this for loop.
+        if (_openEdges.contains(i)) {
             continue;
         }
-
-        auto t = i;
+        auto ni = i;
         do {
-            t += inc;
-            if (!isWithinRange(0, t, elLast)) {
-                return result;
-            }
-        } while (inUse.contains(t));
-        i = t;
-        const auto& ap = el.at(i).absoluteFilePath();
-        target->setDir(QDir(ap));
-        result.input[e] = target->name();
-        ++movements;
+            ni += inc;
+        } while (haveOpenEdges && _openEdges.contains(ni));
+        /// the while is there to skip over open edges.
+        t[ni] = e;
+    }
+    if (rot == Rotation::CW) {
+        assert(inc == -1);
+        if (t.begin()->first < 0) { return result; }
+    } else if (rot == Rotation::CCW) {
+        assert(inc == 1);
+        if (t.rbegin()->first > elLast) { return result; }
+    } else {
+        /// this should not happen.
+        result.status = InternalRotationStatus::MovementImpossible;
+        return result;
     }
 
-    if (movements == 0) {
-        result.status = InternalRotationStatus::MovementImpossible;
-    } else {
-        result.status = InternalRotationStatus::Normal;
+    assert(t.size() + _openEdges.size() == _childEdges.size());
+
+
+    /// 3. rotation was success, and now update the original edges with new index
+    /// values.
+    for (auto& [e1, oi] : _childEdges) {
+        //bool found = false;
+        for (auto [ni,e2] : t) {
+            if (e1 == e2) {
+                oi = ni;
+                //found = true;
+                break;
+            }
+        }
+        //assert(found);
+        t.erase(oi);
+    }
+
+    /// 4. update the edges with new text.
+    for (auto [e, i] : _childEdges) {
+        if (_openEdges.contains(i)) {
+            continue;
+        }
+        const auto& ap = el.at(i).absoluteFilePath();
+        auto* target = asInode(e->target());
+        target->setDir(QDir(ap));
+        result.input[e] = {target->name(), rot};
     }
 
     return result;

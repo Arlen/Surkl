@@ -168,8 +168,13 @@ namespace  gui::view
         void close();
         void halfClose();
         void open();
-        InternalRotState doInternalRotation(Rotation rot, qsizetype customBegin = -1);
-        InternalRotState doInternalRotationAfterClose(InodeEdge* edge);
+        void onChildInodeOpened(const InodeEdge* inode);
+        void onChildInodeClosed(const InodeEdge* inode);
+
+        void internalRotation(Rotation rot);
+        InternalRotState doInternalRotation(Rotation rot);
+        void internalRotationAfterClose(Rotation rot);
+        InternalRotState doInternalRotationAfterClose(InodeEdge* closedEdge);
 
 
         void spread(InodeEdge* ignoredChild = nullptr);
@@ -181,6 +186,7 @@ namespace  gui::view
         qsizetype _winSize{8};
         InodeEdge* _parentEdge{nullptr};
         InodeEdges _childEdges;
+        std::set<qsizetype> _openEdges;
         QDir _dir;
 
         SharedVariantAnimation _singleRotAnimation;
