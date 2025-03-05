@@ -201,12 +201,19 @@ void InodeEdgeLabel::alignToAxis(const QLineF& axis, const QString& newText)
 /// t value b/c an Inode was moved.
 void InodeEdgeLabel::updatePos()
 {
-    const auto left = _axis.angle() >= 90 && _axis.angle() <= 270;
-    const auto t01  = left ? 1.0 - _t : _t;
+    if (_t == 0) {
+        /// only update when _t == zero to avoid flickering when fade in/out
+        /// animation (i.e., updatePosCCW/CW) is playing.
+        const auto left = _axis.angle() >= 90 && _axis.angle() <= 270;
+        const auto p1   = normal().p1();
+        const auto p2   = normal().p2();
 
-    setPos(normal().pointAt(t01));
-    setScale(left ? -1 : 1);
-    setRotation(-_axis.angle());
+        const auto pathOfMovement = left ? QLineF(p2, p1) : QLineF(p1, p2);
+
+        setPos(pathOfMovement.pointAt(0));
+        setScale(left ? -1 : 1);
+        setRotation(-_axis.angle());
+    }
 }
 
 void InodeEdgeLabel::updatePosCW(qreal t, LabelFade fade)
