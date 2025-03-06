@@ -92,7 +92,7 @@ namespace core::geometry
 
             auto get = [&](int i, int j) -> auto
             {
-                assert(i < intersections.size());
+                assert(i < std::ssize(intersections));
                 const auto poly = intersections[i];
                 assert(j < poly.size());
                 return poly[j];

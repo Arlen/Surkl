@@ -22,6 +22,8 @@ QuadrantButton::QuadrantButton(QWidget* parent)
 
 void QuadrantButton::paintEvent(QPaintEvent* event)
 {
+    Q_UNUSED(event);
+
     QPainter p(this);
 
     p.setPen(Qt::black);
@@ -75,6 +77,8 @@ void QuadrantButton::paintEvent(QPaintEvent* event)
 
 void QuadrantButton::mousePressEvent(QMouseEvent* event)
 {
+    Q_UNUSED(event);
+
     if (_qc.contains(_mousePos)) {
         emit centerPressed();
     } else if (_q1.contains(_mousePos)) {

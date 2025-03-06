@@ -95,7 +95,7 @@ namespace
         const bool x0IsEven = int(std::abs(x0)/borderSize) % 2;
         const bool y0IsEven = int(std::abs(y0)/borderSize) % 2;
 
-        auto doDrawH = [increment, p](qreal start, qreal end, qreal y, qreal w, qreal h, const QColor& color)
+        auto doDrawH = [p](qreal start, qreal end, qreal y, qreal w, qreal h, const QColor& color)
         {
             p->setBrush(color);
             for (qreal x = start; x < end; x += increment) {
@@ -143,7 +143,7 @@ namespace
             );
         }
 
-        auto doDrawV = [increment, p](qreal start, qreal end, qreal x, qreal w, qreal h, const QColor& color)
+        auto doDrawV = [p](qreal start, qreal end, qreal x, qreal w, qreal h, const QColor& color)
         {
             p->setBrush(color);
             for (qreal y = start; y < end; y += increment) {
