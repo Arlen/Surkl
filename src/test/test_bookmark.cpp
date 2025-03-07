@@ -17,7 +17,6 @@ void TestBookmarks::initTestCase()
     core::session()->start();
     core::session()->mw()->resize(640*2, 480*2);
     core::session()->mw()->show();
-    QTest::qWaitForWindowExposed(core::session()->mw(), 1000);
 
     _scene = core::session()->scene();
     QVERIFY(_scene != nullptr);
