@@ -112,7 +112,7 @@ void BookmarkManager::removeBookmark(const SceneBookmarkData& bm)
 {
     assert(_scene_bms.contains(bm));
 
-    if (!_scene_bms.contains(bm)) {
+    if (_scene_bms.contains(bm)) {
         removeFromDatabase(bm);
         _scene_bms.remove(bm);
     }
