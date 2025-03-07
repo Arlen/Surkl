@@ -23,9 +23,10 @@ namespace core::db
                 _db.setDatabaseName(DB_DATABASE_NAME);
 
                 if (_db.open()) {
-                    _db.exec(QLatin1String("PRAGMA synchronous = OFF;"));
+                    QSqlQuery q(_db);
+                    q.exec(QLatin1String("PRAGMA synchronous = OFF;"));
                     /// KSED in ASCII = 75836968
-                    _db.exec(QLatin1String("PRAGMA application_id = 75836968;"));
+                    q.exec(QLatin1String("PRAGMA application_id = 75836968;"));
                 } else {
                     qWarning() << "database" << DB_DATABASE_NAME << "failed to open!";
                 }
