@@ -32,18 +32,13 @@ namespace  gui::view
 
     enum class InternalRotationStatus
     {
-        /// So long as there is at least one item in the folder, the end is
-        /// reached whenever either side of the window reaches the either end
-        /// of the list.  This means that there is at least 1 available slot
-        /// and more than current-winSize items in the folder.
         EndReachedCW, EndReachedCCW,
 
         /// There is _winSize or fewer items in the list OR all folders
         /// are open; therefore, movement is not possible.
         MovementImpossible,
 
-        /// rotation is possible.
-        Normal
+        Normal,
     };
 
     enum class Order
@@ -121,21 +116,16 @@ namespace  gui::view
     using SharedVariantAnimation = QSharedPointer<QVariantAnimation>;
     using SharedSequentialAnimation = QSharedPointer<QSequentialAnimationGroup>;
     using InodeEdges    = std::vector<std::pair<InodeEdge*, qsizetype>>;
-    using EdgeStringMap = std::unordered_map<InodeEdge*, QString>;
 
     void animateRotation(SharedVariantAnimation animation, const EdgeStringMap& input);
 
 
     struct InternalRotState
     {
-        explicit InternalRotState(Rotation rot)
-        {
-            if (rot == Rotation::CW) { status = InternalRotationStatus::EndReachedCW; }
-            else { status = InternalRotationStatus::EndReachedCCW; }
-        }
-        InternalRotationStatus status;
-        EdgeStringMap input;
+        InternalRotationStatus status{InternalRotationStatus::MovementImpossible};
+        EdgeStringMap changes;
     };
+
 
     class Inode final : public QGraphicsItem
     {
@@ -145,18 +135,22 @@ namespace  gui::view
         explicit Inode(const QDir& dir);
         void init();
         void setDir(const QDir& dir);
-        [[nodiscard]] bool isClosed() const { return _state == FolderState::Closed; }
-        [[nodiscard]] bool isOpen() const { return _state == FolderState::Open; }
-        [[nodiscard]] bool isHalfClosed() const { return _state == FolderState::HalfClosed; }
-        [[nodiscard]] bool hasChildren() const { return !_childEdges.empty(); }
-        [[nodiscard]] InodeEdges childEdges() const { return _childEdges; }
-
         [[nodiscard]] QString name() const;
         [[nodiscard]] QRectF boundingRect() const override;
         [[nodiscard]] QPainterPath shape() const override;
-        void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
-        [[nodiscard]] int type() const override { return Type; }
+        [[nodiscard]] bool isClosed() const         { return _state == FolderState::Closed; }
+        [[nodiscard]] bool isOpen() const           { return _state == FolderState::Open; }
+        [[nodiscard]] bool isHalfClosed() const     { return _state == FolderState::HalfClosed; }
+        [[nodiscard]] bool hasChildren() const      { return !_childEdges.empty(); }
+        [[nodiscard]] InodeEdges childEdges() const { return _childEdges; }
+        [[nodiscard]] int type() const override     { return Type; }
+
+        void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+        void close();
+        void halfClose();
+        void open();
+        void rotate(Rotation rot);
 
     protected:
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
@@ -165,23 +159,18 @@ namespace  gui::view
         void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
     private:
-        void close();
-        void halfClose();
-        void open();
         void onChildInodeOpened(const InodeEdge* inode);
         void onChildInodeClosed(const InodeEdge* inode);
 
-        void internalRotation(Rotation rot);
-        InternalRotState doInternalRotation(Rotation rot);
-        void internalRotationAfterClose(Rotation rot);
+        void internalRotationAfterClose(InodeEdge* closedEdge);
         InternalRotState doInternalRotationAfterClose(InodeEdge* closedEdge);
-
+        void doInternalRotation(int begin, int end, Rotation rot, InternalRotState& result);
+        StringRotation setEdgeInodeIndex(int edgeIndex, qsizetype inodeIndex);
 
         void spread(InodeEdge* ignoredChild = nullptr);
         void extend(float distance = 128.0);
         void reduce(float distance = 128.0);
 
-    public:
         FolderState _state{FolderState::Closed};
         qsizetype _winSize{8};
         InodeEdge* _parentEdge{nullptr};

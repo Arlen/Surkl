@@ -10,10 +10,8 @@
 #include <QTimer>
 #include <QVariantAnimation>
 
-#include <iostream>
 #include <numbers>
 #include <unordered_set>
-#include <print>
 
 
 using namespace gui::view;
@@ -85,52 +83,7 @@ namespace
         return qgraphicsitem_cast<Inode*>(item);
     }
 
-    std::unordered_set<qsizetype> closedEdges(Inode* node, InodeEdge* excluded)
-    {
-        std::unordered_set<qsizetype> result;
-        for (auto [e,i] : node->childEdges()) {
-            auto* target = asInode(e->target());
-            if (target->isClosed() && e != excluded) {
-                result.insert(i);
-            }
-        }
-        return result;
-    }
-
-    std::unordered_set<qsizetype> allEdges(Inode* node, InodeEdge* excluded)
-    {
-        std::unordered_set<qsizetype> result;
-        for (auto [e,i] : node->childEdges()) {
-            if (e != excluded) {
-                result.insert(i);
-            }
-        }
-        return result;
-    }
-
-
-    qsizetype firstClosedEdge(Inode* node, qsizetype begin = 0, Order order = Order::Increasing)
-    {
-        const auto& edges = node->childEdges();
-
-        assert(begin >= 0 && begin < edges.size());
-
-        size_t end  = order == Order::Increasing ? edges.size() : -1;
-        size_t step = order == Order::Increasing ? 1 : -1;
-
-        for (auto k = begin; k != end; k += step) {
-            auto& [e,i] = edges[k];
-            auto* target = asInode(e->target());
-            if (target->isOpen()) {
-                continue;
-            }
-            return k;
-        }
-
-        return -1;
-    }
-
-    AnimPtr getVariantAnimation()
+    SharedVariantAnimation getVariantAnimation()
     {
         auto animation = SharedVariantAnimation::create();
         animation->setDuration(250);
@@ -338,6 +291,9 @@ void InodeEdge::adjust()
 
 void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget * widget)
 {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
+
     assert(source() && target());
 
     if (line().isNull()) {
@@ -546,8 +502,11 @@ QPainterPath Inode::shape() const
     return path;
 }
 
-void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *)
+void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
+
     p->setRenderHint(QPainter::Antialiasing);
     p->setBrush(inodeColor());
 
@@ -570,6 +529,70 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
         p->setPen(Qt::yellow);
         p->drawEllipse(boundingRect().center(), radius * 0.9, radius * 0.9);
     }
+}
+
+void Inode::close()
+{
+    for (auto [c,_] : _childEdges) {
+        auto* target = asInode(c->target());
+        if (target->isClosed()) {
+            delete c->target();
+        } else {
+            target->close();
+        }
+        delete c;
+    }
+    _childEdges.clear();
+    _state = FolderState::Closed;
+    reduce();
+
+    if (auto* pr = asInode(_parentEdge->source())) {
+        pr->onChildInodeClosed(_parentEdge);
+        pr->internalRotationAfterClose(_parentEdge);
+    }
+}
+
+void Inode::halfClose()
+{
+
+}
+
+void Inode::open()
+{
+    if (_childEdges.empty()) {
+        _state = FolderState::Open;
+        extend();
+        init();
+
+        if (auto* pr = asInode(_parentEdge->source())) {
+            pr->onChildInodeOpened(_parentEdge);
+        }
+    }
+}
+
+void Inode::rotate(Rotation rot)
+{
+    if (_childEdges.empty()) {
+        return;
+    }
+
+    InternalRotState result{};
+    doInternalRotation(0, _childEdges.size() - 1, rot, result);
+
+    if (result.changes.empty()) {
+        /// TODO: process result.status and perform visual indication animation.
+        return;
+    }
+    assert(scene());
+
+    if (!_singleRotAnimation.isNull() && _singleRotAnimation->state() == QAbstractAnimation::Running) {
+        _singleRotAnimation->pause();
+    }
+    _singleRotAnimation = getVariantAnimation();
+
+    animateRotation(_singleRotAnimation, result.changes);
+
+    _singleRotAnimation->start();
 }
 
 QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -598,19 +621,23 @@ QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
 void Inode::keyPressEvent(QKeyEvent *event)
 {
     if (_parentEdge || true) {
-
         if (event->key() == Qt::Key_Left) {
+            //qDebug() << "Inode::keyPressEvent rotating LEFT";
             //rotateCCW(event->modifiers() == Qt::ShiftModifier);
-            internalRotation(Rotation::CW);
+            rotate(Rotation::CW);
         } else if (event->key() == Qt::Key_Right) {
+            //qDebug() << "Inode::keyPressEvent rotating RIGHT";
+
             //rotateCW(event->modifiers() == Qt::ShiftModifier);
-            internalRotation(Rotation::CCW);
+            rotate(Rotation::CCW);
         }
     }
 }
 
 void Inode::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
+    Q_UNUSED(event);
+
     switch (_state) {
     case FolderState::Open: close(); break;
     case FolderState::Closed: open(); break;
@@ -624,45 +651,6 @@ void Inode::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     }
 
     QGraphicsItem::mouseReleaseEvent(event);
-}
-
-void Inode::close()
-{
-    for (auto [c,_] : _childEdges) {
-        auto* target = asInode(c->target());
-        if (target->isClosed()) {
-            delete c->target();
-        } else {
-            target->close();
-        }
-        delete c;
-    }
-    _childEdges.clear();
-    _state = FolderState::Closed;
-    reduce();
-
-    if (auto* pr = asInode(_parentEdge->source())) {
-        pr->onChildInodeClosed(_parentEdge);
-        pr->doInternalRotationAfterClose(_parentEdge);
-    }
-}
-
-void Inode::halfClose()
-{
-
-}
-
-void Inode::open()
-{
-    if (_childEdges.empty()) {
-        _state = FolderState::Open;
-        extend();
-        init();
-
-        if (auto* pr = asInode(_parentEdge->source())) {
-            pr->onChildInodeOpened(_parentEdge);
-        }
-    }
 }
 
 void Inode::onChildInodeOpened(const InodeEdge* edge)
@@ -685,11 +673,11 @@ void Inode::onChildInodeClosed(const InodeEdge* edge)
     }
 }
 
-void Inode::internalRotation(Rotation rot)
+void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
 {
-    const auto result = doInternalRotation(rot);
+    const auto result = doInternalRotationAfterClose(closedEdge);
 
-    if (result.input.empty()) {
+    if (result.changes.empty()) {
         return;
     }
     assert(scene());
@@ -699,189 +687,128 @@ void Inode::internalRotation(Rotation rot)
     }
     _singleRotAnimation = getVariantAnimation();
 
-    animateRotation(_singleRotAnimation, result.input);
+    animateRotation(_singleRotAnimation, result.changes);
 
     _singleRotAnimation->start();
 }
 
-
-InternalRotState Inode::doInternalRotation(Rotation rot)
+/// This is basically a sorting of all closed edges.
+/// NOTE: after a few open/close and rotations, there will be gaps in between
+/// edges, b/c we don't perform any kind of compacting, and that's okay.  The
+/// user may not want the edge they just closed to change and point to a
+/// different "folder".  Instead, we can offer the user an option to perform
+/// the compacting whenever they want.
+/// Inode::rotate partially solves the problem by continuing to rotate until
+/// there is no gap between two edges.
+InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
 {
-    using InodeEdgeMap = std::map<qsizetype, InodeEdge*>;
+    auto result = InternalRotState{};
+    InodeEdges xs(_childEdges.size() - _openEdges.size(), {nullptr, -1});
 
-    auto result       = InternalRotState{rot};
-    const auto el     = _dir.entryInfoList();
-    const auto elLast = el.size() - 1;
-    const auto inc    = rot == Rotation::CW ? -1 : rot == Rotation::CCW ? 1 : 0;
-
-    if (_childEdges.empty()) {
-        result.status = InternalRotationStatus::MovementImpossible;
+    if (xs.empty()) {
         return result;
     }
 
-    /// 1. populate index->edge map
-    InodeEdgeMap edges;
-    for (auto [e,i] : _childEdges) { edges.insert({i, e}); }
+    std::ranges::copy_if(_childEdges, xs.begin(),
+        [this](const auto& edge)
+        {
+            return !_openEdges.contains(edge.second);
+        });
+    std::ranges::sort(xs,
+        [](const auto& e1, const auto& e2) { return e1.second < e2.second; });
 
-    const auto haveOpenEdges = !_openEdges.empty();
-    InodeEdgeMap t;
-    /// 2. attempt to rotate the edges
-    for (auto [i,e] : edges) {
-        /// exclude the open edges from 't' so we don't have to try and find
-        /// them again in the if/else that follows this for loop.
-        if (_openEdges.contains(i)) {
+    int k2 = 0;
+    for (int k1 = 0; k1 < _childEdges.size(); ++k1) {
+        auto [e, currInodeIndex] = _childEdges.at(k1);
+        if (_openEdges.contains(currInodeIndex)) {
             continue;
         }
-        auto ni = i;
+        const auto newInodeIndex = xs[k2].second;
+        if (currInodeIndex != newInodeIndex) {
+            result.changes[e] = setEdgeInodeIndex(k1, newInodeIndex);
+        }
+        ++k2;
+    }
+    return result;
+}
+
+/// rotate the sub-range [begin,end] (both inclusive) in CCW or CW.
+/// CCW means going forward (i.e., the new inode index is greater than the
+/// previous).
+/// Tries to keep going to fill the gaps, instead of aborting once the current
+/// index can't be moved.
+void Inode::doInternalRotation(int begin, int end, Rotation rot, InternalRotState& result)
+{
+    assert(begin <= end);
+    assert(begin >= 0);
+    assert(end < _childEdges.size());
+    assert(result.changes.empty());
+
+    const auto& eil  = _dir.entryInfoList();
+    if (eil.isEmpty()) {
+        result.status = InternalRotationStatus::MovementImpossible;
+        return;
+    }
+
+    const auto Next = rot == Rotation::CCW ? -1 :  1;
+    const auto Inc  = rot == Rotation::CCW ?  1 : -1;
+
+    // EIL == QDir().entryInfoList()
+    /// if moving forward (CCW), begin at _childEdges[end] and move towards
+    /// the end of EIL.
+    const auto Head =  rot == Rotation::CCW ? end   : begin;
+    const auto Tail = (rot == Rotation::CCW ? begin : end) + Next;
+
+    auto prevInodeIndex = rot == Rotation::CCW ? eil.size() : -1;
+    for (auto k = Head; k != Tail; k += Next) {
+        const auto [edge,currInodeIndex] = _childEdges[k];
+        if (_openEdges.contains(currInodeIndex)) {
+            /// don't touch open edges.
+            continue;
+        }
+        auto newInodeIndex = currInodeIndex;
         do {
-            ni += inc;
-        } while (haveOpenEdges && _openEdges.contains(ni));
-        /// the while is there to skip over open edges.
-        t[ni] = e;
-    }
-    if (rot == Rotation::CW) {
-        assert(inc == -1);
-        if (t.begin()->first < 0) { return result; }
-    } else if (rot == Rotation::CCW) {
-        assert(inc == 1);
-        if (t.rbegin()->first > elLast) { return result; }
-    } else {
-        /// this should not happen.
-        result.status = InternalRotationStatus::MovementImpossible;
-        return result;
-    }
-
-    assert(t.size() + _openEdges.size() == _childEdges.size());
-
-
-    /// 3. rotation was success, and now update the original edges with new index
-    /// values.
-    for (auto& [e1, oi] : _childEdges) {
-        //bool found = false;
-        for (auto [ni,e2] : t) {
-            if (e1 == e2) {
-                oi = ni;
-                //found = true;
+            newInodeIndex += Inc;
+            if (std::abs(newInodeIndex - prevInodeIndex) <= 0) {
+                prevInodeIndex = currInodeIndex;
                 break;
             }
-        }
-        //assert(found);
-        t.erase(oi);
+            if (_openEdges.contains(newInodeIndex)) {
+                continue;
+            }
+            prevInodeIndex = newInodeIndex;
+            result.status = InternalRotationStatus::Normal;
+            result.changes[edge] = setEdgeInodeIndex(k, newInodeIndex);
+            break;
+        } while (true);
     }
-
-    /// 4. update the edges with new text.
-    for (auto [e, i] : _childEdges) {
-        if (_openEdges.contains(i)) {
-            continue;
-        }
-        const auto& ap = el.at(i).absoluteFilePath();
-        auto* target = asInode(e->target());
-        target->setDir(QDir(ap));
-        result.input[e] = {target->name(), rot};
+    if (result.changes.empty()) {
+        result.status = rot == Rotation::CCW
+            ? InternalRotationStatus::EndReachedCCW
+            : InternalRotationStatus::EndReachedCW;
     }
-
-    return result;
 }
 
-InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* edge)
+StringRotation Inode::setEdgeInodeIndex(int edgeIndex, qsizetype newInodeIndex)
 {
-    /// Even if 'edge' is the only closed edge, try to find the best location.
+    assert(!_childEdges.empty() && edgeIndex >= 0 && edgeIndex < std::ssize(_childEdges));
 
-    assert(std::ranges::find_if(_childEdges, [edge](auto x){ return x.first == edge;}) != _childEdges.end());
-    auto result     = InternalRotState{Rotation::CW};
-    auto candidates = closedEdges(this, edge);
-    const auto el           = _dir.entryInfoList();
+    const auto& eil = _dir.entryInfoList();
+    assert(!eil.isEmpty() && newInodeIndex >= 0 && newInodeIndex < eil.size());
 
-    if (_childEdges.size() == el.size()) {
-        result.status = InternalRotationStatus::MovementImpossible;
-        std::cout << " HERERE  " << std::endl;
+    auto& [edge, oldInodeIndex] = _childEdges[edgeIndex];
+    const auto rot = newInodeIndex > oldInodeIndex ? Rotation::CCW : Rotation::CW;
+    assert(edge != nullptr);
+    oldInodeIndex = newInodeIndex;
 
-        return result;
-    }
+    auto* target = asInode(edge->target());
+    assert(target != nullptr);
 
-    auto isWithinRange = [](qsizetype min, qsizetype val, qsizetype max)
-    {
-        return val >= min && val <= max;
-    };
+    const auto& path = eil.at(newInodeIndex).absoluteFilePath();
+    target->setDir(QDir(path));
 
-
-    qsizetype edgeIndex = -1;
-    if (auto found = std::ranges::find_if(_childEdges, [edge](auto x){ return x.first == edge;}); found != _childEdges.end()) {
-        edgeIndex = std::distance(_childEdges.begin(), found);
-    } else {
-        /// this should not happen.
-        assert(false);
-        return result;
-    }
-
-
-    /// find the range in 'el' that 'edge' falls in.
-    const auto elBegin = edgeIndex == 0                      ? 0             : _childEdges[edgeIndex - 1].second;
-    const auto elEnd   = edgeIndex == _childEdges.size() - 1 ? el.size() - 1 : _childEdges[edgeIndex + 1].second;
-    const auto all = allEdges(this, edge);
-    const auto edgeEntry = _childEdges[edgeIndex].second;
-
-    std::cout << ">> " << elBegin << " -> " << elEnd << "  \n";
-    std::cout.flush();
-
-    for (auto k = elBegin; k != elEnd; k++) {
-        std::cout << k << ", ";std::cout.flush();
-        if (!all.contains(k)) {
-            std:: cout << " found "; std::cout.flush();
-            if (k != edgeEntry) {
-                std::cout << " different " << k ; std::cout.flush();
-                _childEdges[edgeIndex].second = k;
-                /// animate
-                //return result;
-                edgeIndex = k;
-                break;
-            } else {
-                std::cout << " same " << k; std::cout.flush();
-                /// the same, no need to animate, but we're done.
-                //return result;
-                break;
-            }
-        }
-    }
-    std::cout << "continue" << std::endl;std::cout.flush();
-
-    for (auto k = edgeIndex + 1; k < _childEdges.size(); ++k) {
-        auto* target = asInode(_childEdges[k].first->target());
-        if (target->isClosed()) {
-            std::cout << "1.closed: " << k << std::endl;
-            auto newIndex = _childEdges[k].second;
-            auto rr = doInternalRotation(Rotation::CW, k);
-            if (rr.status == InternalRotationStatus::Normal) {
-                assert(_childEdges[edgeIndex].first == edge);
-                _childEdges[edgeIndex].second = newIndex;
-                animateRotCW(scene(), rr.input);
-                return result;
-            }
-            break;
-        }
-    }
-    for (auto k = edgeIndex - 1; k >= 0; --k) {
-        auto* target = asInode(_childEdges[k].first->target());
-        if (target->isClosed()) {
-            std::cout << "2.closed: " << k << std::endl;
-            auto newIndex = _childEdges[k].second;
-            auto rr = doInternalRotation(Rotation::CCW, k);
-            if (rr.status == InternalRotationStatus::Normal) {
-                assert(_childEdges[edgeIndex].first == edge);
-                _childEdges[edgeIndex].second = newIndex;
-                animateRotCCW(scene(), rr.input);
-                return result;
-            }
-            break;
-        }
-    }
-
-
-    qDebug() << "Here3";
-
-    return result;
+    return {target->name(), rot};
 }
-
 
 /// TODO: When we add the New Folder edge, place it at -45 degrees.
 /// In CCW order, the first child edge after the New Folder edge is the first
@@ -1004,4 +931,3 @@ void Inode::reduce(float distance)
 
     setPos(target - dxy.toPoint());
 }
-
