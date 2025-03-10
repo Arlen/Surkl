@@ -9,9 +9,9 @@
 #include <QRandomGenerator>
 #include <QTimer>
 #include <QVariantAnimation>
+#include <QSequentialAnimationGroup>
 
 #include <numbers>
-#include <unordered_set>
 
 
 using namespace gui::view;
@@ -327,7 +327,7 @@ QPainterPath InodeEdge::shape() const
 }
 
 /// animation functions
-void gui::view::animateRotation(QSharedPointer<QVariantAnimation> animation, const EdgeStringMap& input)
+void gui::view::animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input)
 {
     auto startCW    = [](InodeEdge* edge, const QString& text)
     {
@@ -381,7 +381,7 @@ void gui::view::animateRotation(QSharedPointer<QVariantAnimation> animation, con
     for (auto [edge, sr] : input) {
         const auto [text, rot] = sr;
         if (rot == Rotation::CW) {
-            QObject::connect(animation.data(), &QVariantAnimation::stateChanged,
+            QObject::connect(animation, &QVariantAnimation::stateChanged,
                 [edge, text, startCW, finishCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
                 {
                     if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
@@ -394,20 +394,20 @@ void gui::view::animateRotation(QSharedPointer<QVariantAnimation> animation, con
                     }
                 });
 
-            QObject::connect(animation.data(), &QVariantAnimation::valueChanged,
+            QObject::connect(animation, &QVariantAnimation::valueChanged,
                 [edge, progressCW] (const QVariant& value)
                 {
                     progressCW(edge, value.toReal());
                 });
 
-            QObject::connect(animation.data(), &QVariantAnimation::finished,
+            QObject::connect(animation, &QVariantAnimation::finished,
                 [edge, finishCW]
                 {
                     finishCW(edge);
                 });
         }
         if (rot == Rotation::CCW) {
-            QObject::connect(animation.data(), &QVariantAnimation::stateChanged,
+            QObject::connect(animation, &QVariantAnimation::stateChanged,
                 [edge, text, startCCW, finishCCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
                 {
                     if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
@@ -420,13 +420,13 @@ void gui::view::animateRotation(QSharedPointer<QVariantAnimation> animation, con
                     }
                 });
 
-            QObject::connect(animation.data(), &QVariantAnimation::valueChanged,
+            QObject::connect(animation, &QVariantAnimation::valueChanged,
                 [edge, progressCCW] (const QVariant& value)
                 {
                     progressCCW(edge, value.toReal());
                 });
 
-            QObject::connect(animation.data(), &QVariantAnimation::finished,
+            QObject::connect(animation, &QVariantAnimation::finished,
                 [edge, finishCCW]
                 {
                     finishCCW(edge);
@@ -590,9 +590,64 @@ void Inode::rotate(Rotation rot)
     }
     _singleRotAnimation = getVariantAnimation();
 
-    animateRotation(_singleRotAnimation, result.changes);
+    animateRotation(_singleRotAnimation.data(), result.changes);
 
     _singleRotAnimation->start();
+}
+
+void Inode::rotatePage(Rotation rot)
+{
+    if (_childEdges.empty()) {
+        return;
+    }
+
+    assert(scene());
+
+    const int pageSize = static_cast<int>(_childEdges.size());
+    const int lastEdge = static_cast<int>(_childEdges.size() - 1);
+
+    if (!_seqRotAnimation.isNull() && _seqRotAnimation->state() == QAbstractAnimation::Running) {
+        _seqRotAnimation->pause();
+        _seqRotAnimation.clear();
+    }
+    _seqRotAnimation = SharedSequentialAnimation::create();
+
+    for (int i = 0; i < pageSize; i++) {
+        InternalRotState result{};
+        doInternalRotation(0, lastEdge, rot, result);
+
+        if (result.changes.empty()) {
+            /// TODO: process result.status and perform visual indication animation.
+            break;
+        }
+
+        auto* animation = new QVariantAnimation();
+        /// all animations except the last one are set to [0.0,0.1].
+        animation->setStartValue(0.0);
+        animation->setEndValue(0.1);
+        animation->setEasingCurve(QEasingCurve::OutSine);
+        animation->setLoopCount(1);
+        animateRotation(animation, result.changes);
+        _seqRotAnimation->addAnimation(animation);
+    }
+
+    constexpr int totalDuration = 250;
+    int duration = totalDuration / 2;
+    const int lastAnimation = _seqRotAnimation->animationCount() - 1;
+    for (int i = lastAnimation; i >= 0; --i) {
+        if (auto* anim = qobject_cast<QVariantAnimation*>( _seqRotAnimation->animationAt(i))) {
+            if (i == lastAnimation) {
+                anim->setDuration(duration);
+                anim->setStartValue(0.0);
+                anim->setEndValue(1.0);
+                anim->setEasingCurve(QEasingCurve::OutSine);
+            } else {
+                anim->setDuration(duration);
+            }
+            duration = qMax(2, duration /= 2);
+        }
+    }
+    _seqRotAnimation->start();
 }
 
 QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -620,17 +675,14 @@ QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
 
 void Inode::keyPressEvent(QKeyEvent *event)
 {
-    if (_parentEdge || true) {
-        if (event->key() == Qt::Key_Left) {
-            //qDebug() << "Inode::keyPressEvent rotating LEFT";
-            //rotateCCW(event->modifiers() == Qt::ShiftModifier);
-            rotate(Rotation::CW);
-        } else if (event->key() == Qt::Key_Right) {
-            //qDebug() << "Inode::keyPressEvent rotating RIGHT";
+    const auto mod = event->modifiers() == Qt::ShiftModifier;
 
-            //rotateCW(event->modifiers() == Qt::ShiftModifier);
-            rotate(Rotation::CCW);
-        }
+    if (event->key() == Qt::Key_A) {
+        if (mod) { rotatePage(Rotation::CW); }
+        else { rotate(Rotation::CW); }
+    } else if (event->key() == Qt::Key_D) {
+        if (mod) { rotatePage(Rotation::CCW); }
+        else { rotate(Rotation::CCW); }
     }
 }
 
@@ -687,7 +739,7 @@ void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
     }
     _singleRotAnimation = getVariantAnimation();
 
-    animateRotation(_singleRotAnimation, result.changes);
+    animateRotation(_singleRotAnimation.data(), result.changes);
 
     _singleRotAnimation->start();
 }

@@ -5,6 +5,10 @@
 #include <QGraphicsLineItem>
 #include <QGraphicsSimpleTextItem>
 
+#include <set>
+#include <unordered_map>
+#include <vector>
+
 
 class QVariantAnimation;
 class QSequentialAnimationGroup;
@@ -117,7 +121,7 @@ namespace  gui::view
     using SharedSequentialAnimation = QSharedPointer<QSequentialAnimationGroup>;
     using InodeEdges    = std::vector<std::pair<InodeEdge*, qsizetype>>;
 
-    void animateRotation(SharedVariantAnimation animation, const EdgeStringMap& input);
+    void animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input);
 
 
     struct InternalRotState
@@ -151,6 +155,7 @@ namespace  gui::view
         void halfClose();
         void open();
         void rotate(Rotation rot);
+        void rotatePage(Rotation rot);
 
     protected:
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
