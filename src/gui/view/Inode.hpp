@@ -50,7 +50,7 @@ namespace  gui::view
         Increasing, Decreasing
     };
 
-    inline QString to_string(InternalRotationStatus status)
+    inline QString to_string(const InternalRotationStatus status)
     {
         switch (status) {
             case InternalRotationStatus::EndReachedCW: return "EndReachedCW";
@@ -164,6 +164,8 @@ namespace  gui::view
         void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
     private:
+        void doClose();
+
         void onChildInodeOpened(const InodeEdge* inode);
         void onChildInodeClosed(const InodeEdge* inode);
 

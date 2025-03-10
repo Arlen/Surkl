@@ -12,6 +12,8 @@
 #include <QSequentialAnimationGroup>
 
 #include <numbers>
+#include <stack>
+#include <ranges>
 
 
 using namespace gui::view;
@@ -463,7 +465,7 @@ void Inode::init()
 
         node->_parentEdge = edge;
 
-        children.push_back({edge, i});
+        children.emplace_back(edge, i);
     }
     _childEdges = children;
 
@@ -533,17 +535,8 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
 
 void Inode::close()
 {
-    for (auto [c,_] : _childEdges) {
-        auto* target = asInode(c->target());
-        if (target->isClosed()) {
-            delete c->target();
-        } else {
-            target->close();
-        }
-        delete c;
-    }
-    _childEdges.clear();
-    _state = FolderState::Closed;
+    doClose();
+
     reduce();
 
     if (auto* pr = asInode(_parentEdge->source())) {
@@ -577,7 +570,8 @@ void Inode::rotate(Rotation rot)
     }
 
     InternalRotState result{};
-    doInternalRotation(0, _childEdges.size() - 1, rot, result);
+    const int lastEdge = static_cast<int>(_childEdges.size() - 1);
+    doInternalRotation(0, lastEdge, rot, result);
 
     if (result.changes.empty()) {
         /// TODO: process result.status and perform visual indication animation.
@@ -703,6 +697,34 @@ void Inode::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     }
 
     QGraphicsItem::mouseReleaseEvent(event);
+}
+
+void Inode::doClose()
+{
+    auto edges = std::ranges::views::keys(_childEdges);
+    std::stack stack(edges.begin(), edges.end());
+
+    while (!stack.empty()) {
+        auto* childEdge  = stack.top(); stack.pop();
+        auto* childInode = asInode(childEdge->target());
+        assert(childInode);
+        for (auto [grandChildEdge,_] : childInode->childEdges()) {
+            assert(grandChildEdge->source() == childInode);
+            auto* grandChildInode = asInode(grandChildEdge->target());
+            if (grandChildInode->isOpen()) {
+                stack.emplace(grandChildEdge);
+            } else {
+                delete grandChildInode;
+                delete grandChildEdge;
+            }
+        }
+        delete childInode;
+        delete childEdge;
+    }
+
+    _childEdges.clear();
+    _openEdges.clear();
+    _state = FolderState::Closed;
 }
 
 void Inode::onChildInodeOpened(const InodeEdge* edge)
