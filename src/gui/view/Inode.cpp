@@ -537,7 +537,7 @@ void Inode::close()
 {
     doClose();
 
-    reduce();
+    if (ancestor()) { shrink(this); }
 
     if (auto* pr = asInode(_parentEdge->source())) {
         pr->onChildInodeClosed(_parentEdge);
@@ -554,7 +554,7 @@ void Inode::open()
 {
     if (_childEdges.empty()) {
         _state = FolderState::Open;
-        extend();
+        if (ancestor()) { extend(this); }
         init();
 
         if (auto* pr = asInode(_parentEdge->source())) {
@@ -886,8 +886,7 @@ StringRotation Inode::setEdgeInodeIndex(int edgeIndex, qsizetype newInodeIndex)
 
 /// TODO: When we add the New Folder edge, place it at -45 degrees.
 /// In CCW order, the first child edge after the New Folder edge is the first
-/// edge in the 'ring', and the one after is the last.
-/// TODO: Make InodeEdge not rely on Inode types, so we can reuse it for New Folder edge.
+/// edge in the 'ring', and the one before is the last.
 void Inode::spread(InodeEdge* ignoredChild)
 {
     if (_childEdges.empty()) {
@@ -975,33 +974,34 @@ void Inode::spread(InodeEdge* ignoredChild)
     }
 }
 
+
 /// distance is float b/c QVector2D::operator* takes a float.
-void Inode::extend(float distance)
+void gui::view::extend(Inode* inode, float distance)
 {
-    // pos()/setPos() are in scene coordinates if there is no parent
-    assert(parentItem() == nullptr);
+    const auto* pe = inode->parentEdge();
 
-    //assert(_parent->source() != nullptr); // fix root
-    assert(_parentEdge->target() == this);
+    /// pos()/setPos() are in scene coordinates if there is no parent.
+    assert(inode->parentItem() == nullptr);
+    assert(pe->target() == inode);
 
-    const auto source = _parentEdge->source()->pos();
-    const auto target = _parentEdge->target()->pos();
-    const auto dxy    = unitVector(source, target) * distance;
+    const auto& source = pe->source()->pos();
+    const auto& target = pe->target()->pos();
+    const auto dxy     = unitVector(source, target) * distance;
 
-    setPos(target + dxy.toPoint());
+    inode->setPos(target + dxy.toPoint());
 }
 
-void Inode::reduce(float distance)
+void gui::view::shrink(Inode* inode, float distance)
 {
-    // pos()/setPos() are in scene coordinates if there is no parent
-    assert(parentItem() == nullptr);
+    const auto* pe = inode->parentEdge();
 
-    //assert(_parent->source() != nullptr); // fix root???
-    assert(_parentEdge->target() == this);
+    /// pos()/setPos() are in scene coordinates if there is no parent.
+    assert(inode->parentItem() == nullptr);
+    assert(pe->target() == inode);
 
-    const auto source = _parentEdge->source()->pos();
-    const auto target = _parentEdge->target()->pos();
-    const auto dxy    = unitVector(source, target) * distance;
+    const auto& source = pe->source()->pos();
+    const auto& target = pe->target()->pos();
+    const auto dxy     = unitVector(source, target) * distance;
 
-    setPos(target - dxy.toPoint());
+    inode->setPos(target - dxy.toPoint());
 }

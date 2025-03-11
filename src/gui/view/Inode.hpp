@@ -149,6 +149,8 @@ namespace  gui::view
         [[nodiscard]] bool hasChildren() const      { return !_childEdges.empty(); }
         [[nodiscard]] InodeEdges childEdges() const { return _childEdges; }
         [[nodiscard]] int type() const override     { return Type; }
+        [[nodiscard]] InodeEdge* parentEdge() const { return _parentEdge; }
+        [[nodiscard]] QGraphicsItem* ancestor() const { return _parentEdge->source(); }
 
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
         void close();
@@ -175,8 +177,7 @@ namespace  gui::view
         StringRotation setEdgeInodeIndex(int edgeIndex, qsizetype inodeIndex);
 
         void spread(InodeEdge* ignoredChild = nullptr);
-        void extend(float distance = 144.0);
-        void reduce(float distance = 144.0);
+
 
         FolderState _state{FolderState::Closed};
         qsizetype _winSize{8};
@@ -188,4 +189,8 @@ namespace  gui::view
         SharedVariantAnimation _singleRotAnimation;
         SharedSequentialAnimation _seqRotAnimation;
     };
+
+
+    void extend(Inode* inode, float distance = 144.0);
+    void shrink(Inode* inode, float distance = 144.0);
 }
