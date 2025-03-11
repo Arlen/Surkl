@@ -41,7 +41,7 @@ namespace
         constexpr auto dx0 = QPointF{-8, 0};
         constexpr auto dx1 = QPointF{ 8, 0};
 
-        const auto bgColor = session()->tm()->bgColor();
+        const auto bgColor = SessionManager::tm()->bgColor();
         const auto fgColor = invert(bgColor);
 
         p->setPen(QPen(fgColor, 1));
@@ -212,10 +212,11 @@ Scene::Scene(QObject* parent)
 
 void Scene::addSceneBookmark(const QPoint& pos, const QString& name)
 {
-    const auto* bm = session()->bm();
+    auto* bm = SessionManager::bm();
+    assert(bm != nullptr);
 
     if (const auto data = SceneBookmarkData{pos, name}; !bm->sceneBookmarks().contains(data)) {
-        session()->bm()->insertBookmark(data);
+        bm->insertBookmark(data);
         addItem(new nodes::SceneBookmarkItem(pos, name, true));
     }
 }
@@ -223,7 +224,7 @@ void Scene::addSceneBookmark(const QPoint& pos, const QString& name)
 void Scene::drawBackground(QPainter *p, const QRectF& rec)
 {
     p->save();
-    const auto bgColor = session()->tm()->bgColor();
+    const auto bgColor = SessionManager::tm()->bgColor();
     p->fillRect(rec, bgColor);
     drawCrosses(p, rec);
     drawBorder(p, rec, sceneRect());

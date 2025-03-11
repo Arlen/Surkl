@@ -17,28 +17,25 @@ namespace core
 
     class SessionManager final : public QObject
     {
+        Q_OBJECT
+
     public:
         explicit SessionManager(QObject* parent = nullptr);
+        static Scene* scene();
+        static BookmarkManager* bm();
+        static gui::ThemeManager* tm();
+        static gui::MainWindow* mw();
 
-        ~SessionManager() override;
-
-        void start();
-
-        [[nodiscard]] Scene* scene() const;
-        [[nodiscard]] BookmarkManager* bm() const;
-        [[nodiscard]] gui::ThemeManager* tm() const;
-        [[nodiscard]] gui::MainWindow* mw() const;
+    private slots:
+        void cleanup() const;
 
     private:
-        void initialize();
+        void init();
+        static SessionManager* session();
 
-        Scene* _scene = nullptr;
-        BookmarkManager* _bm = nullptr;
-        gui::ThemeManager* _tm = nullptr;
-        gui::MainWindow* _mw = nullptr;
-
-        bool _initialized;
+        Scene*             _sc{nullptr};
+        BookmarkManager*   _bm{nullptr};
+        gui::ThemeManager* _tm{nullptr};
+        gui::MainWindow*   _mw{nullptr};
     };
-
-    SessionManager* session();
 }

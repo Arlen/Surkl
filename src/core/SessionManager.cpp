@@ -9,51 +9,45 @@
 
 using namespace core;
 
+namespace
+{
+    constexpr auto OBJ_NAME = QLatin1StringView("ksed-session-manager");
+}
+
+
 SessionManager::SessionManager(QObject* parent)
     : QObject(parent)
-    , _initialized(false)
 {
 
 }
 
-SessionManager::~SessionManager()
+Scene* SessionManager::scene()
+{
+    return session()->_sc;
+}
+
+BookmarkManager* SessionManager::bm()
+{
+    return session()->_bm;
+}
+
+gui::ThemeManager* SessionManager::tm()
+{
+    return session()->_tm;
+}
+
+gui::MainWindow* SessionManager::mw()
+{
+    return session()->_mw;
+}
+
+void SessionManager::cleanup() const
 {
     gui::ThemeManager::saveToDatabase(_tm);
     BookmarkManager::saveToDatabase(_bm);
 }
 
-void SessionManager::start()
-{
-    if (_initialized) {
-        return;
-    }
-
-    initialize();
-
-    _initialized = true;
-}
-
-Scene* SessionManager::scene() const
-{
-    return _scene;
-}
-
-BookmarkManager* SessionManager::bm() const
-{
-    return _bm;
-}
-
-gui::ThemeManager* SessionManager::tm() const
-{
-    return _tm;
-}
-
-gui::MainWindow* SessionManager::mw() const
-{
-    return _mw;
-}
-
-void SessionManager::initialize()
+void SessionManager::init()
 {
     _tm = new gui::ThemeManager(this);
     gui::ThemeManager::configure(_tm);
@@ -61,14 +55,24 @@ void SessionManager::initialize()
     _bm = new BookmarkManager(this);
     BookmarkManager::configure(_bm);
 
-    _scene = new Scene(this);
+    _sc = new Scene(this);
+    _mw = new gui::MainWindow(_sc);
 
-    _mw = new gui::MainWindow(_scene);
+    connect(qApp, &QApplication::aboutToQuit, _mw, &QWidget::deleteLater);
+    connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);
 }
 
-SessionManager* core::session()
+SessionManager* SessionManager::session()
 {
-    static auto* sm = new SessionManager(qApp);
+    assert(qApp != nullptr);
+
+    SessionManager* sm{nullptr};
+
+    if (sm = qApp->findChild<SessionManager*>(OBJ_NAME); sm == nullptr) {
+        sm = new SessionManager(qApp);
+        sm->setObjectName(OBJ_NAME);
+        sm->init();
+    }
 
     return sm;
 }

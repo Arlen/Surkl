@@ -6,7 +6,7 @@
 
 int main(int argc, char* argv[])
 {
-    QApplication a(argc, argv);
+    QScopedPointer app(new QApplication(argc, argv));
 
     if (!QSqlDatabase::drivers().contains("QSQLITE"))
     {
@@ -14,9 +14,8 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    core::session()->start();
-    core::session()->mw()->resize(640*2, 480*2);
-    core::session()->mw()->show();
+    core::SessionManager::mw()->resize(640*2, 480*2);
+    core::SessionManager::mw()->show();
 
-    return  a.exec();
+    return app->exec();
 }
