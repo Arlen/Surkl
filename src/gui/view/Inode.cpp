@@ -31,7 +31,7 @@ namespace
     constexpr qreal INODE_CLOSED_PEN_WIDTH = INODEEDGE_WIDTH * GOLDEN;
 
     /// ---- These will need to go into theme.[hpp,cpp]
-    QFont inodeFont() { return {"Arial", 10}; }
+    QFont inodeFont() { return {"Adwaita Sans", 11}; }
     QColor inodeColor() { return {41, 117, 156, 255}; }
     QLinearGradient openNodeHighlight()
     {
@@ -958,7 +958,7 @@ void Inode::spread(InodeEdge* ignoredChild)
     // }
 
 
-    constexpr auto preferedLen = 128.0;
+    constexpr auto preferedLen = 144.0;
     auto seg = QLineF(pos(), pos() + QPointF(preferedLen, 0));
 
     for (auto [c,_] : _childEdges) {

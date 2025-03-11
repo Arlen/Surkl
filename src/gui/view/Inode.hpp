@@ -175,8 +175,8 @@ namespace  gui::view
         StringRotation setEdgeInodeIndex(int edgeIndex, qsizetype inodeIndex);
 
         void spread(InodeEdge* ignoredChild = nullptr);
-        void extend(float distance = 128.0);
-        void reduce(float distance = 128.0);
+        void extend(float distance = 144.0);
+        void reduce(float distance = 144.0);
 
         FolderState _state{FolderState::Closed};
         qsizetype _winSize{8};
