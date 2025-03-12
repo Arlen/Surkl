@@ -470,6 +470,16 @@ void Inode::init()
     _childEdges = children;
 
     spread();
+
+    if (_dir.isRoot()) {
+        auto* root = new RootNode;
+        auto* rootEdge = new InodeEdge(root, this);
+        root->setParentItem(rootEdge);
+        scene()->addItem(rootEdge);
+        scene()->addItem(root);
+        _parentEdge = rootEdge;
+        rootEdge->setZValue(-1);
+    }
 }
 
 void Inode::setDir(const QDir& dir)
@@ -1004,4 +1014,50 @@ void gui::view::shrink(Inode* inode, float distance)
     const auto dxy     = unitVector(source, target) * distance;
 
     inode->setPos(target - dxy.toPoint());
+}
+
+
+////////////////
+/// RootNode ///
+////////////////
+RootNode::RootNode(QGraphicsItem* parent)
+    : QGraphicsEllipseItem(parent)
+{
+    setRect(0, 0, 24, 24);
+    setPen(Qt::NoPen);
+    setBrush(inodeEdgeColor());
+    setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsGeometryChanges);
+}
+
+void RootNode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    const auto rec = boundingRect();
+
+    p->setRenderHint(QPainter::Antialiasing);
+    p->setPen(Qt::NoPen);
+    p->setBrush(brush());
+    p->drawEllipse(rec);
+
+    auto bg = brush().color();
+    int r = 0, g = 0, b = 0;
+    bg.getRgb(&r, &g, &b);
+    bg.setRgb(255 - r, 255 - g, 255 - b);
+
+    p->setBrush(bg);
+    p->drawEllipse(rec.center(), rec.width() * 0.25, rec.height() * 0.25);
+}
+
+QVariant RootNode::itemChange(GraphicsItemChange change, const QVariant& value)
+{
+    switch (change) {
+    case ItemPositionHasChanged:
+        if (auto* pe = qgraphicsitem_cast<InodeEdge*>(parentItem())) {
+            pe->adjust();
+        }
+        break;
+    default:
+        break;
+    };
+
+    return QGraphicsItem::itemChange(change, value);
 }

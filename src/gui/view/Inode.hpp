@@ -190,7 +190,19 @@ namespace  gui::view
         SharedSequentialAnimation _seqRotAnimation;
     };
 
-
     void extend(Inode* inode, float distance = 144.0);
     void shrink(Inode* inode, float distance = 144.0);
+
+
+    class RootNode final : public QGraphicsEllipseItem
+    {
+    public:
+        enum { Type = UserType + 3 };
+
+        explicit RootNode(QGraphicsItem* parent = nullptr);
+        void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+    protected:
+        QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
+    };
 }
