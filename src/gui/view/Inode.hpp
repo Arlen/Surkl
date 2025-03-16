@@ -110,6 +110,42 @@ namespace  gui::view
     };
 
 
+    /// RootNode is just for visualizes so that the parent InodeEdge of the
+    /// actual root Inode does not hang by itself.
+    class RootNode final : public QGraphicsEllipseItem
+    {
+    public:
+        enum { Type = UserType + 3 };
+
+        explicit RootNode(QGraphicsItem* parent = nullptr);
+        void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+        [[nodiscard]] int type() const override     { return Type; }
+
+    protected:
+        QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
+    };
+
+
+    class NewFolderNode final : public QGraphicsEllipseItem
+    {
+    public:
+        enum { Type = UserType + 4 };
+
+        explicit NewFolderNode(QGraphicsItem* parent = nullptr);
+        void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+        void setEdge(InodeEdge* edge) { _parentEdge = edge; }
+
+        [[nodiscard]] int type() const override { return Type; }
+
+    protected:
+        QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
+
+    private:
+        InodeEdge* _parentEdge{nullptr};
+    };
+
+
     struct StringRotation
     {
         QString text;
@@ -137,6 +173,8 @@ namespace  gui::view
         enum { Type = UserType + 2 };
 
         explicit Inode(const QDir& dir);
+        static Inode* createRoot(QGraphicsScene* scene);
+        ~Inode() override;
         void init();
         void setDir(const QDir& dir);
         [[nodiscard]] QString name() const;
@@ -181,6 +219,7 @@ namespace  gui::view
 
         FolderState _state{FolderState::Closed};
         qsizetype _winSize{8};
+        InodeEdge* _newFolderEdge{nullptr};
         InodeEdge* _parentEdge{nullptr};
         InodeEdges _childEdges;
         std::set<qsizetype> _openEdges;

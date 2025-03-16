@@ -328,6 +328,123 @@ QPainterPath InodeEdge::shape() const
     return ps.createStroke(path);
 }
 
+
+
+////////////////
+/// RootNode ///
+////////////////
+RootNode::RootNode(QGraphicsItem* parent)
+    : QGraphicsEllipseItem(parent)
+{
+    setRect(QRectF(-12, -12, 24, 24));
+    setPen(Qt::NoPen);
+    setBrush(inodeEdgeColor());
+    setFlags(ItemIsSelectable | ItemIsMovable |  ItemSendsScenePositionChanges);
+}
+
+void RootNode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    Q_UNUSED(option)
+    Q_UNUSED(widget);
+
+    const auto rec = boundingRect();
+
+    p->setRenderHint(QPainter::Antialiasing);
+    p->setPen(Qt::NoPen);
+    p->setBrush(brush());
+    p->drawEllipse(rec);
+
+    auto bg = brush().color();
+    int r = 0, g = 0, b = 0;
+    bg.getRgb(&r, &g, &b);
+    bg.setRgb(255 - r, 255 - g, 255 - b);
+
+    p->setBrush(bg);
+    p->drawEllipse(rec.center(), rec.width() * 0.25, rec.height() * 0.25);
+}
+
+QVariant RootNode::itemChange(GraphicsItemChange change, const QVariant& value)
+{
+    switch (change) {
+    case ItemScenePositionHasChanged:
+        if (auto* pe = qgraphicsitem_cast<InodeEdge*>(parentItem())) {
+            pe->adjust();
+        }
+        break;
+
+    default:
+        break;
+    };
+
+    return QGraphicsEllipseItem::itemChange(change, value);
+}
+
+
+
+/////////////////////
+/// NewFolderNode ///
+/////////////////////
+NewFolderNode::NewFolderNode(QGraphicsItem* parent)
+    : QGraphicsEllipseItem(parent)
+{
+    setRect(QRectF(-12, -12, 24, 24));
+    setPen(Qt::NoPen);
+    setBrush(inodeEdgeColor());
+    setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsScenePositionChanges);
+}
+
+void NewFolderNode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
+
+    const auto rec = boundingRect();
+
+    p->setRenderHint(QPainter::Antialiasing);
+    p->setPen(Qt::NoPen);
+    p->setBrush(brush());
+    p->drawEllipse(rec);
+
+    auto bg = brush().color();
+    int r = 0, g = 0, b = 0;
+    bg.getRgb(&r, &g, &b);
+    bg.setRgb(255 - r, 255 - g, 255 - b);
+
+    p->setPen(QPen(bg, 4));
+    p->setBrush(Qt::NoBrush);
+    p->drawLine(QLineF(rec.center(), rec.center() + QPointF( 6,  0)));
+    p->drawLine(QLineF(rec.center(), rec.center() + QPointF( 0,  6)));
+    p->drawLine(QLineF(rec.center(), rec.center() + QPointF(-6,  0)));
+    p->drawLine(QLineF(rec.center(), rec.center() + QPointF( 0, -6)));
+}
+
+QVariant NewFolderNode::itemChange(GraphicsItemChange change, const QVariant& value)
+{
+    switch (change) {
+    case ItemPositionChange:
+        if (!isSelected()) {
+            /// _parentEdge->source() is moving, and this NewFolderNode needs
+            /// to stay at -45 degrees and away from it.
+            /// If it is selected, then this NewFolderNode is being moved by
+            /// the user, and it needs to stay under the mouse wherever it
+            /// goes, in that case, don't do anything special.
+            return value.toPointF() + QPointF(48, 48);
+        }
+        break;
+
+    case ItemScenePositionHasChanged:
+        _parentEdge->adjust();
+        break;
+
+    default:
+        break;
+    };
+
+    return QGraphicsEllipseItem::itemChange(change, value);
+}
+
+
+
 /// animation functions
 void gui::view::animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input)
 {
@@ -444,42 +561,60 @@ void gui::view::animateRotation(const QVariantAnimation* animation, const EdgeSt
 Inode::Inode(const QDir& dir)
 {
     setDir(dir);
-    setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsGeometryChanges);
+    setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
+}
+
+Inode* Inode::createRoot(QGraphicsScene* scene)
+{
+    Q_ASSERT(scene);
+
+    auto* inode = new Inode(QDir::root());
+    auto* root  = new RootNode();
+    auto* edge  = new InodeEdge(root, inode);
+
+    root->setParentItem(edge);
+    edge->setName("/");
+    edge->setZValue(-1);
+
+    scene->addItem(inode);
+    scene->addItem(edge);
+
+    root->setPos(-128, 0);
+    inode->_parentEdge = edge;
+
+    return inode;
 }
 
 void Inode::init()
 {
-    assert(scene());
+    Q_ASSERT(scene());
+    Q_ASSERT(_childEdges.empty());
 
     const auto entries = _dir.entryInfoList();
     const auto count   = std::min(_winSize, entries.size());
 
-    InodeEdges children; children.reserve(count);
+    _childEdges.reserve(count);
     for (qsizetype i = 0; i < count; ++i) {
         auto* node = new Inode(QDir(entries.at(i).absoluteFilePath()));
-        scene()->addItem(node);
         auto* edge = new InodeEdge(this, node);
-        scene()->addItem(edge);
-
         edge->setName(node->name());
 
+        scene()->addItem(node);
+        scene()->addItem(node->_parentEdge);
+
         node->_parentEdge = edge;
-
-        children.emplace_back(edge, i);
+        _childEdges.emplace_back(node->_parentEdge, i);
     }
-    _childEdges = children;
 
-    spread();
+    Q_ASSERT(_newFolderEdge == nullptr);
 
-    if (_dir.isRoot()) {
-        auto* root = new RootNode;
-        auto* rootEdge = new InodeEdge(root, this);
-        root->setParentItem(rootEdge);
-        scene()->addItem(rootEdge);
-        scene()->addItem(root);
-        _parentEdge = rootEdge;
-        rootEdge->setZValue(-1);
-    }
+    auto* nfn      = new NewFolderNode;
+    _newFolderEdge = new InodeEdge(this, nfn);
+    nfn->setEdge(_newFolderEdge);
+
+    scene()->addItem(_newFolderEdge);
+    scene()->addItem(nfn);
+    nfn->setPos(pos());
 }
 
 void Inode::setDir(const QDir& dir)
