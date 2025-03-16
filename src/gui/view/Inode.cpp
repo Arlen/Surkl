@@ -293,7 +293,6 @@ void InodeEdge::adjust()
 
 void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget * widget)
 {
-    Q_UNUSED(option);
     Q_UNUSED(widget);
 
     assert(source() && target());
@@ -921,6 +920,8 @@ void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
 /// there is no gap between two edges.
 InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
 {
+    Q_UNUSED(closedEdge); /// remove closeEdge since it's not used. TODO.
+
     auto result = InternalRotState{};
     InodeEdges xs(_childEdges.size() - _openEdges.size(), {nullptr, -1});
 
@@ -937,7 +938,7 @@ InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
         [](const auto& e1, const auto& e2) { return e1.second < e2.second; });
 
     int k2 = 0;
-    for (int k1 = 0; k1 < _childEdges.size(); ++k1) {
+    for (int k1 = 0; k1 < std::ssize(_childEdges); ++k1) {
         auto [e, currInodeIndex] = _childEdges.at(k1);
         if (_openEdges.contains(currInodeIndex)) {
             continue;
@@ -960,7 +961,7 @@ void Inode::doInternalRotation(int begin, int end, Rotation rot, InternalRotStat
 {
     assert(begin <= end);
     assert(begin >= 0);
-    assert(end < _childEdges.size());
+    assert(end < std::ssize(_childEdges));
     assert(result.changes.empty());
 
     const auto& eil  = _dir.entryInfoList();
