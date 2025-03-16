@@ -56,22 +56,22 @@ namespace
         return QVector2D(b - a).normalized();
     }
 
-    QList<QLineF> circle(const QPointF& center, unsigned divisions, qreal radius = 1)
+    std::vector<QLineF> circle(const QPointF& center, unsigned sides, qreal radius = 1)
     {
-        assert(divisions > 1);
+        assert(sides > 1);
 
-        const auto apd = qreal(360) / divisions;
-        auto start = apd;
+        const auto sideAngle = qreal(360) / sides;
+        auto start = sideAngle;
         auto line1 = QLineF(center, center + QPointF(radius, 0));
         auto line2 = line1;
 
-        QList<QLineF> result;
-        for (unsigned i = 0; i < divisions; ++i) {
+        std::vector<QLineF> result;
+        for (unsigned i = 0; i < sides; ++i) {
             line1.setAngle(start);
-            line2.setAngle(start+apd);
+            line2.setAngle(start+sideAngle);
             result.push_back(QLineF(line2.p2(), line1.p2()));
 
-            start += apd;
+            start += sideAngle;
         }
 
         return result;
