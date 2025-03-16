@@ -600,7 +600,7 @@ void Inode::init()
         edge->setName(node->name());
 
         scene()->addItem(node);
-        scene()->addItem(node->_parentEdge);
+        scene()->addItem(edge);
 
         node->_parentEdge = edge;
         _childEdges.emplace_back(node->_parentEdge, i);
