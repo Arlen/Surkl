@@ -589,6 +589,10 @@ Inode::Inode(const QDir& dir)
 {
     setDir(dir);
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
+
+    auto* nfn      = new NewFolderNode;
+    _newFolderEdge = new InodeEdge(this, nfn);
+    nfn->setEdge(_newFolderEdge);
 }
 
 Inode* Inode::createRoot(QGraphicsScene* scene)
@@ -609,6 +613,13 @@ Inode* Inode::createRoot(QGraphicsScene* scene)
     root->setPos(-128, 0);
     inode->_parentEdge = edge;
 
+    Q_ASSERT(inode->newFolderEdge() != nullptr);
+    Q_ASSERT(inode->newFolderEdge()->scene() == nullptr);
+    scene->addItem(inode->newFolderEdge()->target());
+    scene->addItem(inode->newFolderEdge());
+
+    edge_disableAndHide(inode->newFolderEdge());
+
     return inode;
 }
 
@@ -627,21 +638,21 @@ void Inode::init()
         edge->setName(node->name());
 
         scene()->addItem(node);
+        scene()->addItem(node->newFolderEdge()->target());
+        scene()->addItem(node->newFolderEdge());
         scene()->addItem(edge);
+
+        edge_disableAndHide(node->newFolderEdge());
 
         node->_parentEdge = edge;
         _childEdges.emplace_back(node->_parentEdge, i);
     }
 
-    Q_ASSERT(_newFolderEdge == nullptr);
+    Q_ASSERT(_newFolderEdge != nullptr);
+    Q_ASSERT(_newFolderEdge->scene());
 
-    auto* nfn      = new NewFolderNode;
-    _newFolderEdge = new InodeEdge(this, nfn);
-    nfn->setEdge(_newFolderEdge);
-
-    scene()->addItem(_newFolderEdge);
-    scene()->addItem(nfn);
-    nfn->setPos(pos());
+    /// TODO: need proper check based on Folder permissions.
+    edge_enableAndShow(_newFolderEdge);
 }
 
 void Inode::setDir(const QDir& dir)
