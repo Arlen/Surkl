@@ -718,20 +718,35 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
     Q_UNUSED(option);
     Q_UNUSED(widget);
 
+    const auto& rec = boundingRect();
     p->setRenderHint(QPainter::Antialiasing);
-    p->setBrush(inodeColor());
+    p->setBrush(isSelected() ? inodeColor().lighter() : inodeColor());
 
     qreal radius = 0;
     if (_state == FolderState::Open) {
-        radius = boundingRect().width() * 0.5 - INODE_OPEN_PEN_WIDTH * 0.5;
+        radius = rec.width() * 0.5 - INODE_OPEN_PEN_WIDTH * 0.5;
         //p->setPen(QPen(openNodeHighlight(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
-        p->setPen(QPen(inodeColor().lighter(120), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
-
+        p->setPen(QPen(inodeOpenBorderColor(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
+        p->drawEllipse(rec.center(), radius, radius);
     } else if (_state == FolderState::Closed) {
-        radius = boundingRect().width() * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
-        p->setPen(QPen(inodeEdgeColor(), INODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        radius = rec.width() * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
+        p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->drawEllipse(rec.center(), radius, radius);
     } else if (_state == FolderState::HalfClosed) {
-        /// TODO
+        radius = rec.width() * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
+        p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->drawEllipse(boundingRect().center(), radius, radius);
+        p->setPen(QPen(inodeOpenBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->setBrush(Qt::NoBrush);
+        auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
+        rec2.moveCenter(rec.center());
+        constexpr auto span = -20 * 16;
+        for (auto* edge : std::views::keys(_childEdges)) {
+            if (edge->target()->isVisible()) {
+                auto angle = edge->line().angle();
+                p->drawArc(rec2, (angle+10) * 16, span);
+            }
+        }
     }
     p->drawEllipse(boundingRect().center(), radius, radius);
 
