@@ -27,10 +27,15 @@ namespace
     {
         p->save();
         constexpr qreal grid = 512;
-        const auto l = rec.left();
-        const auto r = rec.right();
-        const auto t = rec.top();
-        const auto b = rec.bottom();
+
+        /// without making the rec larger by 8 on each side, sometimes tearing
+        /// is produced when items move in the scene.  Since the cross has a
+        /// radius of 8, we need to make sure that during each pass a full
+        /// cross is drawn.
+        const auto l = rec.left()   - 8;
+        const auto r = rec.right()  + 8;
+        const auto t = rec.top()    - 8;
+        const auto b = rec.bottom() + 8;
 
         const auto x0 = std::floor(std::abs(l) / grid) * grid * (std::signbit(l) ? -1.0 : 1.0) - grid;
         const auto x1 = std::floor(std::abs(r) / grid) * grid * (std::signbit(r) ? -1.0 : 1.0) + grid;
