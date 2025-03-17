@@ -323,7 +323,7 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
 {
     Q_UNUSED(widget);
 
-    assert(source() && target());
+    Q_ASSERT(source() && target());
 
     if (line().isNull()) {
         /// nodes are too close to draw any edges.
@@ -332,6 +332,14 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
 
     p->setRenderHint(QPainter::Antialiasing);
     QGraphicsLineItem::paint(p, option);
+
+    const auto p1 = line().p1();
+    const auto uv = line().unitVector();
+    const auto v2 = QPointF(uv.dx(), uv.dy()) * 2.0;
+
+    p->setBrush(Qt::NoBrush);
+    p->setPen(QPen(inodeOpenBorderColor(), INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    p->drawLine(QLineF(p1, p1 + v2));
 }
 
 QPainterPath InodeEdge::shape() const
@@ -735,7 +743,7 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
     } else if (_state == FolderState::HalfClosed) {
         radius = rec.width() * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
-        p->drawEllipse(boundingRect().center(), radius, radius);
+        p->drawEllipse(rec.center(), radius, radius);
         p->setPen(QPen(inodeOpenBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->setBrush(Qt::NoBrush);
         auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
