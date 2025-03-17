@@ -29,6 +29,15 @@ namespace
     constexpr qreal INODEEDGE_WIDTH        = 4.0;
     constexpr qreal INODE_OPEN_PEN_WIDTH   = 4.0;
     constexpr qreal INODE_CLOSED_PEN_WIDTH = INODEEDGE_WIDTH * GOLDEN;
+    constexpr qreal INODE_OPEN_RADIUS           = 32.0;
+    constexpr qreal INODE_OPEN_DIAMETER         = INODE_OPEN_RADIUS * 2.0;
+    //constexpr qreal INODE_CLOSED_RADIUS       = INODE_OPEN_RADIUS * GOLDEN;
+    constexpr qreal INODE_CLOSED_DIAMETER       = INODE_OPEN_DIAMETER * GOLDEN;
+    constexpr qreal INODE_HALF_CLOSED_DIAMETER  = INODE_OPEN_DIAMETER * (1.0 - GOLDEN*GOLDEN*GOLDEN);
+    constexpr qreal INODEEDGE_WIDTH             = 4.0;
+    constexpr qreal INODE_OPEN_PEN_WIDTH        = 4.0;
+    constexpr qreal INODE_CLOSED_PEN_WIDTH      = INODEEDGE_WIDTH * GOLDEN;
+    constexpr qreal INODE_HALF_CLOSED_PEN_WIDTH = INODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
 
     /// ---- These will need to go into theme.[hpp,cpp]
     QFont inodeFont() { return {"Adwaita Sans", 11}; }
@@ -48,6 +57,8 @@ namespace
 
     QColor inodeEdgeColor() { return {8, 8, 8, 255}; }
     QColor inodeEdgeTextColor() { return {220, 220, 220, 255}; }
+    QColor inodeOpenBorderColor() { return {220, 220, 220, 255}; }
+    QColor inodeClosedBorderColor() { return {8, 8, 8, 255}; }
     /// ----
 
 
