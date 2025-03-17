@@ -15,6 +15,8 @@ namespace core
         Q_OBJECT
 
     public:
+        static void configure(Scene* scene);
+
         explicit Scene(QObject* parent = nullptr);
         void addSceneBookmark(const QPoint& pos, const QString& name);
 

@@ -2,6 +2,7 @@
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
 #include "gui/theme.hpp"
+#include "gui/view/Inode.hpp"
 #include "nodes.hpp"
 
 #include <QPainter>
@@ -192,6 +193,17 @@ namespace
         }
 
         p->restore();
+    }
+}
+
+
+void Scene::configure(Scene* scene)
+{
+    if (auto db = db::get(); false && db.isOpen()) {
+        /// how do we save and restore the scene???
+    } else {
+        auto* n1 = gui::view::Inode::createRoot(scene);
+        n1->open();
     }
 }
 

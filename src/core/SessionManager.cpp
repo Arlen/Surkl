@@ -56,6 +56,8 @@ void SessionManager::init()
     BookmarkManager::configure(_bm);
 
     _sc = new Scene(this);
+    Scene::configure(_sc);
+
     _mw = new gui::MainWindow(_sc);
 
     connect(qApp, &QApplication::aboutToQuit, _mw, &QWidget::deleteLater);
