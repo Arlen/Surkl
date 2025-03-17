@@ -22,13 +22,6 @@ namespace
 {
     constexpr qreal GOLDEN = 1.0 / std::numbers::phi;
     /// These don't change, because the scene view offers zoom feature.
-    constexpr qreal INODE_OPEN_RADIUS      = 32.0;
-    constexpr qreal INODE_OPEN_DIAMETER    = INODE_OPEN_RADIUS * 2.0;
-    //constexpr qreal INODE_CLOSED_RADIUS    = INODE_OPEN_RADIUS * GOLDEN;
-    constexpr qreal INODE_CLOSED_DIAMETER  = INODE_OPEN_DIAMETER * GOLDEN;
-    constexpr qreal INODEEDGE_WIDTH        = 4.0;
-    constexpr qreal INODE_OPEN_PEN_WIDTH   = 4.0;
-    constexpr qreal INODE_CLOSED_PEN_WIDTH = INODEEDGE_WIDTH * GOLDEN;
     constexpr qreal INODE_OPEN_RADIUS           = 32.0;
     constexpr qreal INODE_OPEN_DIAMETER         = INODE_OPEN_RADIUS * 2.0;
     //constexpr qreal INODE_CLOSED_RADIUS       = INODE_OPEN_RADIUS * GOLDEN;
