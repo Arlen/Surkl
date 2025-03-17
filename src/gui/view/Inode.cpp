@@ -623,6 +623,14 @@ Inode* Inode::createRoot(QGraphicsScene* scene)
     return inode;
 }
 
+Inode::~Inode()
+{
+    if (_newFolderEdge) {
+        delete _newFolderEdge->target();
+        delete _newFolderEdge;
+    }
+}
+
 void Inode::init()
 {
     Q_ASSERT(scene());
@@ -669,7 +677,13 @@ QString Inode::name() const
 QRectF Inode::boundingRect() const
 {
     /// closed and half-closed are smaller.
-    const auto side = _state == FolderState::Open ? INODE_OPEN_DIAMETER : INODE_CLOSED_DIAMETER;
+    qreal side = 1.0;
+
+    switch (_state) {
+        case FolderState::Open: side = INODE_OPEN_DIAMETER; break;
+        case FolderState::Closed: side = INODE_CLOSED_DIAMETER; break;
+        case FolderState::HalfClosed: side = INODE_HALF_CLOSED_DIAMETER; break;
+    }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
     /// outside of the shape, so pen-width plus diameter equals the total side length.
@@ -685,6 +699,18 @@ QPainterPath Inode::shape() const
     path.addEllipse(boundingRect());
 
     return path;
+}
+
+bool Inode::hasOpenOrHalfClosedChild() const
+{
+    const auto children = std::views::keys(_childEdges)
+        | std::views::transform(&InodeEdge::target)
+        | std::views::transform(&asInode);
+
+    return std::ranges::any_of(children, [](auto* item) -> bool
+    {
+        return asInode(item)->isOpen() || asInode(item)->isHalfClosed();
+    });
 }
 
 void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
@@ -719,8 +745,10 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
 void Inode::close()
 {
     doClose();
+    prepareGeometryChange();
+    _state = FolderState::Closed;
 
-    if (ancestor()) { shrink(this); }
+    shrink(this);
 
     if (auto* pr = asInode(_parentEdge->source())) {
         pr->onChildInodeClosed(_parentEdge);
@@ -730,19 +758,50 @@ void Inode::close()
 
 void Inode::halfClose()
 {
+    Q_ASSERT(hasOpenOrHalfClosedChild());
 
+    for (auto* edge : std::views::keys(_childEdges)) {
+        if (auto* node = asInode(edge->target()); node->isClosed()) {
+            edge_disableAndHide(edge);
+        }
+    }
+
+    prepareGeometryChange();
+    _state = FolderState::HalfClosed;
+    edge_disableAndHide(_newFolderEdge);
+    adjustAllEdges(this);
 }
 
 void Inode::open()
 {
-    if (_childEdges.empty()) {
-        _state = FolderState::Open;
-        if (ancestor()) { extend(this); }
+    if (_state == FolderState::Closed) {
+        Q_ASSERT(_childEdges.empty());
+
+        extend(this);
         init();
+        prepareGeometryChange();
+        _state = FolderState::Open;
+
+        spread();
+        adjustAllEdges(this);
 
         if (auto* pr = asInode(_parentEdge->source())) {
             pr->onChildInodeOpened(_parentEdge);
         }
+    } else if (_state == FolderState::HalfClosed) {
+
+        for (auto [edge,_] : _childEdges) {
+            if (auto* node = asInode(edge->target()); node->isClosed()) {
+                edge_enableAndShow(edge);
+            }
+        }
+
+        prepareGeometryChange();
+        _state = FolderState::Open;
+        edge_enableAndShow(_newFolderEdge);
+
+        spread();
+        adjustAllEdges(this);
     }
 }
 
@@ -868,9 +927,25 @@ void Inode::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
     Q_UNUSED(event);
 
     switch (_state) {
-    case FolderState::Open: close(); break;
-    case FolderState::Closed: open(); break;
-    case FolderState::HalfClosed: break;
+    case FolderState::Open:
+        if (hasOpenOrHalfClosedChild()) {
+            /// pick half closing as it is less destructive, unless the user is
+            /// Shift closing.
+            if (event->modifiers() & Qt::ShiftModifier) {
+                close();
+            } else {
+                halfClose();
+            }
+        } else {
+            close();
+        }
+        break;
+    case FolderState::Closed:
+        open();
+        break;
+    case FolderState::HalfClosed:
+        open();
+        break;
     }
 }
 
@@ -888,22 +963,27 @@ void Inode::doClose()
     std::stack stack(edges.begin(), edges.end());
 
     while (!stack.empty()) {
-        auto* childEdge  = stack.top(); stack.pop();
-        auto* childInode = asInode(childEdge->target());
-        assert(childInode);
-        for (auto [grandChildEdge,_] : childInode->childEdges()) {
-            assert(grandChildEdge->source() == childInode);
-            auto* grandChildInode = asInode(grandChildEdge->target());
-            if (grandChildInode->isOpen()) {
-                stack.emplace(grandChildEdge);
+        auto* edge = stack.top(); stack.pop();
+        auto* node = asInode(edge->target());
+        Q_ASSERT(node);
+        for (auto* childEdge : std::ranges::views::keys(node->childEdges())) {
+            Q_ASSERT(childEdge->source() == node);
+            auto* childInode = asInode(childEdge->target());
+            Q_ASSERT(childInode);
+            if (childInode->isOpen() || childInode->isHalfClosed()) {
+                stack.emplace(childEdge);
             } else {
-                delete grandChildInode;
-                delete grandChildEdge;
+                delete childInode;
+                delete childEdge;
             }
         }
-        delete childInode;
-        delete childEdge;
+        node->_childEdges.clear();
+        node->_openEdges.clear();
+        delete node;
+        delete edge;
     }
+    /// no reason to delete _newFolderEdge when we can just disable and hide it.
+    edge_disableAndHide(_newFolderEdge);
 
     _childEdges.clear();
     _openEdges.clear();
@@ -1173,7 +1253,7 @@ void gui::view::extend(Inode* inode, float distance)
     const auto& target = pe->target()->pos();
     const auto dxy     = unitVector(source, target) * distance;
 
-    inode->setPos(target + dxy.toPoint());
+    inode->setPos(target + dxy.toPointF());
 }
 
 void gui::view::shrink(Inode* inode, float distance)
@@ -1188,7 +1268,7 @@ void gui::view::shrink(Inode* inode, float distance)
     const auto& target = pe->target()->pos();
     const auto dxy     = unitVector(source, target) * distance;
 
-    inode->setPos(target - dxy.toPoint());
+    inode->setPos(target - dxy.toPointF());
 }
 
 void gui::view::adjustAllEdges(const Inode* inode)

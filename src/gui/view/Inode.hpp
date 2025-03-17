@@ -180,6 +180,7 @@ namespace  gui::view
         [[nodiscard]] QString name() const;
         [[nodiscard]] QRectF boundingRect() const override;
         [[nodiscard]] QPainterPath shape() const override;
+        [[nodiscard]] bool hasOpenOrHalfClosedChild() const;
 
         [[nodiscard]] bool isClosed() const         { return _state == FolderState::Closed; }
         [[nodiscard]] bool isOpen() const           { return _state == FolderState::Open; }
@@ -189,6 +190,7 @@ namespace  gui::view
         [[nodiscard]] int type() const override     { return Type; }
         [[nodiscard]] InodeEdge* parentEdge() const { return _parentEdge; }
         [[nodiscard]] QGraphicsItem* ancestor() const { return _parentEdge->source(); }
+        [[nodiscard]] InodeEdge* newFolderEdge() const { return _newFolderEdge; }
 
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
         void close();
