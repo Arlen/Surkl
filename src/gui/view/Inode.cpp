@@ -97,6 +97,30 @@ namespace
 
         return animation;
     }
+
+    void edge_setVisible(InodeEdge* edge, bool visible)
+    {
+        edge->target()->setVisible(visible);
+        edge->setVisible(visible);
+    }
+
+    void edge_setEnabled(InodeEdge* edge, bool enabled)
+    {
+        edge->target()->setEnabled(enabled);
+        edge->setEnabled(enabled);
+    }
+
+    void edge_enableAndShow(InodeEdge* edge)
+    {
+        edge_setEnabled(edge, true);
+        edge_setVisible(edge, true);
+    }
+
+    void edge_disableAndHide(InodeEdge* edge)
+    {
+        edge_setEnabled(edge, false);
+        edge_setVisible(edge, false);
+    }
 }
 
 
@@ -1152,48 +1176,11 @@ void gui::view::shrink(Inode* inode, float distance)
     inode->setPos(target - dxy.toPoint());
 }
 
-
-////////////////
-/// RootNode ///
-////////////////
-RootNode::RootNode(QGraphicsItem* parent)
-    : QGraphicsEllipseItem(parent)
+void gui::view::adjustAllEdges(const Inode* inode)
 {
-    setRect(0, 0, 24, 24);
-    setPen(Qt::NoPen);
-    setBrush(inodeEdgeColor());
-    setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsGeometryChanges);
-}
-
-void RootNode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
-{
-    const auto rec = boundingRect();
-
-    p->setRenderHint(QPainter::Antialiasing);
-    p->setPen(Qt::NoPen);
-    p->setBrush(brush());
-    p->drawEllipse(rec);
-
-    auto bg = brush().color();
-    int r = 0, g = 0, b = 0;
-    bg.getRgb(&r, &g, &b);
-    bg.setRgb(255 - r, 255 - g, 255 - b);
-
-    p->setBrush(bg);
-    p->drawEllipse(rec.center(), rec.width() * 0.25, rec.height() * 0.25);
-}
-
-QVariant RootNode::itemChange(GraphicsItemChange change, const QVariant& value)
-{
-    switch (change) {
-    case ItemPositionHasChanged:
-        if (auto* pe = qgraphicsitem_cast<InodeEdge*>(parentItem())) {
-            pe->adjust();
-        }
-        break;
-    default:
-        break;
-    };
-
-    return QGraphicsItem::itemChange(change, value);
+    inode->parentEdge()->adjust();
+    inode->newFolderEdge()->target()->setPos(inode->pos());
+    inode->newFolderEdge()->adjust();
+    std::ranges::for_each(std::views::keys(inode->childEdges()),
+        &InodeEdge::adjust);
 }
