@@ -62,9 +62,9 @@ namespace
 
     std::vector<QLineF> circle(const QPointF& center, unsigned sides, qreal radius = 1)
     {
-        assert(sides > 1);
+        Q_ASSERT(sides > 1);
 
-        const auto sideAngle = qreal(360) / sides;
+        const auto sideAngle = 360.0 / sides;
         auto start = sideAngle;
         auto line1 = QLineF(center, center + QPointF(radius, 0));
         auto line2 = line1;
@@ -73,7 +73,7 @@ namespace
         for (unsigned i = 0; i < sides; ++i) {
             line1.setAngle(start);
             line2.setAngle(start+sideAngle);
-            result.push_back(QLineF(line2.p2(), line1.p2()));
+            result.emplace_back(line2.p2(), line1.p2());
 
             start += sideAngle;
         }
@@ -305,8 +305,8 @@ void InodeEdge::adjust()
     if (const auto len = segment.length(); len > diameter) {
         const auto lenInv    = 1.0 / len;
         const auto edgeWidth = INODEEDGE_WIDTH * lenInv * 0.5;
-        const auto t1 = (recA.width() * 0.5 * lenInv) + edgeWidth;
-        const auto t2 = 1.0 - ((recB.width() * 0.5 * lenInv) + edgeWidth);
+        const auto t1 = recA.width() * 0.5 * lenInv + edgeWidth;
+        const auto t2 = 1.0 - (recB.width() * 0.5 * lenInv + edgeWidth);
         const auto p1 = segment.pointAt(t1);
         const auto p2 = segment.pointAt(t2);
 
@@ -749,10 +749,10 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
         auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
         rec2.moveCenter(rec.center());
         constexpr auto span = -20 * 16;
-        for (auto* edge : std::views::keys(_childEdges)) {
+        for (const auto* edge : std::views::keys(_childEdges)) {
             if (edge->target()->isVisible()) {
-                auto angle = edge->line().angle();
-                p->drawArc(rec2, (angle+10) * 16, span);
+                const auto startAngle = qRound((edge->line().angle() + 10) * 16.0);
+                p->drawArc(rec2, startAngle, span);
             }
         }
     }
@@ -813,8 +813,8 @@ void Inode::open()
         }
     } else if (_state == FolderState::HalfClosed) {
 
-        for (auto [edge,_] : _childEdges) {
-            if (auto* node = asInode(edge->target()); node->isClosed()) {
+        for (auto* edge : std::ranges::views::keys(_childEdges)) {
+            if (const auto* node = asInode(edge->target()); node->isClosed()) {
                 edge_enableAndShow(edge);
             }
         }
