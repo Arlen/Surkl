@@ -911,23 +911,14 @@ void Inode::rotatePage(Rotation rot)
 
 QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
 {
-
     switch (change) {
-    case ItemPositionChange:
-        //qDebug() << "ItemPositionChange: " << value;
+    case ItemScenePositionHasChanged:
+        adjustAllEdges(this);
         break;
 
-    case ItemPositionHasChanged:
-        //qDebug() << "ItemPositionHasChanged: " << value;
-        if (_parentEdge) {
-            _parentEdge->adjust();
-        }
-        for (auto [edge,_] : _childEdges) { edge->adjust(); }
-        break;
     default:
         break;
     };
-
 
     return QGraphicsItem::itemChange(change, value);
 }
@@ -980,6 +971,27 @@ void Inode::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsItem::mouseReleaseEvent(event);
 }
 
+void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+{
+    if (scene()->mouseGrabberItem() == this) {
+        /// 1. spread the parent node.
+        if (auto* inode = asInode(_parentEdge->source())) {
+            inode->spread();
+        }
+        /// 2. spread this node, which is moving.
+        const auto dxy = event->scenePos() - event->lastScenePos();
+        spread(dxy);
+        /// 3. spread the child nodes.
+        for (const auto* edge : std::ranges::views::keys(_childEdges)) {
+            if (auto* inode = asInode(edge->target()); !inode->isClosed()) {
+                inode->spread();
+            }
+        }
+    }
+
+    QGraphicsItem::mouseMoveEvent(event);
+}
+
 void Inode::doClose()
 {
     auto edges = std::ranges::views::keys(_childEdges);
@@ -1010,7 +1022,6 @@ void Inode::doClose()
 
     _childEdges.clear();
     _openEdges.clear();
-    _state = FolderState::Closed;
 }
 
 void Inode::onChildInodeOpened(const InodeEdge* edge)
@@ -1172,93 +1183,85 @@ StringRotation Inode::setEdgeInodeIndex(int edgeIndex, qsizetype newInodeIndex)
     return {target->name(), rot};
 }
 
-/// TODO: When we add the New Folder edge, place it at -45 degrees.
-/// In CCW order, the first child edge after the New Folder edge is the first
-/// edge in the 'ring', and the one before is the last.
-void Inode::spread(InodeEdge* ignoredChild)
+/// dxy is used only for the node that is being moved by the mouse.  Without
+/// dxy, the child nodes get scattered all over when the parent node is moved
+/// too quickly or rapidly.
+void Inode::spread(QPointF dxy)
 {
     if (_childEdges.empty()) {
         return;
     }
-    if (ignoredChild) {
-        //assert(std::ranges::find(_childEdges, ignoredChild) != _childEdges.end());
+    Q_ASSERT(_parentEdge);
+    Q_ASSERT(_newFolderEdge);
+
+    constexpr qreal radius = 1.0;
+    const auto center      = mapToScene(boundingRect().center());
+
+    /// NOTE: guides that interesect with _parentEdge, _newFolderEdge, any open
+    /// or halfClosed edges are not used b/c those InodeEdges are not
+    /// repositioned during spread.
+    /// +2, one for _parentEdge and one for _newFolderEdge
+    auto guides = circle(center, _childEdges.size() + 2, radius);
+
+    auto newFolderEdge = QLineF(center, _newFolderEdge->target()->mapToScene(_newFolderEdge->target()->boundingRect().center()));
+    if (newFolderEdge.isNull() || newFolderEdge.length() < radius) {
+        /// I suppose this can happen when loading from DB and the content of
+        /// the DB contains incorrect data.  In which case, set it to some
+        /// valid line.
+        /// _newFolderEdge is always at a -45 degrees angle.
+        newFolderEdge = QLineF(center, center + QPointF(radius * 2, 0));
+        newFolderEdge.setAngle(-45);
     }
 
-    const auto center = mapRectToScene(boundingRect()).center();
+    /// In CCW order, the first non-intersecting guide edge right after
+    /// _newFolderEdge marks the beginning of the guides.  Find guide edge that
+    /// intersects with _newFolderEdge, then rotate so that guide[0] is the
+    /// beginning.
+    auto intersectsNewFolder = [&newFolderEdge](const QLineF& x)
+    { return x.intersects(newFolderEdge) == QLineF::BoundedIntersection; };
+    if (const auto found = std::ranges::find_if(guides, intersectsNewFolder); found != guides.end()) {
+        std::ranges::rotate(guides, std::ranges::next(found));
+        guides.pop_back(); // remove guide that intersects _newFolderEdge
+    }
 
-    /// +1 for the parent edge, later add one more for the New Folder edge TODO:
-    auto guideEdgeCount = _childEdges.size();
-    if (_parentEdge) { guideEdgeCount += 1; }
-    guideEdgeCount += 1;
+    auto parentEdge = QLineF(center, _parentEdge->source()->mapToScene(_parentEdge->source()->boundingRect().center()));
+    if (parentEdge.isNull() || parentEdge.length() < radius) {
+        /// I suppose this can happen when loading from DB and the content of
+        /// the DB contains incorrect data.  In which case, set it to some
+        /// valid line.
+        parentEdge = QLineF(center, center + QPointF(-radius * 2, 0));
+    }
 
-    auto tmp = circle(center, guideEdgeCount);
+    /// remove guide edges that intersect with parentEdge.
+    auto rmv1 = std::ranges::remove_if(guides, [&parentEdge](const QLineF& x)
+        { return x.intersects(parentEdge) == QLineF::BoundedIntersection; });
+    guides.erase(rmv1.begin(), rmv1.end());
 
-    /// find should-not-move InodeEdges that intersect with the guide edges.
-    /// Those guide edges will not be used.
-
-    const auto parentEdge = _parentEdge == nullptr
-        ? QLineF()
-        : QLineF(center, _parentEdge->source()->mapRectToScene(_parentEdge->source()->boundingRect()).center());
-    const auto ignoredChildEdge = ignoredChild == nullptr
-        ? QLineF()
-        : QLineF(center, ignoredChild->target()->mapToScene(ignoredChild->target()->boundingRect().center()));
-    auto newFolderDummy = QLineF(center, center + QPointF(10, 0));
-    newFolderDummy.setAngle(-45); /// negative angle means CW.
-
-    int startIndex = -1;
-    for (int i = 0; i < tmp.size(); i++) {
-        if (tmp[i].intersects(newFolderDummy) == QLineF::BoundedIntersection) {
-            startIndex = i;
-            break;
+    /// remove guide edges that intersect with open, half-closed or current mouse grabber.
+    for (const auto* edge : std::ranges::views::keys(_childEdges)) {
+        if (const auto* inode = asInode(edge->target()); inode->isOpen() || inode->isHalfClosed() || scene()->mouseGrabberItem() == inode) {
+            const auto ignoredEdge = QLineF(center, inode->mapToScene(inode->boundingRect().center()));
+            auto ignored = std::ranges::remove_if(guides, [ignoredEdge](QLineF x)
+                { return x.intersects(ignoredEdge) == QLineF::BoundedIntersection; });
+            guides.erase(ignored.begin(), ignored.end());
         }
     }
-    assert(startIndex >= 0);
-    QList<QLineF> guide;
-    for (int i = startIndex + 1; i < tmp.size(); i++) {
-        guide.push_back(tmp[i]);
-    }
-    for (int i = 0; i < startIndex; i++) {
-        guide.push_back(tmp[i]);
-    }
 
-    guide.removeIf([parentEdge](QLineF x) { return x.intersects(parentEdge) == QLineF::BoundedIntersection; });
-    guide.removeIf([ignoredChildEdge](QLineF x) { return x.intersects(ignoredChildEdge) == QLineF::BoundedIntersection; });
+    int gi = 0;
+    for (const auto* edge : std::ranges::views::keys(_childEdges)) {
+        if (auto* target = asInode(edge->target()); target->isClosed() && target != scene()->mouseGrabberItem()) {
+            constexpr qreal prefLen = 144.0;
+            Q_ASSERT(gi < guides.size());
+            const auto norm = guides[gi].normalVector();
+            auto segment = target->pos().isNull()
+                ? QLineF(center + dxy, center + dxy + QPointF(prefLen, 0))
+                : QLineF(center + dxy, target->mapToScene(target->boundingRect().center()) + dxy);
 
-    //assert(guide.size() == _childEdges.size());
+            segment.setAngle(norm.angle());
+            target->setPos(segment.p2());
 
-    // const auto sector = 360.0 / _winSize;
-    // const auto preferedLen = 128.0;
-    // auto seg = QLineF(pos(), pos() + QPointF(preferedLen, 0));
-    //
-    // int angle = 0;
-    // for (auto* c : _childEdges) {
-    //     auto p2 = QPointF();
-    //     if (c->line().length() < INODE_OPEN_RADIUS) {
-    //         const auto uv = seg.unitVector();
-    //         p2 = QPointF(uv.dx(), uv.dy()) * preferedLen;
-    //     } else {
-    //         p2 = seg.p2();
-    //     }
-    //     c->target()->setPos(p2);
-    //     angle++;
-    //     seg.setAngle(sector * angle);
-    // }
-
-
-    constexpr auto preferedLen = 144.0;
-    auto seg = QLineF(pos(), pos() + QPointF(preferedLen, 0));
-
-    for (auto [c,_] : _childEdges) {
-        auto* target = asInode(c->target());
-        if (target->isOpen()) {
-            //guide.removeFirst();
-            //continue;
+            ++gi;
         }
-        seg.setAngle(guide.first().normalVector().angle());
-        auto p2 = seg.p2();
-        c->target()->setPos(p2);
-        c->adjust();
-        guide.removeFirst();
     }
 }
 

@@ -204,6 +204,7 @@ namespace  gui::view
         void keyPressEvent(QKeyEvent *event) override;
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event) override;
         void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+        void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 
     private:
         void doClose();
@@ -216,7 +217,7 @@ namespace  gui::view
         void doInternalRotation(int begin, int end, Rotation rot, InternalRotState& result);
         StringRotation setEdgeInodeIndex(int edgeIndex, qsizetype inodeIndex);
 
-        void spread(InodeEdge* ignoredChild = nullptr);
+        void spread(QPointF dxy = QPointF(0,0));
 
 
         FolderState _state{FolderState::Closed};
