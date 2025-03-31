@@ -740,28 +740,34 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
         radius = rec.width() * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
+        p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH * 0.5, Qt::SolidLine));
+        p->drawEllipse(rec.center(), radius * 0.8, radius * 0.8);
     } else if (_state == FolderState::HalfClosed) {
         radius = rec.width() * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
         p->setPen(QPen(inodeOpenBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->setBrush(Qt::NoBrush);
+        /// draw a 20 degree arc indicator for every child edge that is visible.
         auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
         rec2.moveCenter(rec.center());
-        constexpr auto span = -20 * 16;
+        constexpr auto span1 = -20 * 16;
         for (const auto* edge : std::views::keys(_childEdges)) {
             if (edge->target()->isVisible()) {
                 const auto startAngle = qRound((edge->line().angle() + 10) * 16.0);
-                p->drawArc(rec2, startAngle, span);
+                p->drawArc(rec2, startAngle, span1);
             }
         }
-    }
-    p->drawEllipse(boundingRect().center(), radius, radius);
 
-    if (isSelected()) {
-        p->setBrush(Qt::NoBrush);
-        p->setPen(Qt::yellow);
-        p->drawEllipse(boundingRect().center(), radius * 0.9, radius * 0.9);
+        /// draw a tick mark indicator for every child edge that is not visible.
+        p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH * 1.25 , Qt::SolidLine, Qt::FlatCap));
+        for (const auto* edge : std::views::keys(_childEdges)) {
+            if (!edge->target()->isVisible()) {
+                auto tick = QLineF(rec.center(), mapFromItem(edge, edge->line().p2()));
+                tick.setLength(radius * 2.0);
+                p->drawLine(QLineF(tick.pointAt(0.4), tick.pointAt(0.6)));
+            }
+        }
     }
 }
 
