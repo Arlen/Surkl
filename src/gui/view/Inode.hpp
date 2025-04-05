@@ -230,6 +230,8 @@ namespace  gui::view
 
         SharedVariantAnimation _singleRotAnimation;
         SharedSequentialAnimation _seqRotAnimation;
+
+        inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
     };
 
     void extend(Inode* inode, float distance = 144.0);

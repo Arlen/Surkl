@@ -125,6 +125,28 @@ namespace
         edge_setEnabled(edge, false);
         edge_setVisible(edge, false);
     }
+
+    bool isRoot(QGraphicsItem* node)
+    {
+        return qgraphicsitem_cast<RootNode*>(node) != nullptr;
+    }
+
+    /// TODO rename
+    std::vector<std::pair<QGraphicsItem*, QPointF>> getAncestorPos(Inode* node)
+    {
+        Q_ASSERT(node != nullptr);
+        Q_ASSERT(!isRoot(node));
+
+        std::vector<std::pair<QGraphicsItem*, QPointF>> result;
+        auto* parent = node->parentEdge()->source();
+
+        while (!isRoot(parent)) {
+            result.emplace_back(parent, parent->mapToScene(parent->boundingRect().center()));
+            parent = asInode(parent)->parentEdge()->source();
+        }
+        result.emplace_back(parent, parent->mapToScene(parent->boundingRect().center()));
+        return result;
+    }
 }
 
 
@@ -974,23 +996,57 @@ void Inode::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
     }
 
+    if (scene()->mouseGrabberItem() == this) {
+        if (!_ancestorPos.empty()) {
+            _ancestorPos.clear();
+        }
+    }
+
     QGraphicsItem::mouseReleaseEvent(event);
 }
 
 void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
     if (scene()->mouseGrabberItem() == this) {
-        /// 1. spread the parent node.
-        if (auto* inode = asInode(_parentEdge->source())) {
-            inode->spread();
-        }
-        /// 2. spread this node, which is moving.
-        const auto dxy = event->scenePos() - event->lastScenePos();
-        spread(dxy);
-        /// 3. spread the child nodes.
-        for (const auto* edge : std::ranges::views::keys(_childEdges)) {
-            if (auto* inode = asInode(edge->target()); !inode->isClosed()) {
+        if (event->modifiers() & Qt::ShiftModifier) {
+            if (_ancestorPos.empty()) {
+                _ancestorPos = getAncestorPos(this);
+            }
+            auto currPos = event->scenePos();
+            auto lastPos = event->lastScenePos();
+            spread(currPos - lastPos);
+
+            for (auto& [node, pos] : _ancestorPos) {
+                const auto lastVec = QLineF(lastPos, pos);
+                const auto currVec = QLineF(currPos, pos);
+
+                const auto len = lastVec.length();
+                const auto dir = currVec.unitVector();
+
+                const auto newPos = currPos + QPointF(dir.dx(), dir.dy()) * len;
+
+                node->setPos(newPos);
+                if (auto* inode = asInode(node); inode) {
+                    inode->spread(newPos - pos);
+                }
+
+                lastPos = pos;
+                currPos = newPos;
+                pos     = newPos;
+            }
+        } else {
+            /// 1. spread the parent node.
+            if (auto* inode = asInode(_parentEdge->source())) {
                 inode->spread();
+            }
+            /// 2. spread this node, which is moving.
+            const auto dxy = event->scenePos() - event->lastScenePos();
+            spread(dxy);
+            /// 3. spread the child nodes.
+            for (const auto* edge : std::ranges::views::keys(_childEdges)) {
+                if (auto* inode = asInode(edge->target()); !inode->isClosed()) {
+                    inode->spread();
+                }
             }
         }
     }
