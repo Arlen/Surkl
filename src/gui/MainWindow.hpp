@@ -5,6 +5,12 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+
+namespace core
+{
+    class FileSystemScene;
+}
+
 namespace gui
 {
     namespace view
@@ -15,7 +21,7 @@ namespace gui
     class MainWindow : public QWidget
     {
     public:
-        MainWindow(QGraphicsScene* scene, QWidget* parent = nullptr);
+        MainWindow(core::FileSystemScene* scene, QWidget* parent = nullptr);
 
     private:
         QVBoxLayout* _layout;

@@ -12,7 +12,7 @@ namespace gui
 
 namespace core
 {
-    class Scene;
+    class FileSystemScene;
     class BookmarkManager;
 
     class SessionManager final : public QObject
@@ -21,7 +21,7 @@ namespace core
 
     public:
         explicit SessionManager(QObject* parent = nullptr);
-        static Scene* scene();
+        static FileSystemScene* scene();
         static BookmarkManager* bm();
         static gui::ThemeManager* tm();
         static gui::MainWindow* mw();
@@ -33,7 +33,7 @@ namespace core
         void init();
         static SessionManager* session();
 
-        Scene*             _sc{nullptr};
+        FileSystemScene*             _sc{nullptr};
         BookmarkManager*   _bm{nullptr};
         gui::ThemeManager* _tm{nullptr};
         gui::MainWindow*   _mw{nullptr};

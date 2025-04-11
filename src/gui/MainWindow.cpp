@@ -1,12 +1,13 @@
 #include "MainWindow.hpp"
 #include "view/GraphicsView.hpp"
+#include "core/Scene.hpp"
 
 #include <QShortcut>
 
 
 using namespace gui;
 
-MainWindow::MainWindow(QGraphicsScene* scene, QWidget* parent)
+MainWindow::MainWindow(core::FileSystemScene* scene, QWidget* parent)
     : QWidget(parent)
 {
     using namespace view;
@@ -18,21 +19,20 @@ MainWindow::MainWindow(QGraphicsScene* scene, QWidget* parent)
     _view = new GraphicsView(scene, this);
     _layout->addWidget(_view);
 
-    auto* shortcut = new QShortcut(QKeySequence(Qt::Key_B), _view);
-    connect(shortcut, &QShortcut::activated, _view, &GraphicsView::requestSceneBookmark);
+    auto* shortcut        = new QShortcut(QKeySequence(Qt::Key_B), _view, _view, &GraphicsView::requestSceneBookmark);
+    auto* quadShortcut1   = new QShortcut(QKeySequence(Qt::Key_1), _view, _view, &GraphicsView::focusQuadrant1);
+    auto* quadShortcut2   = new QShortcut(QKeySequence(Qt::Key_2), _view, _view, &GraphicsView::focusQuadrant2);
+    auto* quadShortcut3   = new QShortcut(QKeySequence(Qt::Key_3), _view, _view, &GraphicsView::focusQuadrant3);
+    auto* quadShortcut4   = new QShortcut(QKeySequence(Qt::Key_4), _view, _view, &GraphicsView::focusQuadrant4);
+    auto* allQuadShortcut = new QShortcut(QKeySequence(Qt::Key_5), _view, _view, &GraphicsView::focusAllQuadrants);
 
-    auto* quadShortcut1 = new QShortcut(QKeySequence(Qt::Key_1), _view);
-    connect(quadShortcut1, &QShortcut::activated, _view, &GraphicsView::focusQuadrant1);
+    auto* openShortcut      = new QShortcut(QKeySequence::Open, this, scene, &core::FileSystemScene::openSelectedNodes);
+    auto* closeShortcut     = new QShortcut(QKeySequence::Close, this, scene, &core::FileSystemScene::closeSelectedNodes);
 
-    auto* quadShortcut2 = new QShortcut(QKeySequence(Qt::Key_2), _view);
-    connect(quadShortcut2, &QShortcut::activated, _view, &GraphicsView::focusQuadrant2);
-
-    auto* quadShortcut3 = new QShortcut(QKeySequence(Qt::Key_3), _view);
-    connect(quadShortcut3, &QShortcut::activated, _view, &GraphicsView::focusQuadrant3);
-
-    auto* quadShortcut4 = new QShortcut(QKeySequence(Qt::Key_4), _view);
-    connect(quadShortcut4, &QShortcut::activated, _view, &GraphicsView::focusQuadrant4);
-
-    auto* allQuadShortcut = new QShortcut(QKeySequence(Qt::Key_5), _view);
-    connect(allQuadShortcut, &QShortcut::activated, _view, &GraphicsView::focusAllQuadrants);
+    const QKeySequence closeKeySeq = QKeySequence::Close;
+    Q_ASSERT(closeKeySeq.count() > 0);
+    const auto halfCloseMod = closeKeySeq[0].keyboardModifiers() | Qt::ShiftModifier;
+    const auto halfCloseKey = closeKeySeq[0].key();
+    auto* halfCloseShortcut = new QShortcut(QKeySequence(QKeyCombination(halfCloseMod, halfCloseKey)),
+        this, scene, &core::FileSystemScene::halfCloseSelectedNodes);
 }

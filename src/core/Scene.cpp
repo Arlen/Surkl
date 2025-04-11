@@ -1,11 +1,15 @@
 #include "Scene.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
+#include "db.hpp"
 #include "gui/theme.hpp"
 #include "gui/view/Inode.hpp"
 #include "nodes.hpp"
 
+#include <QFileSystemModel>
 #include <QPainter>
+
+#include <ranges>
 
 
 using namespace core;
@@ -199,10 +203,19 @@ namespace
 
         p->restore();
     }
+
+    auto notNull = [](auto* item) -> bool { return item != nullptr; };
+    auto toNode = [](QGraphicsItem* item) -> gui::view::Inode*
+        { return qgraphicsitem_cast<gui::view::Inode*>(item); };
+    auto toEdge = [](QGraphicsItem* item) -> gui::view::InodeEdge*
+    { return qgraphicsitem_cast<gui::view::InodeEdge*>(item); };
+
+    auto filterNodes = std::views::transform(toNode) | std::views::filter(notNull);
+    auto filterEdges = std::views::transform(toEdge) | std::views::filter(notNull);
 }
 
 
-void Scene::configure(Scene* scene)
+void FileSystemScene::configure(FileSystemScene* scene)
 {
     if (auto db = db::get(); false && db.isOpen()) {
         /// how do we save and restore the scene???
@@ -212,10 +225,18 @@ void Scene::configure(Scene* scene)
     }
 }
 
-Scene::Scene(QObject* parent)
+FileSystemScene::FileSystemScene(QObject* parent)
     : QGraphicsScene(parent)
 {
     setSceneRect(QRect(-1024 * 32, -1024 * 32, 1024 * 64, 1024 * 64));
+
+    _model = new QFileSystemModel(this);
+    _model->setRootPath("/");
+    _model->fetchMore(QModelIndex());
+
+    connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
+    connect(_model, &QAbstractItemModel::rowsInserted, this, &FileSystemScene::onRowsInserted);
+    connect(_model, &QAbstractItemModel::rowsRemoved, this, &FileSystemScene::onRowsRemoved);
 
     connect(session()->tm(), &gui::ThemeManager::bgColorChanged, this,
         [this] { update(sceneRect()); });
@@ -227,7 +248,16 @@ Scene::Scene(QObject* parent)
     }
 }
 
-void Scene::addSceneBookmark(const QPoint& pos, const QString& name)
+FileSystemScene::~FileSystemScene()
+{
+    /// Need to disconnect this because, otherwise, if there is a selected node
+    /// before exit, then we get a runtime error:
+    /// "downcast of address 0x5cedde11db10 which does not point to an object
+    /// of type 'typename FuncType::Object' (aka 'core::Scene')"
+    disconnect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
+}
+
+void FileSystemScene::addSceneBookmark(const QPoint& pos, const QString& name)
 {
     auto* bm = SessionManager::bm();
     assert(bm != nullptr);
@@ -238,7 +268,51 @@ void Scene::addSceneBookmark(const QPoint& pos, const QString& name)
     }
 }
 
-void Scene::drawBackground(QPainter *p, const QRectF& rec)
+QPersistentModelIndex FileSystemScene::rootIndex() const
+{
+    return _model->index(QDir::rootPath());
+}
+
+void FileSystemScene::openSelectedNodes() const
+{
+    for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {
+        node->open();
+    }
+}
+
+void FileSystemScene::closeSelectedNodes() const
+{
+    for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {
+        node->closeOrHalfClose();
+    }
+}
+
+void FileSystemScene::halfCloseSelectedNodes() const
+{
+    for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {
+        node->closeOrHalfClose(true);
+    }
+}
+
+void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int end) const
+{
+    for (const auto allItems = items(); auto* node : allItems | filterNodes) {
+        if (node->index() == parent) {
+            node->reload(start, end);
+        }
+    }
+}
+
+void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int end) const
+{
+    for (const auto allItems = items(); auto* node : allItems | filterNodes) {
+        if (node->index() == parent) {
+            node->unload(start, end);
+        }
+    }
+}
+
+void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
 {
     p->save();
     const auto bgColor = SessionManager::tm()->bgColor();
@@ -246,4 +320,28 @@ void Scene::drawBackground(QPainter *p, const QRectF& rec)
     drawCrosses(p, rec);
     drawBorder(p, rec, sceneRect());
     p->restore();
+}
+
+void FileSystemScene::onSelectionChange()
+{
+    disconnect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
+
+    const auto selected = selectedItems();
+    const auto nodes    = std::ranges::to<std::vector>(selected | filterNodes);
+    const auto edges    = std::ranges::to<std::vector>(selected | filterEdges);
+
+    clearSelection();
+
+    /// for now, we'll give nodes priority over edges.
+    if ((!nodes.empty() && !edges.empty()) || edges.empty()) {
+        for (auto* node : nodes) {
+            node->setSelected(true);
+        }
+    } else {
+        for (auto* edge : edges) {
+            edge->setSelected(true);
+        }
+    }
+
+    connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
 }

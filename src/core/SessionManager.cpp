@@ -21,7 +21,7 @@ SessionManager::SessionManager(QObject* parent)
 
 }
 
-Scene* SessionManager::scene()
+FileSystemScene* SessionManager::scene()
 {
     return session()->_sc;
 }
@@ -55,8 +55,8 @@ void SessionManager::init()
     _bm = new BookmarkManager(this);
     BookmarkManager::configure(_bm);
 
-    _sc = new Scene(this);
-    Scene::configure(_sc);
+    _sc = new FileSystemScene(this);
+    FileSystemScene::configure(_sc);
 
     _mw = new gui::MainWindow(_sc);
 
