@@ -712,7 +712,12 @@ QRectF Inode::boundingRect() const
     switch (_state) {
         case FolderState::Open: side = INODE_OPEN_DIAMETER; break;
         case FolderState::Closed: side = INODE_CLOSED_DIAMETER; break;
-        case FolderState::HalfClosed: side = INODE_HALF_CLOSED_DIAMETER; break;
+        case FolderState::HalfClosed:
+            /// this is based on the math for the tick marks in paint().
+            side  = INODE_HALF_CLOSED_DIAMETER * 0.5;
+            side -= INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
+            side *= 2.0 * 0.6 * 2.0;
+        break;
     }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
@@ -754,18 +759,18 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
 
     qreal radius = 0;
     if (_state == FolderState::Open) {
-        radius = rec.width() * 0.5 - INODE_OPEN_PEN_WIDTH * 0.5;
+        radius = INODE_OPEN_DIAMETER * 0.5 - INODE_OPEN_PEN_WIDTH * 0.5;
         //p->setPen(QPen(openNodeHighlight(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->setPen(QPen(inodeOpenBorderColor(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
     } else if (_state == FolderState::Closed) {
-        radius = rec.width() * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
+        radius = INODE_CLOSED_DIAMETER * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
         p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH * 0.5, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius * 0.8, radius * 0.8);
     } else if (_state == FolderState::HalfClosed) {
-        radius = rec.width() * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
+        radius = INODE_HALF_CLOSED_DIAMETER * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
         p->setPen(QPen(inodeOpenBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
