@@ -790,6 +790,10 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
         //p->setPen(QPen(openNodeHighlight(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->setPen(QPen(inodeOpenBorderColor(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
+        if (auto *pr = asInode(parentEdge()->source()); pr && pr->_state == FolderState::HalfClosed) {
+            /// need to update the half-closed parent to avoid tearing of the 20-degree arc.
+            pr->update();
+        }
     } else if (_state == FolderState::Closed) {
         radius = rec.width() * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
@@ -811,6 +815,10 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
                 const auto startAngle = qRound((edge->line().angle() + 10) * 16.0);
                 p->drawArc(rec2, startAngle, span1);
             }
+        }
+        if (auto *pr = asInode(parentEdge()->source()); pr && pr->_state == FolderState::HalfClosed) {
+            /// need to update the half-closed parent to avoid tearing of the 20-degree arc.
+            pr->update();
         }
     }
 }
