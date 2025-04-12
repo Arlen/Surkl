@@ -28,6 +28,7 @@ namespace
     constexpr qreal INODE_CLOSED_DIAMETER       = INODE_OPEN_DIAMETER * GOLDEN;
     constexpr qreal INODE_HALF_CLOSED_DIAMETER  = INODE_OPEN_DIAMETER * (1.0 - GOLDEN*GOLDEN*GOLDEN);
     constexpr qreal INODEEDGE_WIDTH             = 4.0;
+    constexpr qreal INODEEDGE_COLLAPSED_LEN     = INODE_HALF_CLOSED_DIAMETER;
     constexpr qreal INODE_OPEN_PEN_WIDTH        = 4.0;
     constexpr qreal INODE_CLOSED_PEN_WIDTH      = INODEEDGE_WIDTH * GOLDEN;
     constexpr qreal INODE_HALF_CLOSED_PEN_WIDTH = INODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
@@ -339,12 +340,11 @@ void InodeEdge::adjust()
     const auto segment  = QLineF(pA, pB);
     const auto diameter = (recA.width() + recB.width()) / 2;
 
-    if (auto [sn, tn] = std::pair{asInode(source()), asInode(target())};
-        sn && tn && sn->isHalfClosed() && tn->isClosed()) {
+    if (_state == CollapsedState) {
         /// the edge becomes a tick mark indicator when the source node is
         /// half-closed and the target node is closed.
         auto tick = QLineF(pA, pB);
-        tick.setLength(INODE_HALF_CLOSED_DIAMETER);
+        tick.setLength(INODEEDGE_COLLAPSED_LEN);
         setLine(QLineF(tick.pointAt(0.4), tick.pointAt(0.6)));
         return;
     }
@@ -382,8 +382,13 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
     }
 
     p->setRenderHint(QPainter::Antialiasing);
-    QGraphicsLineItem::paint(p, option);
-    if (const auto isHalfClosed = !target()->isVisible() && !isEnabled(); isHalfClosed) {
+    p->setPen(QPen(option->state & QStyle::State_Selected
+            ? inodeEdgeColor().lighter(1600)
+            : inodeEdgeColor()
+        , INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    p->drawLine(line());
+
+    if (_state == CollapsedState) {
         return;
     }
 
@@ -395,6 +400,12 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
     p->setPen(QPen(inodeOpenBorderColor(), INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
     p->drawLine(QLineF(p1, p1 + v2));
 }
+
+void InodeEdge::setState(State state)
+{
+    _state = state;
+}
+
 
 QPainterPath InodeEdge::shape() const
 {
@@ -844,6 +855,7 @@ void Inode::halfClose()
     for (auto* edge : std::views::keys(_childEdges)) {
         if (auto* node = asInode(edge->target()); node->isClosed()) {
             edge_disableAndHideTarget(edge);
+            edge->setState(InodeEdge::CollapsedState);
         }
     }
 
@@ -874,6 +886,7 @@ void Inode::open()
         for (auto* edge : std::ranges::views::keys(_childEdges)) {
             if (const auto* node = asInode(edge->target()); node->isClosed()) {
                 edge_enableAndShow(edge);
+                edge->setState(InodeEdge::FullState);
             }
         }
 

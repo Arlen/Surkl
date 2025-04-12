@@ -88,12 +88,15 @@ namespace  gui::view
     {
     public:
         enum { Type = UserType + 1 };
+        enum State { FullState, CollapsedState };
 
         explicit InodeEdge(QGraphicsItem* source = nullptr, QGraphicsItem* target = nullptr);
         void setName(const QString& name) const;
         void adjust();
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+        void setState(State state);
 
+        [[nodiscard]] State state() const { return _state; }
         [[nodiscard]] QGraphicsItem *source() const { return _source; }
         [[nodiscard]] QGraphicsItem *target() const { return _target; }
         [[nodiscard]] InodeEdgeLabel* currLabel() const { return _currLabel; }
@@ -103,6 +106,7 @@ namespace  gui::view
         void swapLabels() { std::swap(_currLabel, _nextLabel); }
 
     private:
+        State _state{FullState};
         QGraphicsItem* _source{nullptr};
         QGraphicsItem* _target{nullptr};
         InodeEdgeLabel* _currLabel{nullptr};
