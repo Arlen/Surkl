@@ -105,6 +105,8 @@ namespace
     void edge_setVisible(InodeEdge* edge, bool visible)
     {
         edge->target()->setVisible(visible);
+        edge->currLabel()->setVisible(visible);
+        edge->nextLabel()->setVisible(visible);
         edge->setVisible(visible);
     }
 
@@ -124,6 +126,18 @@ namespace
     {
         edge_setEnabled(edge, false);
         edge_setVisible(edge, false);
+    }
+
+    /// This is only used when a source node is in HalfClose state. The target
+    /// node is disabled and hidden, but the edge remains visible and disabled.
+    /// The edge is set up as a tick mark for a HalfClosed source node, and
+    /// this set up takes place in InodeEdge::adjust().
+    void edge_disableAndHideTarget(InodeEdge* edge)
+    {
+        edge_setEnabled(edge, false);
+        edge->target()->setVisible(false);
+        edge->currLabel()->setVisible(false);
+        edge->nextLabel()->setVisible(false);
     }
 
     bool isRoot(QGraphicsItem* node)
@@ -289,27 +303,32 @@ InodeEdge::InodeEdge(QGraphicsItem* source, QGraphicsItem* target)
     : _source(source)
     , _target(target)
 {
-    assert(source != nullptr);
-    assert(target != nullptr);
+    Q_ASSERT(source != nullptr);
+    Q_ASSERT(target != nullptr);
 
     _currLabel = new InodeEdgeLabel(this);
     _nextLabel = new InodeEdgeLabel(this);
     _nextLabel->hide();
 
-    setPen(QPen(inodeEdgeColor(), INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
-    setAcceptedMouseButtons(Qt::NoButton);
+    setAcceptedMouseButtons(Qt::LeftButton);
+    setFlags(ItemIsSelectable);
+    setCursor(Qt::ArrowCursor);
+
+    /// the color doesn't matter b/c it's set in paint(), but need to set the
+    /// size so the boundingRect() produces the correct sized QRect.
+    setPen(QPen(Qt::red, INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
 }
 
 void InodeEdge::setName(const QString& name) const
 {
-    assert(_currLabel->isVisible());
-    assert(!_nextLabel->isVisible());
+    Q_ASSERT(_currLabel->isVisible());
+    Q_ASSERT(!_nextLabel->isVisible());
     _currLabel->alignToAxis(line(), name);
 }
 
 void InodeEdge::adjust()
 {
-    assert(scene());
+    Q_ASSERT(scene());
 
     const auto recA     = source()->boundingRect();
     const auto recB     = target()->boundingRect();
@@ -319,6 +338,16 @@ void InodeEdge::adjust()
     const auto pB       = mapFromItem(target(), centerB);
     const auto segment  = QLineF(pA, pB);
     const auto diameter = (recA.width() + recB.width()) / 2;
+
+    if (auto [sn, tn] = std::pair{asInode(source()), asInode(target())};
+        sn && tn && sn->isHalfClosed() && tn->isClosed()) {
+        /// the edge becomes a tick mark indicator when the source node is
+        /// half-closed and the target node is closed.
+        auto tick = QLineF(pA, pB);
+        tick.setLength(INODE_HALF_CLOSED_DIAMETER);
+        setLine(QLineF(tick.pointAt(0.4), tick.pointAt(0.6)));
+        return;
+    }
 
     setLine(QLineF());
 
@@ -354,6 +383,9 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
 
     p->setRenderHint(QPainter::Antialiasing);
     QGraphicsLineItem::paint(p, option);
+    if (const auto isHalfClosed = !target()->isVisible() && !isEnabled(); isHalfClosed) {
+        return;
+    }
 
     const auto p1 = line().p1();
     const auto uv = line().unitVector();
@@ -366,7 +398,7 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
 
 QPainterPath InodeEdge::shape() const
 {
-    assert(pen().width() > 0);
+    Q_ASSERT(pen().width() > 0);
 
     QPainterPath path;
 
@@ -712,12 +744,7 @@ QRectF Inode::boundingRect() const
     switch (_state) {
         case FolderState::Open: side = INODE_OPEN_DIAMETER; break;
         case FolderState::Closed: side = INODE_CLOSED_DIAMETER; break;
-        case FolderState::HalfClosed:
-            /// this is based on the math for the tick marks in paint().
-            side  = INODE_HALF_CLOSED_DIAMETER * 0.5;
-            side -= INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
-            side *= 2.0 * 0.6 * 2.0;
-        break;
+        case FolderState::HalfClosed: side = INODE_HALF_CLOSED_DIAMETER; break;
     }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
@@ -759,18 +786,18 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
 
     qreal radius = 0;
     if (_state == FolderState::Open) {
-        radius = INODE_OPEN_DIAMETER * 0.5 - INODE_OPEN_PEN_WIDTH * 0.5;
+        radius = rec.width() * 0.5 - INODE_OPEN_PEN_WIDTH * 0.5;
         //p->setPen(QPen(openNodeHighlight(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->setPen(QPen(inodeOpenBorderColor(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
     } else if (_state == FolderState::Closed) {
-        radius = INODE_CLOSED_DIAMETER * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
+        radius = rec.width() * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
         p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH * 0.5, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius * 0.8, radius * 0.8);
     } else if (_state == FolderState::HalfClosed) {
-        radius = INODE_HALF_CLOSED_DIAMETER * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
+        radius = rec.width() * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
         p->setPen(QPen(inodeOpenBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
@@ -783,16 +810,6 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
             if (edge->target()->isVisible()) {
                 const auto startAngle = qRound((edge->line().angle() + 10) * 16.0);
                 p->drawArc(rec2, startAngle, span1);
-            }
-        }
-
-        /// draw a tick mark indicator for every child edge that is not visible.
-        p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH * 1.25 , Qt::SolidLine, Qt::FlatCap));
-        for (const auto* edge : std::views::keys(_childEdges)) {
-            if (!edge->target()->isVisible()) {
-                auto tick = QLineF(rec.center(), mapFromItem(edge, edge->line().p2()));
-                tick.setLength(radius * 2.0);
-                p->drawLine(QLineF(tick.pointAt(0.4), tick.pointAt(0.6)));
             }
         }
     }
@@ -818,7 +835,7 @@ void Inode::halfClose()
 
     for (auto* edge : std::views::keys(_childEdges)) {
         if (auto* node = asInode(edge->target()); node->isClosed()) {
-            edge_disableAndHide(edge);
+            edge_disableAndHideTarget(edge);
         }
     }
 
