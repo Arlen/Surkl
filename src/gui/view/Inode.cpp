@@ -681,7 +681,6 @@ Inode* Inode::createRoot(core::FileSystemScene* scene)
 
     root->setParentItem(edge);
     edge->setName(node->name());
-    edge->setZValue(-1);
 
     scene->addItem(node);
     scene->addItem(edge);
@@ -890,7 +889,6 @@ void Inode::closeOrHalfClose(bool forceClose)
     }
 }
 
-
 void Inode::open()
 {
     if (_state == FolderState::Closed) {
@@ -1002,6 +1000,11 @@ QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
     switch (change) {
     case ItemScenePositionHasChanged:
         adjustAllEdges(this);
+        break;
+
+    case ItemSelectedChange:
+        Q_ASSERT(value.canConvert<bool>());
+        if (value.toBool()) { setZValue(1); } else { setZValue(0); }
         break;
 
     default:
