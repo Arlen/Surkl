@@ -1,9 +1,9 @@
 #pragma once
 
-#include <QDir>
 #include <QGraphicsItem>
 #include <QGraphicsLineItem>
 #include <QGraphicsSimpleTextItem>
+#include <QPersistentModelIndex>
 
 #include <set>
 #include <unordered_map>
@@ -12,6 +12,11 @@
 
 class QVariantAnimation;
 class QSequentialAnimationGroup;
+
+namespace core
+{
+    class FileSystemScene;
+}
 
 namespace  gui::view
 {
@@ -159,7 +164,7 @@ namespace  gui::view
     using EdgeStringMap = std::unordered_map<InodeEdge*, StringRotation>;
     using SharedVariantAnimation = QSharedPointer<QVariantAnimation>;
     using SharedSequentialAnimation = QSharedPointer<QSequentialAnimationGroup>;
-    using InodeEdges    = std::vector<std::pair<InodeEdge*, qsizetype>>;
+    using InodeEdges    = std::vector<InodeEdge*>;
 
     void animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input);
 
@@ -176,8 +181,8 @@ namespace  gui::view
     public:
         enum { Type = UserType + 2 };
 
-        explicit Inode(const QDir& dir);
-        static Inode* createRoot(QGraphicsScene* scene);
+        explicit Inode(const QPersistentModelIndex& index);
+        static Inode* createRoot(core::FileSystemScene* scene);
         ~Inode() override;
         void init();
         void setDir(const QDir& dir);
@@ -193,8 +198,8 @@ namespace  gui::view
         [[nodiscard]] InodeEdges childEdges() const { return _childEdges; }
         [[nodiscard]] int type() const override     { return Type; }
         [[nodiscard]] InodeEdge* parentEdge() const { return _parentEdge; }
-        [[nodiscard]] QGraphicsItem* ancestor() const { return _parentEdge->source(); }
         [[nodiscard]] InodeEdge* newFolderEdge() const { return _newFolderEdge; }
+        [[nodiscard]] const QPersistentModelIndex& index() const { return _index; }
 
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
         void close();
@@ -223,14 +228,11 @@ namespace  gui::view
 
         void spread(QPointF dxy = QPointF(0,0));
 
-
         FolderState _state{FolderState::Closed};
-        qsizetype _winSize{8};
+        QPersistentModelIndex _index;
         InodeEdge* _newFolderEdge{nullptr};
         InodeEdge* _parentEdge{nullptr};
         InodeEdges _childEdges;
-        std::set<qsizetype> _openEdges;
-        QDir _dir;
 
         SharedVariantAnimation _singleRotAnimation;
         SharedSequentialAnimation _seqRotAnimation;

@@ -1,15 +1,16 @@
 #include "Inode.hpp"
+#include "core/Scene.hpp"
 
-#include <QDir>
+#include <QCursor>
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
-#include <QObject>
 #include <QPainter>
-#include <QRandomGenerator>
+#include <QPersistentModelIndex>
+#include <QSequentialAnimationGroup>
+#include <QStyleOptionGraphicsItem>
 #include <QTimer>
 #include <QVariantAnimation>
-#include <QSequentialAnimationGroup>
 
 #include <numbers>
 #include <stack>
@@ -32,6 +33,9 @@ namespace
     constexpr qreal INODE_OPEN_PEN_WIDTH        = 4.0;
     constexpr qreal INODE_CLOSED_PEN_WIDTH      = INODEEDGE_WIDTH * GOLDEN;
     constexpr qreal INODE_HALF_CLOSED_PEN_WIDTH = INODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
+
+    /// fixed for now.
+    constexpr int NODE_CHILD_COUNT = 12;
 
     /// ---- These will need to go into theme.[hpp,cpp]
     QFont inodeFont() { return {"Adwaita Sans", 11}; }
@@ -652,9 +656,9 @@ void gui::view::animateRotation(const QVariantAnimation* animation, const EdgeSt
 /////////////
 /// Inode ///
 /////////////
-Inode::Inode(const QDir& dir)
+Inode::Inode(const QPersistentModelIndex& index)
 {
-    setDir(dir);
+    _index = index;
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
 
     auto* nfn      = new NewFolderNode;
@@ -662,40 +666,44 @@ Inode::Inode(const QDir& dir)
     nfn->setEdge(_newFolderEdge);
 }
 
-Inode* Inode::createRoot(QGraphicsScene* scene)
+Inode* Inode::createRoot(core::FileSystemScene* scene)
 {
     Q_ASSERT(scene);
 
-    auto* inode = new Inode(QDir::root());
-    auto* root  = new RootNode();
-    auto* edge  = new InodeEdge(root, inode);
+    auto* node = new Inode(scene->rootIndex());
+    auto* root = new RootNode();
+    auto* edge = new InodeEdge(root, node);
 
     root->setParentItem(edge);
-    edge->setName("/");
+    edge->setName(node->name());
     edge->setZValue(-1);
 
-    scene->addItem(inode);
+    scene->addItem(node);
     scene->addItem(edge);
 
     root->setPos(-128, 0);
-    inode->_parentEdge = edge;
+    node->_parentEdge = edge;
 
-    Q_ASSERT(inode->newFolderEdge() != nullptr);
-    Q_ASSERT(inode->newFolderEdge()->scene() == nullptr);
-    scene->addItem(inode->newFolderEdge()->target());
-    scene->addItem(inode->newFolderEdge());
+    Q_ASSERT(node->newFolderEdge() != nullptr);
+    Q_ASSERT(node->newFolderEdge()->scene() == nullptr);
 
-    edge_disableAndHide(inode->newFolderEdge());
+    scene->addItem(node->newFolderEdge()->target());
+    scene->addItem(node->newFolderEdge());
 
-    return inode;
+    edge_disableAndHide(node->newFolderEdge());
+
+    return node;
 }
 
 Inode::~Inode()
 {
-    if (_newFolderEdge) {
-        delete _newFolderEdge->target();
-        delete _newFolderEdge;
-    }
+    //qDebug() << "Inode::~Inode" << scene()->items().count();
+    // qDebug() << "Inode::~Inode:" << name();
+    // doClose();
+    // if (_newFolderEdge) {
+    //     delete _newFolderEdge->target();
+    //     delete _newFolderEdge;
+    // }
 }
 
 void Inode::init()
@@ -703,12 +711,12 @@ void Inode::init()
     Q_ASSERT(scene());
     Q_ASSERT(_childEdges.empty());
 
-    const auto entries = _dir.entryInfoList();
-    const auto count   = std::min(_winSize, entries.size());
+    const auto count = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
     _childEdges.reserve(count);
-    for (qsizetype i = 0; i < count; ++i) {
-        auto* node = new Inode(QDir(entries.at(i).absoluteFilePath()));
+    for (int i = 0; i < count; ++i) {
+        auto index = _index.model()->index(i, 0, _index);
+        auto* node = new Inode(index);
         auto* edge = new InodeEdge(this, node);
         edge->setName(node->name());
 
@@ -720,7 +728,7 @@ void Inode::init()
         edge_disableAndHide(node->newFolderEdge());
 
         node->_parentEdge = edge;
-        _childEdges.emplace_back(node->_parentEdge, i);
+        _childEdges.emplace_back(node->_parentEdge);
     }
 
     Q_ASSERT(_newFolderEdge != nullptr);
@@ -738,7 +746,7 @@ void Inode::setDir(const QDir& dir)
 
 QString Inode::name() const
 {
-    return _dir.dirName();
+    return _index.data().toString();
 }
 
 QRectF Inode::boundingRect() const
@@ -770,7 +778,7 @@ QPainterPath Inode::shape() const
 
 bool Inode::hasOpenOrHalfClosedChild() const
 {
-    const auto children = std::views::keys(_childEdges)
+    const auto children = _childEdges
         | std::views::transform(&InodeEdge::target)
         | std::views::transform(&asInode);
 
@@ -815,7 +823,7 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
         auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
         rec2.moveCenter(rec.center());
         constexpr auto span1 = -20 * 16;
-        for (const auto* edge : std::views::keys(_childEdges)) {
+        for (const auto* edge : _childEdges) {
             if (edge->target()->isVisible()) {
                 const auto startAngle = qRound((edge->line().angle() + 10) * 16.0);
                 p->drawArc(rec2, startAngle, span1);
@@ -846,7 +854,7 @@ void Inode::halfClose()
 {
     Q_ASSERT(hasOpenOrHalfClosedChild());
 
-    for (auto* edge : std::views::keys(_childEdges)) {
+    for (auto* edge : _childEdges) {
         if (auto* node = asInode(edge->target()); node->isClosed()) {
             edge_disableAndHideTarget(edge);
             edge->setState(InodeEdge::CollapsedState);
@@ -877,7 +885,7 @@ void Inode::open()
         }
     } else if (_state == FolderState::HalfClosed) {
 
-        for (auto* edge : std::ranges::views::keys(_childEdges)) {
+        for (auto* edge : _childEdges) {
             if (const auto* node = asInode(edge->target()); node->isClosed()) {
                 edge_enableAndShow(edge);
                 edge->setState(InodeEdge::FullState);
@@ -1007,17 +1015,7 @@ void Inode::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 
     switch (_state) {
     case FolderState::Open:
-        if (hasOpenOrHalfClosedChild()) {
-            /// pick half closing as it is less destructive, unless the user is
-            /// Shift closing.
-            if (event->modifiers() & Qt::ShiftModifier) {
-                close();
-            } else {
-                halfClose();
-            }
-        } else {
-            close();
-        }
+        closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
         break;
     case FolderState::Closed:
         open();
@@ -1030,9 +1028,6 @@ void Inode::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 
 void Inode::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
-    }
-
     if (scene()->mouseGrabberItem() == this) {
         if (!_ancestorPos.empty()) {
             _ancestorPos.clear();
@@ -1080,7 +1075,7 @@ void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             const auto dxy = event->scenePos() - event->lastScenePos();
             spread(dxy);
             /// 3. spread the child nodes.
-            for (const auto* edge : std::ranges::views::keys(_childEdges)) {
+            for (const auto* edge : _childEdges) {
                 if (auto* inode = asInode(edge->target()); !inode->isClosed()) {
                     inode->spread();
                 }
@@ -1093,27 +1088,53 @@ void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 void Inode::doClose()
 {
-    auto edges = std::ranges::views::keys(_childEdges);
-    std::stack stack(edges.begin(), edges.end());
+    /// QGraphicsScene will remove an item from the scene upon delete, but
+    /// "it is more efficient to remove the item from the QGraphicsScene
+    /// before destroying the item." -- Qt docs
+
+    auto destroyNewFolder = [](Inode* node)
+    {
+        auto* sc = node->scene();
+
+        Q_ASSERT(sc->items().contains(node->_newFolderEdge->target()));
+        sc->removeItem(node->_newFolderEdge->target());
+        delete node->_newFolderEdge->target();
+        Q_ASSERT(sc->items().contains(node->_newFolderEdge));
+        sc->removeItem(node->_newFolderEdge);
+        delete node->_newFolderEdge;
+    };
+
+    std::stack stack(_childEdges.begin(), _childEdges.end());
 
     while (!stack.empty()) {
         auto* edge = stack.top(); stack.pop();
         auto* node = asInode(edge->target());
         Q_ASSERT(node);
-        for (auto* childEdge : std::ranges::views::keys(node->childEdges())) {
+        for (auto* childEdge : node->childEdges()) {
             Q_ASSERT(childEdge->source() == node);
             auto* childInode = asInode(childEdge->target());
             Q_ASSERT(childInode);
             if (childInode->isOpen() || childInode->isHalfClosed()) {
                 stack.emplace(childEdge);
             } else {
+                destroyNewFolder(childInode);
+                Q_ASSERT(scene()->items().contains(childInode));
+                scene()->removeItem(childInode);
                 delete childInode;
+                Q_ASSERT(scene()->items().contains(childEdge));
+                scene()->removeItem(childEdge);
                 delete childEdge;
             }
         }
         node->_childEdges.clear();
-        node->_openEdges.clear();
+
+        destroyNewFolder(node);
+        Q_ASSERT(scene()->items().contains(node));
+        scene()->removeItem(node);
         delete node;
+
+        Q_ASSERT(scene()->items().contains(edge));
+        scene()->removeItem(edge);
         delete edge;
     }
     /// no reason to delete _newFolderEdge when we can just disable and hide it.
@@ -1337,7 +1358,7 @@ void Inode::spread(QPointF dxy)
     guides.erase(rmv1.begin(), rmv1.end());
 
     /// remove guide edges that intersect with open, half-closed or current mouse grabber.
-    for (const auto* edge : std::ranges::views::keys(_childEdges)) {
+    for (const auto* edge : _childEdges) {
         if (const auto* inode = asInode(edge->target()); inode->isOpen() || inode->isHalfClosed() || scene()->mouseGrabberItem() == inode) {
             const auto ignoredEdge = QLineF(center, inode->mapToScene(inode->boundingRect().center()));
             auto ignored = std::ranges::remove_if(guides, [ignoredEdge](QLineF x)
@@ -1347,7 +1368,7 @@ void Inode::spread(QPointF dxy)
     }
 
     int gi = 0;
-    for (const auto* edge : std::ranges::views::keys(_childEdges)) {
+    for (const auto* edge : _childEdges) {
         if (auto* target = asInode(edge->target()); target->isClosed() && target != scene()->mouseGrabberItem()) {
             constexpr qreal prefLen = 144.0;
             Q_ASSERT(gi < guides.size());
@@ -1399,6 +1420,5 @@ void gui::view::adjustAllEdges(const Inode* inode)
     inode->parentEdge()->adjust();
     inode->newFolderEdge()->target()->setPos(inode->pos());
     inode->newFolderEdge()->adjust();
-    std::ranges::for_each(std::views::keys(inode->childEdges()),
-        &InodeEdge::adjust);
+    std::ranges::for_each(inode->childEdges(), &InodeEdge::adjust);
 }
