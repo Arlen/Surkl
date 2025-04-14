@@ -5,7 +5,6 @@
 #include <QGraphicsSimpleTextItem>
 #include <QPersistentModelIndex>
 
-#include <set>
 #include <unordered_map>
 #include <vector>
 
@@ -186,6 +185,7 @@ namespace  gui::view
         ~Inode() override;
         void init();
         void setDir(const QDir& dir);
+        void setIndex(const QPersistentModelIndex& index);
         [[nodiscard]] QString name() const;
         [[nodiscard]] QRectF boundingRect() const override;
         [[nodiscard]] QPainterPath shape() const override;
@@ -204,6 +204,7 @@ namespace  gui::view
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
         void close();
         void halfClose();
+        void closeOrHalfClose(bool forceClose = false);
         void open();
         void rotate(Rotation rot);
         void rotatePage(Rotation rot);
@@ -218,13 +219,9 @@ namespace  gui::view
     private:
         void doClose();
 
-        void onChildInodeOpened(const InodeEdge* inode);
-        void onChildInodeClosed(const InodeEdge* inode);
-
         void internalRotationAfterClose(InodeEdge* closedEdge);
         InternalRotState doInternalRotationAfterClose(InodeEdge* closedEdge);
-        void doInternalRotation(int begin, int end, Rotation rot, InternalRotState& result);
-        StringRotation setEdgeInodeIndex(int edgeIndex, qsizetype inodeIndex);
+        void doInternalRotation(Rotation rot, InternalRotState& result);
 
         void spread(QPointF dxy = QPointF(0,0));
 

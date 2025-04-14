@@ -15,6 +15,7 @@
 #include <numbers>
 #include <stack>
 #include <ranges>
+#include <unordered_set>
 
 
 using namespace gui::view;
@@ -743,6 +744,10 @@ void Inode::setDir(const QDir& dir)
     _dir = dir;
     _dir.setFilter(QDir::NoDotAndDotDot | QDir::AllDirs);
 }
+void Inode::setIndex(const QPersistentModelIndex& index)
+{
+    _index = index;
+}
 
 QString Inode::name() const
 {
@@ -845,7 +850,6 @@ void Inode::close()
     shrink(this);
 
     if (auto* pr = asInode(_parentEdge->source())) {
-        pr->onChildInodeClosed(_parentEdge);
         pr->internalRotationAfterClose(_parentEdge);
     }
 }
@@ -867,6 +871,22 @@ void Inode::halfClose()
     adjustAllEdges(this);
 }
 
+void Inode::closeOrHalfClose(bool forceClose)
+{
+    if (hasOpenOrHalfClosedChild()) {
+        /// pick half closing as it is less destructive, unless the user is
+        /// force closing.
+        if (forceClose) {
+            close();
+        } else {
+            halfClose();
+        }
+    } else {
+        close();
+    }
+}
+
+
 void Inode::open()
 {
     if (_state == FolderState::Closed) {
@@ -879,10 +899,6 @@ void Inode::open()
 
         spread();
         adjustAllEdges(this);
-
-        if (auto* pr = asInode(_parentEdge->source())) {
-            pr->onChildInodeOpened(_parentEdge);
-        }
     } else if (_state == FolderState::HalfClosed) {
 
         for (auto* edge : _childEdges) {
@@ -909,7 +925,7 @@ void Inode::rotate(Rotation rot)
 
     InternalRotState result{};
     const int lastEdge = static_cast<int>(_childEdges.size() - 1);
-    doInternalRotation(0, lastEdge, rot, result);
+    doInternalRotation(rot, result);
 
     if (result.changes.empty()) {
         /// TODO: process result.status and perform visual indication animation.
@@ -933,20 +949,15 @@ void Inode::rotatePage(Rotation rot)
         return;
     }
 
-    assert(scene());
-
-    const int pageSize = static_cast<int>(_childEdges.size());
-    const int lastEdge = static_cast<int>(_childEdges.size() - 1);
-
     if (!_seqRotAnimation.isNull() && _seqRotAnimation->state() == QAbstractAnimation::Running) {
         _seqRotAnimation->pause();
         _seqRotAnimation.clear();
     }
     _seqRotAnimation = SharedSequentialAnimation::create();
 
-    for (int i = 0; i < pageSize; i++) {
+    for (auto _ : _childEdges) {
         InternalRotState result{};
-        doInternalRotation(0, lastEdge, rot, result);
+        doInternalRotation(rot, result);
 
         if (result.changes.empty()) {
             /// TODO: process result.status and perform visual indication animation.
@@ -1141,27 +1152,6 @@ void Inode::doClose()
     edge_disableAndHide(_newFolderEdge);
 
     _childEdges.clear();
-    _openEdges.clear();
-}
-
-void Inode::onChildInodeOpened(const InodeEdge* edge)
-{
-    for (auto [e,i] : _childEdges) {
-        if (e == edge) {
-            _openEdges.insert(i);
-            break;
-        }
-    }
-}
-
-void Inode::onChildInodeClosed(const InodeEdge* edge)
-{
-    for (auto [e,i] : _childEdges) {
-        if (e == edge) {
-            _openEdges.erase(i);
-            break;
-        }
-    }
 }
 
 void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
@@ -1193,114 +1183,151 @@ void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
 /// there is no gap between two edges.
 InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
 {
-    Q_UNUSED(closedEdge); /// remove closeEdge since it's not used. TODO.
+    Q_ASSERT(asInode(closedEdge->target())->isClosed());
 
+    using namespace std;
+
+    auto closedIndices = _childEdges
+        | views::filter([closedEdge](InodeEdge* edge) -> bool
+            { return edge != closedEdge; })
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter(&Inode::isClosed)
+        | views::transform(&Inode::index)
+        | ranges::to<std::deque>();
+
+    if (closedIndices.empty()) { return {}; }
+
+    const auto openOrHalfClosedRows = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Inode::index)
+        | views::transform(&QPersistentModelIndex::row)
+        | ranges::to<std::unordered_set>();
+
+    auto isGap = [](const QPersistentModelIndex& lhs, const QPersistentModelIndex& rhs)
+        { return lhs.row() + 1 < rhs.row(); };
+    const auto first = closedIndices.begin();
+    const auto last  = closedIndices.end() - 1;
+
+    for (auto gap = ranges::adjacent_find(closedIndices, isGap); gap != closedIndices.end(); ) {
+        /// if there is one or more gaps, then there might be a suitable index,
+        /// but the gap(s) could be wide and partially or completely be filled
+        /// with open/half-closed nodes: try to find a suitable index.
+        const auto end = (gap+1)->row();
+        Q_ASSERT(gap->row() + 1 < end);
+        for (auto start = gap->row() + 1; start != end; ++start) {
+            if (const auto sibling = gap->sibling(start, 0); sibling.isValid() && !openOrHalfClosedRows.contains(sibling.row())) {
+                closedIndices.insert(gap + 1, sibling);
+                goto RELAYOUT;
+            }
+        }
+        gap = std::ranges::adjacent_find(gap + 1, closedIndices.end(), isGap);
+    }
+
+    for (int k = 0, i = -1; k < NODE_CHILD_COUNT; ++k, --i) {
+        if (auto before = first->sibling(first->row() + i, 0);
+            before.isValid() && !openOrHalfClosedRows.contains(before.row())) {
+            closedIndices.push_front(before);
+            goto RELAYOUT;
+        }
+    }
+    for (int k = 0, i = 1; k < NODE_CHILD_COUNT; ++k, ++i) {
+        if (auto after = last->sibling(last->row() + i, 0);
+            after.isValid() && !openOrHalfClosedRows.contains(after.row())) {
+            closedIndices.push_back(after);
+            goto RELAYOUT;
+        }
+    }
+
+    RELAYOUT:
     auto result = InternalRotState{};
-    InodeEdges xs(_childEdges.size() - _openEdges.size(), {nullptr, -1});
 
-    if (xs.empty()) {
-        return result;
+    int k = 0;
+    for (auto* node : _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter(&Inode::isClosed))
+    {
+        auto newIndex = closedIndices[k++];
+        auto oldIndex = node->index();
+        if (newIndex == oldIndex) { continue; }
+        Q_ASSERT(newIndex.isValid());
+        node->setIndex(newIndex);
+        result.changes[node->parentEdge()] =
+            { node->name()
+            , newIndex.row() > oldIndex.row() ? Rotation::CCW : Rotation::CW};
     }
 
-    std::ranges::copy_if(_childEdges, xs.begin(),
-        [this](const auto& edge)
-        {
-            return !_openEdges.contains(edge.second);
-        });
-    std::ranges::sort(xs,
-        [](const auto& e1, const auto& e2) { return e1.second < e2.second; });
-
-    int k2 = 0;
-    for (int k1 = 0; k1 < std::ssize(_childEdges); ++k1) {
-        auto [e, currInodeIndex] = _childEdges.at(k1);
-        if (_openEdges.contains(currInodeIndex)) {
-            continue;
-        }
-        const auto newInodeIndex = xs[k2].second;
-        if (currInodeIndex != newInodeIndex) {
-            result.changes[e] = setEdgeInodeIndex(k1, newInodeIndex);
-        }
-        ++k2;
-    }
     return result;
 }
 
-/// rotate the sub-range [begin,end] (both inclusive) in CCW or CW.
+/// performs CCW or CW rotation.
 /// CCW means going forward (i.e., the new inode index is greater than the
 /// previous).
-/// Tries to keep going to fill the gaps, instead of aborting once the current
-/// index can't be moved.
-void Inode::doInternalRotation(int begin, int end, Rotation rot, InternalRotState& result)
+void Inode::doInternalRotation(Rotation rot, InternalRotState& result)
 {
-    assert(begin <= end);
-    assert(begin >= 0);
-    assert(end < std::ssize(_childEdges));
-    assert(result.changes.empty());
+    using namespace std;
 
-    const auto& eil  = _dir.entryInfoList();
-    if (eil.isEmpty()) {
+    auto closedNodes = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter(&Inode::isClosed)
+        | ranges::to<std::vector>();
+
+    if (closedNodes.empty()) {
         result.status = InternalRotationStatus::MovementImpossible;
         return;
     }
 
-    const auto Next = rot == Rotation::CCW ? -1 :  1;
-    const auto Inc  = rot == Rotation::CCW ?  1 : -1;
+    const auto openOrHalfClosedRows = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Inode::index)
+        | views::transform(&QPersistentModelIndex::row)
+        | ranges::to<std::unordered_set>();
 
-    // EIL == QDir().entryInfoList()
-    /// if moving forward (CCW), begin at _childEdges[end] and move towards
-    /// the end of EIL.
-    const auto Head =  rot == Rotation::CCW ? end   : begin;
-    const auto Tail = (rot == Rotation::CCW ? begin : end) + Next;
+    auto isIndexClosed = [&openOrHalfClosedRows](const QModelIndex& index) -> bool
+    {
+        return !openOrHalfClosedRows.contains(index.row());
+    };
 
-    auto prevInodeIndex = rot == Rotation::CCW ? eil.size() : -1;
-    for (auto k = Head; k != Tail; k += Next) {
-        const auto [edge,currInodeIndex] = _childEdges[k];
-        if (_openEdges.contains(currInodeIndex)) {
-            /// don't touch open edges.
-            continue;
-        }
-        auto newInodeIndex = currInodeIndex;
-        do {
-            newInodeIndex += Inc;
-            if (std::abs(newInodeIndex - prevInodeIndex) <= 0) {
-                prevInodeIndex = currInodeIndex;
-                break;
-            }
-            if (_openEdges.contains(newInodeIndex)) {
-                continue;
-            }
-            prevInodeIndex = newInodeIndex;
-            result.status = InternalRotationStatus::Normal;
-            result.changes[edge] = setEdgeInodeIndex(k, newInodeIndex);
-            break;
-        } while (true);
-    }
-    if (result.changes.empty()) {
+    if (rot == Rotation::CW) { std::ranges::reverse(closedNodes); }
+    const auto Inc = rot == Rotation::CCW ? 1 : -1;
+    auto lastIndex = closedNodes.back()->index();
+    auto sibling   = lastIndex;
+
+    auto candidates = views::iota(1, NODE_CHILD_COUNT)
+        | std::views::transform(std::bind(std::multiplies{}, std::placeholders::_1, Inc))
+        | views::transform([lastIndex](int i) { return lastIndex.sibling(lastIndex.row() + i, 0); })
+        | views::filter(&QModelIndex::isValid)
+        | views::filter(isIndexClosed);
+
+    if (candidates.empty()) {
         result.status = rot == Rotation::CCW
             ? InternalRotationStatus::EndReachedCCW
             : InternalRotationStatus::EndReachedCW;
+        return;
     }
-}
 
-StringRotation Inode::setEdgeInodeIndex(int edgeIndex, qsizetype newInodeIndex)
-{
-    assert(!_childEdges.empty() && edgeIndex >= 0 && edgeIndex < std::ssize(_childEdges));
+    sibling = candidates.front();
 
-    const auto& eil = _dir.entryInfoList();
-    assert(!eil.isEmpty() && newInodeIndex >= 0 && newInodeIndex < eil.size());
-
-    auto& [edge, oldInodeIndex] = _childEdges[edgeIndex];
-    const auto rot = newInodeIndex > oldInodeIndex ? Rotation::CCW : Rotation::CW;
-    assert(edge != nullptr);
-    oldInodeIndex = newInodeIndex;
-
-    auto* target = asInode(edge->target());
-    assert(target != nullptr);
-
-    const auto& path = eil.at(newInodeIndex).absoluteFilePath();
-    target->setDir(QDir(path));
-
-    return {target->name(), rot};
+    Inode* prev = nullptr;
+    for (auto* node : closedNodes) {
+        if (prev) {
+            Q_ASSERT(prev->isClosed());
+            Q_ASSERT(prev->index() != node->index());
+            prev->setIndex(node->index());
+            result.changes[prev->parentEdge()] = {prev->name(), rot};
+        }
+        prev = node;
+    }
+    if (prev) {
+        prev->setIndex(sibling);
+        result.changes[prev->parentEdge()] = {prev->name(), rot};
+    }
 }
 
 /// dxy is used only for the node that is being moved by the mouse.  Without
