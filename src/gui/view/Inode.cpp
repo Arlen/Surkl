@@ -55,12 +55,6 @@ namespace
     QColor inodeClosedBorderColor() { return {8, 8, 8, 255}; }
     /// ----
 
-
-    QVector2D unitVector(const QPointF& a, const QPointF& b)
-    {
-        return QVector2D(b - a).normalized();
-    }
-
     std::vector<QLineF> circle(const QPointF& center, unsigned sides, qreal radius = 1)
     {
         Q_ASSERT(sides > 1);
@@ -1370,36 +1364,34 @@ void Inode::spread(QPointF dxy)
     }
 }
 
-
-/// distance is float b/c QVector2D::operator* takes a float.
-void gui::view::extend(Inode* inode, float distance)
+void gui::view::extend(Inode* inode, qreal distance)
 {
     const auto* pe = inode->parentEdge();
 
     /// pos()/setPos() are in scene coordinates if there is no parent.
-    assert(inode->parentItem() == nullptr);
-    assert(pe->target() == inode);
+    Q_ASSERT(inode->parentItem() == nullptr);
+    Q_ASSERT(pe->target() == inode);
 
     const auto& source = pe->source()->pos();
     const auto& target = pe->target()->pos();
-    const auto dxy     = unitVector(source, target) * distance;
-
-    inode->setPos(target + dxy.toPointF());
+    auto line = QLineF(source, target);
+    line.setLength(line.length() + distance);
+    inode->setPos(line.p2());
 }
 
-void gui::view::shrink(Inode* inode, float distance)
+void gui::view::shrink(Inode* inode, qreal distance)
 {
     const auto* pe = inode->parentEdge();
 
     /// pos()/setPos() are in scene coordinates if there is no parent.
-    assert(inode->parentItem() == nullptr);
-    assert(pe->target() == inode);
+    Q_ASSERT(inode->parentItem() == nullptr);
+    Q_ASSERT(pe->target() == inode);
 
     const auto& source = pe->source()->pos();
     const auto& target = pe->target()->pos();
-    const auto dxy     = unitVector(source, target) * distance;
-
-    inode->setPos(target - dxy.toPointF());
+    auto line = QLineF(source, target);
+    line.setLength(qMax(distance, line.length() - distance));
+    inode->setPos(line.p2());
 }
 
 void gui::view::adjustAllEdges(const Inode* inode)

@@ -238,7 +238,7 @@ namespace  gui::view
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
     };
 
-    void extend(Inode* inode, float distance = 144.0);
-    void shrink(Inode* inode, float distance = 144.0);
+    void extend(Inode* inode, qreal distance = 144.0);
+    void shrink(Inode* inode, qreal distance = 144.0);
     void adjustAllEdges(const Inode* inode);
 }
