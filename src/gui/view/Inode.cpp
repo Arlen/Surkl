@@ -105,9 +105,10 @@ namespace
     void edge_setVisible(InodeEdge* edge, bool visible)
     {
         edge->target()->setVisible(visible);
-        edge->currLabel()->setVisible(visible);
-        edge->nextLabel()->setVisible(visible);
         edge->setVisible(visible);
+        edge->currLabel()->setVisible(visible);
+
+        /// edge->nextLabel()->setVisible(visible) not needed; see NOTE below.
     }
 
     void edge_setEnabled(InodeEdge* edge, bool enabled)
@@ -132,12 +133,16 @@ namespace
     /// node is disabled and hidden, but the edge remains visible and disabled.
     /// The edge is set up as a tick mark for a HalfClosed source node, and
     /// this set up takes place in InodeEdge::adjust().
+    ///
+    /// NOTE: visibility of edge->nextLabel() is not and should not be set here;
+    /// otherwise, the assertion in animateRotation() will fail. i.e., the
+    /// visibility of edge->nextLabel() is handled in animateRotation().
     void edge_disableAndHideTarget(InodeEdge* edge)
     {
         edge_setEnabled(edge, false);
+
         edge->target()->setVisible(false);
         edge->currLabel()->setVisible(false);
-        edge->nextLabel()->setVisible(false);
     }
 
     bool isRoot(QGraphicsItem* node)
@@ -405,7 +410,6 @@ void InodeEdge::setState(State state)
     _state = state;
 }
 
-
 QPainterPath InodeEdge::shape() const
 {
     Q_ASSERT(pen().width() > 0);
@@ -549,10 +553,10 @@ void gui::view::animateRotation(const QVariantAnimation* animation, const EdgeSt
 {
     auto startCW    = [](InodeEdge* edge, const QString& text)
     {
-        assert(edge->nextLabel()->isVisible() == false);
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->alignToAxis(edge->line());
         edge->nextLabel()->alignToAxis(edge->line(), text);
-        assert(edge->nextLabel()->isVisible() == false);
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->updatePosCW(0, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCW(0, LabelFade::FadeIn);
         edge->nextLabel()->show();
@@ -573,10 +577,10 @@ void gui::view::animateRotation(const QVariantAnimation* animation, const EdgeSt
 
     auto startCCW    = [](InodeEdge* edge, const QString& text)
     {
-        assert(edge->nextLabel()->isVisible() == false);
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->alignToAxis(edge->line());
         edge->nextLabel()->alignToAxis(edge->line(), text);
-        assert(edge->nextLabel()->isVisible() == false);
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->updatePosCCW(0, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCCW(0, LabelFade::FadeIn);
         edge->nextLabel()->show();
