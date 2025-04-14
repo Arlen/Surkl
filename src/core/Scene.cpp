@@ -330,16 +330,17 @@ void FileSystemScene::onSelectionChange()
     const auto nodes    = std::ranges::to<std::vector>(selected | filterNodes);
     const auto edges    = std::ranges::to<std::vector>(selected | filterEdges);
 
-    clearSelection();
-
     /// for now, we'll give nodes priority over edges.
     if ((!nodes.empty() && !edges.empty()) || edges.empty()) {
+        for (auto* edge : edges) {
+            edge->setSelected(false);
+        }
         for (auto* node : nodes) {
-            node->setSelected(true);
+            _model->fetchMore(node->index());
         }
     } else {
-        for (auto* edge : edges) {
-            edge->setSelected(true);
+        for (auto* nodes : nodes) {
+            nodes->setSelected(false);
         }
     }
 
