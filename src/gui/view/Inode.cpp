@@ -102,49 +102,6 @@ namespace
         return animation;
     }
 
-    void edge_setVisible(InodeEdge* edge, bool visible)
-    {
-        edge->target()->setVisible(visible);
-        edge->setVisible(visible);
-        edge->currLabel()->setVisible(visible);
-
-        /// edge->nextLabel()->setVisible(visible) not needed; see NOTE below.
-    }
-
-    void edge_setEnabled(InodeEdge* edge, bool enabled)
-    {
-        edge->target()->setEnabled(enabled);
-        edge->setEnabled(enabled);
-    }
-
-    void edge_enableAndShow(InodeEdge* edge)
-    {
-        edge_setEnabled(edge, true);
-        edge_setVisible(edge, true);
-    }
-
-    void edge_disableAndHide(InodeEdge* edge)
-    {
-        edge_setEnabled(edge, false);
-        edge_setVisible(edge, false);
-    }
-
-    /// This is only used when a source node is in HalfClose state. The target
-    /// node is disabled and hidden, but the edge remains visible and disabled.
-    /// The edge is set up as a tick mark for a HalfClosed source node, and
-    /// this set up takes place in InodeEdge::adjust().
-    ///
-    /// NOTE: visibility of edge->nextLabel() is not and should not be set here;
-    /// otherwise, the assertion in animateRotation() will fail. i.e., the
-    /// visibility of edge->nextLabel() is handled in animateRotation().
-    void edge_disableAndHideTarget(InodeEdge* edge)
-    {
-        edge_setEnabled(edge, false);
-
-        edge->target()->setVisible(false);
-        edge->currLabel()->setVisible(false);
-    }
-
     bool isRoot(QGraphicsItem* node)
     {
         return qgraphicsitem_cast<RootNode*>(node) != nullptr;
@@ -378,8 +335,6 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
 {
     Q_UNUSED(widget);
 
-    Q_ASSERT(source() && target());
-
     if (line().isNull()) {
         /// nodes are too close to draw any edges.
         return;
@@ -405,9 +360,46 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
     p->drawLine(QLineF(p1, p1 + v2));
 }
 
+/// CollapsedState is only used when a source node is in HalfClosed state. The
+/// target node is disabled and hidden, but the edge remains visible and
+/// disabled. The edge is set up as a tick mark for a HalfClosed source node,
+/// and this set up takes place in InodeEdge::adjust().
+///
+/// NOTE: visibility of nextLabel() is not and should not be set here;
+/// otherwise, the assertion in animateRotation() will fail. i.e., the
+/// visibility of nextLabel() is handled in animateRotation().
 void InodeEdge::setState(State state)
 {
+    Q_ASSERT(_state != state);
     _state = state;
+
+    auto toggleMembers = [this](bool onOff)
+    {
+        setEnabled(onOff);
+        target()->setEnabled(onOff);
+
+        currLabel()->setVisible(onOff);
+        target()->setVisible(onOff);
+    };
+
+    switch (_state) {
+    case ActiveState:
+        setVisible(true);
+        toggleMembers(true);
+        break;
+
+    case InactiveState:
+        setVisible(false);
+        toggleMembers(false);
+        break;
+
+    case CollapsedState:
+        setVisible(true);
+        toggleMembers(false);
+        break;
+    }
+
+    adjust();
 }
 
 QPainterPath InodeEdge::shape() const
@@ -694,7 +686,7 @@ Inode* Inode::createRoot(core::FileSystemScene* scene)
     scene->addItem(node->newFolderEdge()->target());
     scene->addItem(node->newFolderEdge());
 
-    edge_disableAndHide(node->newFolderEdge());
+    node->newFolderEdge()->setState(InodeEdge::InactiveState);
 
     return node;
 }
@@ -729,8 +721,7 @@ void Inode::init()
         scene()->addItem(node->newFolderEdge());
         scene()->addItem(edge);
 
-        edge_disableAndHide(node->newFolderEdge());
-
+        node->newFolderEdge()->setState(InodeEdge::InactiveState);
         node->_parentEdge = edge;
         _childEdges.emplace_back(node->_parentEdge);
     }
@@ -739,7 +730,7 @@ void Inode::init()
     Q_ASSERT(_newFolderEdge->scene());
 
     /// TODO: need proper check based on Folder permissions.
-    edge_enableAndShow(_newFolderEdge);
+    _newFolderEdge->setState(InodeEdge::ActiveState);
 }
 
 void Inode::setDir(const QDir& dir)
@@ -861,14 +852,13 @@ void Inode::halfClose()
 
     for (auto* edge : _childEdges) {
         if (auto* node = asInode(edge->target()); node->isClosed()) {
-            edge_disableAndHideTarget(edge);
             edge->setState(InodeEdge::CollapsedState);
         }
     }
 
     prepareGeometryChange();
     _state = FolderState::HalfClosed;
-    edge_disableAndHide(_newFolderEdge);
+    _newFolderEdge->setState(InodeEdge::InactiveState);
     adjustAllEdges(this);
 }
 
@@ -903,14 +893,13 @@ void Inode::open()
 
         for (auto* edge : _childEdges) {
             if (const auto* node = asInode(edge->target()); node->isClosed()) {
-                edge_enableAndShow(edge);
-                edge->setState(InodeEdge::FullState);
+                edge->setState(InodeEdge::ActiveState);
             }
         }
 
         prepareGeometryChange();
         _state = FolderState::Open;
-        edge_enableAndShow(_newFolderEdge);
+        _newFolderEdge->setState(InodeEdge::ActiveState);
 
         spread();
         adjustAllEdges(this);
@@ -1154,7 +1143,7 @@ void Inode::doClose()
         delete edge;
     }
     /// no reason to delete _newFolderEdge when we can just disable and hide it.
-    edge_disableAndHide(_newFolderEdge);
+    _newFolderEdge->setState(InodeEdge::InactiveState);
 
     _childEdges.clear();
 }

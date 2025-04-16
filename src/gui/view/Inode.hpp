@@ -92,7 +92,7 @@ namespace  gui::view
     {
     public:
         enum { Type = UserType + 1 };
-        enum State { FullState, CollapsedState };
+        enum State { ActiveState, CollapsedState, InactiveState };
 
         explicit InodeEdge(QGraphicsItem* source = nullptr, QGraphicsItem* target = nullptr);
         void setName(const QString& name) const;
@@ -110,7 +110,7 @@ namespace  gui::view
         void swapLabels() { std::swap(_currLabel, _nextLabel); }
 
     private:
-        State _state{FullState};
+        State _state{ActiveState};
         QGraphicsItem* _source{nullptr};
         QGraphicsItem* _target{nullptr};
         InodeEdgeLabel* _currLabel{nullptr};
