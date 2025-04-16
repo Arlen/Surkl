@@ -41,19 +41,6 @@ namespace
     /// ---- These will need to go into theme.[hpp,cpp]
     QFont inodeFont() { return {"Adwaita Sans", 11}; }
     QColor inodeColor() { return {41, 117, 156, 255}; }
-    QLinearGradient openNodeHighlight()
-    {
-        const auto color = inodeColor();
-        const auto high  = color.lighter();
-        const auto low   = color.darker();
-
-        QLinearGradient lg(QPointF(0, INODE_OPEN_RADIUS), QPointF(0, -INODE_OPEN_RADIUS));
-        lg.setColorAt(0, low);
-        lg.setColorAt(1, high);
-
-        return lg;
-    }
-
     QColor inodeEdgeColor() { return {8, 8, 8, 255}; }
     QColor inodeEdgeTextColor() { return {220, 220, 220, 255}; }
     QColor inodeOpenBorderColor() { return {220, 220, 220, 255}; }
