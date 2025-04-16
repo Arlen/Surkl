@@ -198,7 +198,6 @@ namespace  gui::view
         [[nodiscard]] InodeEdges childEdges() const { return _childEdges; }
         [[nodiscard]] int type() const override     { return Type; }
         [[nodiscard]] InodeEdge* parentEdge() const { return _parentEdge; }
-        [[nodiscard]] InodeEdge* newFolderEdge() const { return _newFolderEdge; }
         [[nodiscard]] const QPersistentModelIndex& index() const { return _index; }
 
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -227,7 +226,6 @@ namespace  gui::view
 
         FolderState _state{FolderState::Closed};
         QPersistentModelIndex _index;
-        InodeEdge* _newFolderEdge{nullptr};
         InodeEdge* _parentEdge{nullptr};
         InodeEdges _childEdges;
 

@@ -657,10 +657,6 @@ Inode::Inode(const QPersistentModelIndex& index)
 {
     _index = index;
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
-
-    auto* nfn      = new NewFolderNode;
-    _newFolderEdge = new InodeEdge(this, nfn);
-    nfn->setEdge(_newFolderEdge);
 }
 
 Inode* Inode::createRoot(core::FileSystemScene* scene)
@@ -679,14 +675,6 @@ Inode* Inode::createRoot(core::FileSystemScene* scene)
 
     root->setPos(-128, 0);
     node->_parentEdge = edge;
-
-    Q_ASSERT(node->newFolderEdge() != nullptr);
-    Q_ASSERT(node->newFolderEdge()->scene() == nullptr);
-
-    scene->addItem(node->newFolderEdge()->target());
-    scene->addItem(node->newFolderEdge());
-
-    node->newFolderEdge()->setState(InodeEdge::InactiveState);
 
     return node;
 }
@@ -717,20 +705,11 @@ void Inode::init()
         edge->setName(node->name());
 
         scene()->addItem(node);
-        scene()->addItem(node->newFolderEdge()->target());
-        scene()->addItem(node->newFolderEdge());
         scene()->addItem(edge);
 
-        node->newFolderEdge()->setState(InodeEdge::InactiveState);
         node->_parentEdge = edge;
         _childEdges.emplace_back(node->_parentEdge);
     }
-
-    Q_ASSERT(_newFolderEdge != nullptr);
-    Q_ASSERT(_newFolderEdge->scene());
-
-    /// TODO: need proper check based on Folder permissions.
-    _newFolderEdge->setState(InodeEdge::ActiveState);
 }
 
 void Inode::setDir(const QDir& dir)
@@ -858,7 +837,6 @@ void Inode::halfClose()
 
     prepareGeometryChange();
     _state = FolderState::HalfClosed;
-    _newFolderEdge->setState(InodeEdge::InactiveState);
     adjustAllEdges(this);
 }
 
@@ -899,7 +877,6 @@ void Inode::open()
 
         prepareGeometryChange();
         _state = FolderState::Open;
-        _newFolderEdge->setState(InodeEdge::ActiveState);
 
         spread();
         adjustAllEdges(this);
@@ -1097,18 +1074,6 @@ void Inode::doClose()
     /// "it is more efficient to remove the item from the QGraphicsScene
     /// before destroying the item." -- Qt docs
 
-    auto destroyNewFolder = [](Inode* node)
-    {
-        auto* sc = node->scene();
-
-        Q_ASSERT(sc->items().contains(node->_newFolderEdge->target()));
-        sc->removeItem(node->_newFolderEdge->target());
-        delete node->_newFolderEdge->target();
-        Q_ASSERT(sc->items().contains(node->_newFolderEdge));
-        sc->removeItem(node->_newFolderEdge);
-        delete node->_newFolderEdge;
-    };
-
     std::stack stack(_childEdges.begin(), _childEdges.end());
 
     while (!stack.empty()) {
@@ -1122,7 +1087,6 @@ void Inode::doClose()
             if (childInode->isOpen() || childInode->isHalfClosed()) {
                 stack.emplace(childEdge);
             } else {
-                destroyNewFolder(childInode);
                 Q_ASSERT(scene()->items().contains(childInode));
                 scene()->removeItem(childInode);
                 delete childInode;
@@ -1133,7 +1097,6 @@ void Inode::doClose()
         }
         node->_childEdges.clear();
 
-        destroyNewFolder(node);
         Q_ASSERT(scene()->items().contains(node));
         scene()->removeItem(node);
         delete node;
@@ -1142,8 +1105,6 @@ void Inode::doClose()
         scene()->removeItem(edge);
         delete edge;
     }
-    /// no reason to delete _newFolderEdge when we can just disable and hide it.
-    _newFolderEdge->setState(InodeEdge::InactiveState);
 
     _childEdges.clear();
 }
@@ -1333,7 +1294,6 @@ void Inode::spread(QPointF dxy)
         return;
     }
     Q_ASSERT(_parentEdge);
-    Q_ASSERT(_newFolderEdge);
 
     constexpr qreal radius = 1.0;
     const auto center      = mapToScene(boundingRect().center());
@@ -1341,29 +1301,19 @@ void Inode::spread(QPointF dxy)
     /// NOTE: guides that interesect with _parentEdge, _newFolderEdge, any open
     /// or halfClosed edges are not used b/c those InodeEdges are not
     /// repositioned during spread.
-    /// +2, one for _parentEdge and one for _newFolderEdge
-    auto guides = circle(center, _childEdges.size() + 2, radius);
-
-    auto newFolderEdge = QLineF(center, _newFolderEdge->target()->mapToScene(_newFolderEdge->target()->boundingRect().center()));
-    if (newFolderEdge.isNull() || newFolderEdge.length() < radius) {
-        /// I suppose this can happen when loading from DB and the content of
-        /// the DB contains incorrect data.  In which case, set it to some
-        /// valid line.
-        /// _newFolderEdge is always at a -45 degrees angle.
-        newFolderEdge = QLineF(center, center + QPointF(radius * 2, 0));
-        newFolderEdge.setAngle(-45);
-    }
+    /// +2, one for _parentEdge
+    auto guides = circle(center, _childEdges.size() + 1, radius);
 
     /// In CCW order, the first non-intersecting guide edge right after
     /// _newFolderEdge marks the beginning of the guides.  Find guide edge that
     /// intersects with _newFolderEdge, then rotate so that guide[0] is the
     /// beginning.
-    auto intersectsNewFolder = [&newFolderEdge](const QLineF& x)
-    { return x.intersects(newFolderEdge) == QLineF::BoundedIntersection; };
-    if (const auto found = std::ranges::find_if(guides, intersectsNewFolder); found != guides.end()) {
-        std::ranges::rotate(guides, std::ranges::next(found));
-        guides.pop_back(); // remove guide that intersects _newFolderEdge
-    }
+    // auto intersectsNewFolder = [&newFolderEdge](const QLineF& x)
+    // { return x.intersects(newFolderEdge) == QLineF::BoundedIntersection; };
+    // if (const auto found = std::ranges::find_if(guides, intersectsNewFolder); found != guides.end()) {
+    //     std::ranges::rotate(guides, std::ranges::next(found));
+    //     guides.pop_back(); // remove guide that intersects _newFolderEdge
+    // }
 
     auto parentEdge = QLineF(center, _parentEdge->source()->mapToScene(_parentEdge->source()->boundingRect().center()));
     if (parentEdge.isNull() || parentEdge.length() < radius) {
@@ -1439,7 +1389,5 @@ void gui::view::shrink(Inode* inode, qreal distance)
 void gui::view::adjustAllEdges(const Inode* inode)
 {
     inode->parentEdge()->adjust();
-    inode->newFolderEdge()->target()->setPos(inode->pos());
-    inode->newFolderEdge()->adjust();
     std::ranges::for_each(inode->childEdges(), &InodeEdge::adjust);
 }
