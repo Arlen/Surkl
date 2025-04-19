@@ -47,22 +47,19 @@ namespace
     QColor inodeClosedBorderColor() { return {8, 8, 8, 255}; }
     /// ----
 
-    std::vector<QLineF> circle(const QPointF& center, unsigned sides, qreal radius = 1)
+    std::deque<QLineF> circle(QLineF line1, int sides, qreal startAngle = 0.0)
     {
-        Q_ASSERT(sides > 1);
+        sides = std::max(1, sides);
 
-        const auto sideAngle = 360.0 / sides;
-        auto start = sideAngle;
-        auto line1 = QLineF(center, center + QPointF(radius, 0));
+        const auto anglePerSide = 360.0 / sides;
+        auto angle = startAngle;
         auto line2 = line1;
 
-        std::vector<QLineF> result;
-        for (unsigned i = 0; i < sides; ++i) {
-            line1.setAngle(start);
-            line2.setAngle(start+sideAngle);
+        std::deque<QLineF> result;
+        for (int i = 0; i < sides; ++i, angle += anglePerSide) {
+            line1.setAngle(angle);
+            line2.setAngle(angle + anglePerSide);
             result.emplace_back(line2.p2(), line1.p2());
-
-            start += sideAngle;
         }
 
         return result;
@@ -1277,69 +1274,71 @@ void Inode::doInternalRotation(Rotation rot, InternalRotState& result)
 /// too quickly or rapidly.
 void Inode::spread(QPointF dxy)
 {
-    if (_childEdges.empty()) {
-        return;
+    using namespace std;
+
+    if (_childEdges.empty()) { return; }
+
+    const auto* grabber = scene()->mouseGrabberItem();
+    const auto center   = mapToScene(boundingRect().center());
+    const auto sides    = _childEdges.size() + (_parentEdge ? 1 : 0);
+    auto guides         = circle(QLineF(center, center + QPointF(1, 0)), sides);
+
+    auto intersectsWith = [](const QLineF& line)
+    {
+        return [line](const QLineF& other) -> bool
+        {
+            return other.intersects(line) == QLineF::BoundedIntersection;
+        };
+    };
+    auto isIncluded     = [grabber](Inode* node) -> bool
+    {
+        return node->isClosed() && node != grabber;
+    };
+    auto isExcluded     = [grabber](Inode* node) -> bool
+    {
+        return node->isOpen() || node->isHalfClosed() || node == grabber;
+    };
+
+    if (_parentEdge) {
+        auto* ps        = _parentEdge->source();
+        auto parentEdge = QLineF(center, ps->mapToScene(ps->boundingRect().center()));
+        auto removed    = std::ranges::remove_if(guides, intersectsWith(parentEdge));
+        guides.erase(removed.begin(), removed.end());
     }
-    Q_ASSERT(_parentEdge);
 
-    constexpr qreal radius = 1.0;
-    const auto center      = mapToScene(boundingRect().center());
-
-    /// NOTE: guides that interesect with _parentEdge, _newFolderEdge, any open
-    /// or halfClosed edges are not used b/c those InodeEdges are not
-    /// repositioned during spread.
-    /// +2, one for _parentEdge
-    auto guides = circle(center, _childEdges.size() + 1, radius);
-
-    /// In CCW order, the first non-intersecting guide edge right after
-    /// _newFolderEdge marks the beginning of the guides.  Find guide edge that
-    /// intersects with _newFolderEdge, then rotate so that guide[0] is the
-    /// beginning.
-    // auto intersectsNewFolder = [&newFolderEdge](const QLineF& x)
-    // { return x.intersects(newFolderEdge) == QLineF::BoundedIntersection; };
-    // if (const auto found = std::ranges::find_if(guides, intersectsNewFolder); found != guides.end()) {
-    //     std::ranges::rotate(guides, std::ranges::next(found));
-    //     guides.pop_back(); // remove guide that intersects _newFolderEdge
-    // }
-
-    auto parentEdge = QLineF(center, _parentEdge->source()->mapToScene(_parentEdge->source()->boundingRect().center()));
-    if (parentEdge.isNull() || parentEdge.length() < radius) {
-        /// I suppose this can happen when loading from DB and the content of
-        /// the DB contains incorrect data.  In which case, set it to some
-        /// valid line.
-        parentEdge = QLineF(center, center + QPointF(-radius * 2, 0));
+    auto excludedNodes = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter(isExcluded)
+        ;
+    for (auto* node : excludedNodes) {
+        const auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
+        auto ignored = std::ranges::remove_if(guides, intersectsWith(nodeLine));
+        guides.erase(ignored.begin(), ignored.end());
     }
 
-    /// remove guide edges that intersect with parentEdge.
-    auto rmv1 = std::ranges::remove_if(guides, [&parentEdge](const QLineF& x)
-        { return x.intersects(parentEdge) == QLineF::BoundedIntersection; });
-    guides.erase(rmv1.begin(), rmv1.end());
-
-    /// remove guide edges that intersect with open, half-closed or current mouse grabber.
-    for (const auto* edge : _childEdges) {
-        if (const auto* inode = asInode(edge->target()); inode->isOpen() || inode->isHalfClosed() || scene()->mouseGrabberItem() == inode) {
-            const auto ignoredEdge = QLineF(center, inode->mapToScene(inode->boundingRect().center()));
-            auto ignored = std::ranges::remove_if(guides, [ignoredEdge](QLineF x)
-                { return x.intersects(ignoredEdge) == QLineF::BoundedIntersection; });
-            guides.erase(ignored.begin(), ignored.end());
+    auto includedNodes = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter(isIncluded)
+        ;
+    for (auto* node : includedNodes) {
+        if (guides.empty()) {
+            break;
         }
-    }
-
-    int gi = 0;
-    for (const auto* edge : _childEdges) {
-        if (auto* target = asInode(edge->target()); target->isClosed() && target != scene()->mouseGrabberItem()) {
-            constexpr qreal prefLen = 144.0;
-            Q_ASSERT(gi < guides.size());
-            const auto norm = guides[gi].normalVector();
-            auto segment = target->pos().isNull()
-                ? QLineF(center + dxy, center + dxy + QPointF(prefLen, 0))
-                : QLineF(center + dxy, target->mapToScene(target->boundingRect().center()) + dxy);
-
-            segment.setAngle(norm.angle());
-            target->setPos(segment.p2());
-
-            ++gi;
+        const auto guide = guides.front();
+        const auto norm  = guide.normalVector();
+        auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
+        if (nodeLine.p2().isNull() || nodeLine.length() < boundingRect().width()) {
+            nodeLine.setLength(144);
+            nodeLine.setAngle(norm.angle());
+        } else if (!intersectsWith(guide)(nodeLine)) {
+            /// if nodeLine intersects with a guide, then it's within legal
+            /// range; otherwise, we set it's angle.
+            nodeLine.setAngle(norm.angle());
         }
+        node->setPos(nodeLine.p2() + dxy);
+        guides.pop_front();
     }
 }
 
