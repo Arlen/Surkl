@@ -224,6 +224,8 @@ namespace  gui::view
         void internalRotationAfterClose(InodeEdge* closedEdge);
         InternalRotState doInternalRotationAfterClose(InodeEdge* closedEdge);
         void doInternalRotation(Rotation rot, InternalRotState& result);
+        void skipTo(int row, InternalRotState& result);
+        void skipTo(int row);
 
         void spread(QPointF dxy = QPointF(0,0));
 

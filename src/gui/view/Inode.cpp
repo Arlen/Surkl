@@ -707,6 +707,8 @@ void Inode::setIndex(const QPersistentModelIndex& index)
 
 QString Inode::name() const
 {
+    Q_ASSERT(_index.isValid());
+
     return _index.data().toString();
 }
 
@@ -840,7 +842,7 @@ void Inode::open()
         extend(this);
         init();
         spread();
-        adjustAllEdges(this);
+        skipTo(0);
     } else if (_state == FolderState::HalfClosed) {
         setState(FolderState::Open);
         spread();
@@ -856,7 +858,6 @@ void Inode::rotate(Rotation rot)
     }
 
     InternalRotState result{};
-    const int lastEdge = static_cast<int>(_childEdges.size() - 1);
     doInternalRotation(rot, result);
 
     if (result.changes.empty()) {
@@ -1257,6 +1258,97 @@ void Inode::doInternalRotation(Rotation rot, InternalRotState& result)
     if (prev) {
         prev->setIndex(sibling);
         result.changes[prev->parentEdge()] = {prev->name(), rot};
+    }
+}
+
+void Inode::skipTo(int row)
+{
+    InternalRotState result{};
+    skipTo(row, result);
+
+    if (result.changes.empty()) {
+        return;
+    }
+
+    if (!_singleRotAnimation.isNull() && _singleRotAnimation->state() == QAbstractAnimation::Running) {
+        _singleRotAnimation->pause();
+    }
+    _singleRotAnimation = getVariantAnimation();
+
+    animateRotation(_singleRotAnimation.data(), result.changes);
+
+    _singleRotAnimation->start();
+}
+
+void Inode::skipTo(int row, InternalRotState& result)
+{
+    const auto rowCount = _index.model()->rowCount(_index);
+
+    Q_ASSERT(_childEdges.size() <= rowCount);
+
+    using namespace std;
+
+    auto closedNodes = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter(&Inode::isClosed)
+        ;
+
+    if (closedNodes.empty()) {
+        return;
+    }
+
+    auto target = _index.model()->index(row, 0, _index);
+
+    if (!target.isValid()) {
+        result.status = InternalRotationStatus::MovementImpossible;
+        return;
+    }
+
+    const auto openOrHalfClosedRows = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Inode::index)
+        | views::transform(&QPersistentModelIndex::row)
+        | ranges::to<std::unordered_set>()
+        ;
+
+    const auto rows = ranges::distance(closedNodes);
+
+    std::deque<QPersistentModelIndex> newIndices;
+
+    do {
+        if (!target.isValid()) { break; }
+        if (openOrHalfClosedRows.contains(target.row())) {
+            target = target.sibling(target.row() + 1, 0);
+            continue;
+        }
+        newIndices.push_back(target);
+        target = target.sibling(target.row() + 1, 0);
+    } while (newIndices.size() < rows);
+
+    target = _index.model()->index(row - 1, 0, _index);
+    while (newIndices.size() < rows) {
+        if (!target.isValid()) { break; }
+        if (openOrHalfClosedRows.contains(target.row())) {
+            target = target.sibling(target.row() - 1, 0);
+            continue;
+        }
+        newIndices.push_front(target);
+        target = target.sibling(target.row() - 1, 0);
+    }
+
+    Q_ASSERT(newIndices.size() == rows);
+
+    for (auto* node : closedNodes) {
+        if (auto newIndex = newIndices.front(); node->index() != newIndex) {
+            const auto rot = node->index().row() < newIndex.row()
+                ? Rotation::CCW : Rotation::CW;
+            node->setIndex(newIndex);
+            result.changes[node->parentEdge()] = {node->name(), rot};
+        }
+        newIndices.pop_front();
     }
 }
 
