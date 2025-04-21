@@ -239,4 +239,5 @@ namespace  gui::view
     void extend(Inode* inode, qreal distance = 144.0);
     void shrink(Inode* inode, qreal distance = 144.0);
     void adjustAllEdges(const Inode* inode);
+    void setAllEdgeState(const Inode* inode, InodeEdge::State state);
 }

@@ -382,8 +382,6 @@ void InodeEdge::setState(State state)
         toggleMembers(false);
         break;
     }
-
-    adjust();
 }
 
 QPainterPath InodeEdge::shape() const
@@ -812,12 +810,7 @@ void Inode::halfClose()
 {
     Q_ASSERT(hasOpenOrHalfClosedChild());
 
-    for (auto* edge : _childEdges) {
-        if (auto* node = asInode(edge->target()); node->isClosed()) {
-            edge->setState(InodeEdge::CollapsedState);
-        }
-    }
-
+    setAllEdgeState(this, InodeEdge::CollapsedState);
     setState(FolderState::HalfClosed);
     adjustAllEdges(this);
 }
@@ -842,25 +835,15 @@ void Inode::open()
     if (_state == FolderState::Closed) {
         Q_ASSERT(_childEdges.empty());
 
+        setState(FolderState::Open);
         extend(this);
         init();
-        prepareGeometryChange();
-        _state = FolderState::Open;
-        setState(FolderState::Open);
-
         spread();
         adjustAllEdges(this);
     } else if (_state == FolderState::HalfClosed) {
-
-        for (auto* edge : _childEdges) {
-            if (const auto* node = asInode(edge->target()); node->isClosed()) {
-                edge->setState(InodeEdge::ActiveState);
-            }
-        }
-
         setState(FolderState::Open);
-
         spread();
+        setAllEdgeState(this, InodeEdge::ActiveState);
         adjustAllEdges(this);
     }
 }
@@ -1383,4 +1366,20 @@ void gui::view::adjustAllEdges(const Inode* inode)
 {
     inode->parentEdge()->adjust();
     std::ranges::for_each(inode->childEdges(), &InodeEdge::adjust);
+}
+
+/// only used on closed nodes, but can be made more general if needed.
+void gui::view::setAllEdgeState(const Inode* inode, InodeEdge::State state)
+{
+    using std::views::transform;
+    using std::views::filter;
+
+    for (auto* edge : inode->childEdges()
+        | transform(&InodeEdge::target)
+        | transform(&asInode)
+        | filter(&Inode::isClosed)
+        | transform(&Inode::parentEdge))
+    {
+        edge->setState(state);
+    }
 }
