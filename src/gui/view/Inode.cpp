@@ -695,11 +695,32 @@ void Inode::init()
     }
 }
 
-void Inode::setDir(const QDir& dir)
+void Inode::reload(int start, int end)
 {
     _dir = dir;
     _dir.setFilter(QDir::NoDotAndDotDot | QDir::AllDirs);
 }
+    if (_state != FolderState::Open) {
+        return;
+    }
+
+    const auto rowCount = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
+
+    /// room to grow
+    if (_childEdges.size() < rowCount) {
+        const auto sizeBefore = _childEdges.size();
+        while (_childEdges.size() < rowCount) {
+            _childEdges.emplace_back(createNode(scene(), this)->parentEdge());
+        }
+        const auto sizeAfter = _childEdges.size();
+        if (sizeBefore != sizeAfter) {
+            spread();
+        }
+    }
+
+    skipTo(start);
+}
+
 void Inode::setIndex(const QPersistentModelIndex& index)
 {
     _index = index;
