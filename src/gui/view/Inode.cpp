@@ -641,21 +641,34 @@ Inode::Inode(const QPersistentModelIndex& index)
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
 }
 
-Inode* Inode::createRoot(core::FileSystemScene* scene)
+Inode* Inode::createRootNode(core::FileSystemScene* scene)
 {
     Q_ASSERT(scene);
 
-    auto* node = new Inode(scene->rootIndex());
     auto* root = new RootNode();
-    auto* edge = new InodeEdge(root, node);
+    scene->addItem(root);
 
-    root->setParentItem(edge);
-    edge->setName(node->name());
+    auto* node = createNode(scene, root);
+    node->setIndex(scene->rootIndex());
+    node->parentEdge()->setName(node->name());
+    root->setParentItem(node->parentEdge());
+    root->setPos(-128, 0);
+
+    return node;
+}
+
+Inode* Inode::createNode(QGraphicsScene* scene, QGraphicsItem* parent)
+{
+    Q_ASSERT(scene);
+    Q_ASSERT(parent);
+    Q_ASSERT(scene == parent->scene());
+
+    auto* node = new Inode(QModelIndex());
+    auto* edge = new InodeEdge(parent, node);
 
     scene->addItem(node);
     scene->addItem(edge);
 
-    root->setPos(-128, 0);
     node->_parentEdge = edge;
 
     return node;
@@ -666,31 +679,19 @@ Inode::~Inode()
     //qDebug() << "Inode::~Inode" << scene()->items().count();
     // qDebug() << "Inode::~Inode:" << name();
     // doClose();
-    // if (_newFolderEdge) {
-    //     delete _newFolderEdge->target();
-    //     delete _newFolderEdge;
-    // }
 }
 
 void Inode::init()
 {
     Q_ASSERT(scene());
     Q_ASSERT(_childEdges.empty());
+    Q_ASSERT(_index.isValid());
 
     const auto count = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
     _childEdges.reserve(count);
-    for (int i = 0; i < count; ++i) {
-        auto index = _index.model()->index(i, 0, _index);
-        auto* node = new Inode(index);
-        auto* edge = new InodeEdge(this, node);
-        edge->setName(node->name());
-
-        scene()->addItem(node);
-        scene()->addItem(edge);
-
-        node->_parentEdge = edge;
-        _childEdges.emplace_back(node->_parentEdge);
+    for (auto _ : std::views::iota(0, count)) {
+        _childEdges.emplace_back(createNode(scene(), this)->parentEdge());
     }
 }
 
@@ -796,7 +797,7 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
 
 void Inode::close()
 {
-    doClose();
+    destroyChildren();
     setState(FolderState::Closed);
 
     shrink(this);
@@ -1041,8 +1042,8 @@ void Inode::setState(FolderState state)
     }
 }
 
-
-void Inode::doClose()
+/// recursively destroys all child nodes and edges.
+void Inode::destroyChildren()
 {
     /// QGraphicsScene will remove an item from the scene upon delete, but
     /// "it is more efficient to remove the item from the QGraphicsScene

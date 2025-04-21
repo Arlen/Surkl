@@ -181,7 +181,9 @@ namespace  gui::view
         enum { Type = UserType + 2 };
 
         explicit Inode(const QPersistentModelIndex& index);
-        static Inode* createRoot(core::FileSystemScene* scene);
+        [[nodiscard]] static Inode* createRootNode(core::FileSystemScene* scene);
+        [[nodiscard]] static Inode* createNode(QGraphicsScene* scene, QGraphicsItem* parent);
+
         ~Inode() override;
         void init();
         void setDir(const QDir& dir);
@@ -217,7 +219,7 @@ namespace  gui::view
         void setState(FolderState state);
 
     private:
-        void doClose();
+        void destroyChildren();
 
         void internalRotationAfterClose(InodeEdge* closedEdge);
         InternalRotState doInternalRotationAfterClose(InodeEdge* closedEdge);
