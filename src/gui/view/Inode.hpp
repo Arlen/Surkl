@@ -214,6 +214,7 @@ namespace  gui::view
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event) override;
         void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
         void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+        void setState(FolderState state);
 
     private:
         void doClose();

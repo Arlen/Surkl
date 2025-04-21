@@ -799,8 +799,7 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
 void Inode::close()
 {
     doClose();
-    prepareGeometryChange();
-    _state = FolderState::Closed;
+    setState(FolderState::Closed);
 
     shrink(this);
 
@@ -819,8 +818,7 @@ void Inode::halfClose()
         }
     }
 
-    prepareGeometryChange();
-    _state = FolderState::HalfClosed;
+    setState(FolderState::HalfClosed);
     adjustAllEdges(this);
 }
 
@@ -848,6 +846,7 @@ void Inode::open()
         init();
         prepareGeometryChange();
         _state = FolderState::Open;
+        setState(FolderState::Open);
 
         spread();
         adjustAllEdges(this);
@@ -859,8 +858,7 @@ void Inode::open()
             }
         }
 
-        prepareGeometryChange();
-        _state = FolderState::Open;
+        setState(FolderState::Open);
 
         spread();
         adjustAllEdges(this);
@@ -1051,6 +1049,15 @@ void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
     QGraphicsItem::mouseMoveEvent(event);
 }
+
+void Inode::setState(FolderState state)
+{
+    if (_state != state) {
+        prepareGeometryChange();
+        _state = state;
+    }
+}
+
 
 void Inode::doClose()
 {
