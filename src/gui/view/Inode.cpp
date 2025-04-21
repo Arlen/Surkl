@@ -1322,12 +1322,8 @@ void Inode::spread(QPointF dxy)
         auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
         if (nodeLine.p2().isNull() || nodeLine.length() < boundingRect().width()) {
             nodeLine.setLength(144);
-            nodeLine.setAngle(norm.angle());
-        } else if (!intersectsWith(guide)(nodeLine)) {
-            /// if nodeLine intersects with a guide, then it's within legal
-            /// range; otherwise, we set it's angle.
-            nodeLine.setAngle(norm.angle());
         }
+        nodeLine.setAngle(norm.angle());
         node->setPos(nodeLine.p2() + dxy);
         guides.pop_front();
     }
