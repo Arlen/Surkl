@@ -67,8 +67,7 @@ namespace
 
     Inode* asInode(QGraphicsItem* item)
     {
-        assert(item != nullptr);
-        assert(item->type() == Inode::Type);
+        Q_ASSERT(item != nullptr);
 
         return qgraphicsitem_cast<Inode*>(item);
     }
@@ -1271,6 +1270,7 @@ void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
 InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
 {
     Q_ASSERT(asInode(closedEdge->target())->isClosed());
+    Q_ASSERT(asInode(closedEdge->target())->index().isValid());
 
     using namespace std;
 
@@ -1281,7 +1281,8 @@ InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
         | views::transform(&asInode)
         | views::filter(&Inode::isClosed)
         | views::transform(&Inode::index)
-        | ranges::to<std::deque>();
+        | ranges::to<std::deque>()
+        ;
 
     if (closedIndices.empty()) { return {}; }
 
@@ -1291,7 +1292,8 @@ InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
         | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
         | views::transform(&Inode::index)
         | views::transform(&QPersistentModelIndex::row)
-        | ranges::to<std::unordered_set>();
+        | ranges::to<std::unordered_set>()
+        ;
 
     auto isGap = [](const QPersistentModelIndex& lhs, const QPersistentModelIndex& rhs)
         { return lhs.row() + 1 < rhs.row(); };
@@ -1331,16 +1333,20 @@ InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
     RELAYOUT:
     auto result = InternalRotState{};
 
-    int k = 0;
-    for (auto* node : _childEdges
+    auto closedNodes = _childEdges
         | views::transform(&InodeEdge::target)
         | views::transform(&asInode)
-        | views::filter(&Inode::isClosed))
-    {
+        | views::filter(&Inode::isClosed)
+        ;
+
+    Q_ASSERT(std::ranges::all_of(closedIndices, &QPersistentModelIndex::isValid));
+    Q_ASSERT(ranges::distance(closedNodes) == closedIndices.size());
+
+    for (int k = 0; auto* node : closedNodes) {
         auto newIndex = closedIndices[k++];
+        Q_ASSERT(newIndex.isValid());
         auto oldIndex = node->index();
         if (newIndex == oldIndex) { continue; }
-        Q_ASSERT(newIndex.isValid());
         node->setIndex(newIndex);
         result.changes[node->parentEdge()] =
             { node->name()
