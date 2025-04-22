@@ -6,15 +6,14 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
-#include <QPersistentModelIndex>
 #include <QSequentialAnimationGroup>
 #include <QStyleOptionGraphicsItem>
 #include <QTimer>
 #include <QVariantAnimation>
 
 #include <numbers>
-#include <stack>
 #include <ranges>
+#include <stack>
 #include <unordered_set>
 
 
@@ -1535,11 +1534,11 @@ void Inode::spread(QPointF dxy)
             return other.intersects(line) == QLineF::BoundedIntersection;
         };
     };
-    auto isIncluded     = [grabber](Inode* node) -> bool
+    auto isIncluded = [grabber](Inode* node) -> bool
     {
         return node->isClosed() && node != grabber;
     };
-    auto isExcluded     = [grabber](Inode* node) -> bool
+    auto isExcluded = [grabber](Inode* node) -> bool
     {
         return node->isOpen() || node->isHalfClosed() || node == grabber;
     };
