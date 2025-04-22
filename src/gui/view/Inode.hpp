@@ -186,8 +186,9 @@ namespace  gui::view
 
         ~Inode() override;
         void init();
-        void setDir(const QDir& dir);
         void reload(int start, int end);
+        void unload(int start, int end);
+
         void setIndex(const QPersistentModelIndex& index);
         [[nodiscard]] QString name() const;
         [[nodiscard]] QRectF boundingRect() const override;

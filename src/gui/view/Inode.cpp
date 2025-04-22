@@ -107,6 +107,53 @@ namespace
         result.emplace_back(parent, parent->mapToScene(parent->boundingRect().center()));
         return result;
     }
+
+    std::deque<QPersistentModelIndex> gatherIndices(const QPersistentModelIndex& start, int count,
+        const std::unordered_set<int>& excludedRows)
+    {
+        using namespace std;
+
+        Q_ASSERT(start.isValid());
+        Q_ASSERT(count > 0);
+        Q_ASSERT(!excludedRows.contains(start.row()));
+
+        auto isExcluded = [&excludedRows](const QPersistentModelIndex& index)
+        {
+            return excludedRows.contains(index.row());
+        };
+
+        deque result {start};
+
+        auto next = start;
+        while (result.size() < count) {
+            next = next.sibling(next.row() + 1, 0);
+            if (!next.isValid()) {
+                /// reached the end
+                break;
+            }
+            if (isExcluded(next)) {
+                continue;
+            }
+            result.push_back(next);
+        }
+        next = start;
+        while (result.size() < count) {
+            next = next.sibling(next.row() - 1, 0);
+            if (!next.isValid()) {
+                /// reach the end
+                break;
+            }
+            if (isExcluded(next)) {
+                continue;
+            }
+            result.push_front(next);
+        }
+
+        Q_ASSERT(ranges::all_of(result, &QPersistentModelIndex::isValid));
+        Q_ASSERT(ranges::none_of(result, isExcluded));
+
+        return result;
+    }
 }
 
 
@@ -697,9 +744,6 @@ void Inode::init()
 
 void Inode::reload(int start, int end)
 {
-    _dir = dir;
-    _dir.setFilter(QDir::NoDotAndDotDot | QDir::AllDirs);
-}
     if (_state != FolderState::Open) {
         return;
     }
@@ -719,6 +763,97 @@ void Inode::reload(int start, int end)
     }
 
     skipTo(start);
+}
+
+void Inode::unload(int start, int end)
+{
+    Q_UNUSED(start);
+    Q_UNUSED(end);
+
+    using namespace std;
+
+    auto all = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        ;
+
+    /// 1. close all invalid nodes that are not closed.
+    for (auto* node : all) {
+        if (!node->index().isValid() && !node->isClosed()) {
+            /// This is close() without the internalRotationAfterClose();
+            node->destroyChildren();
+            node->setState(FolderState::Closed);
+            shrink(node);
+        }
+    }
+
+    const auto ghostNodes = static_cast<int>(_childEdges.size()) -
+                            _index.model()->rowCount(_index);
+
+    /// 2. destroy excessive nodes.
+    if (InodeEdges edges; ghostNodes > 0) {
+        edges.reserve(_childEdges.size());
+        for (int deletedNodes = 0; auto* node : all) {
+            if (deletedNodes >= ghostNodes) {
+                edges.push_back(node->parentEdge());
+                continue;
+            }
+            if (!node->index().isValid()) {
+                deletedNodes++;
+                Q_ASSERT(node->isClosed());
+
+                scene()->removeItem(node);
+                delete node;
+                scene()->removeItem(node->parentEdge());
+                delete node->parentEdge();
+            } else {
+                edges.push_back(node->parentEdge());
+            }
+        }
+        _childEdges.swap(edges);
+        if (_childEdges.empty()) {
+            return close();
+        }
+        spread();
+    }
+
+    const auto openOrHalfClosedRows = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Inode::index)
+        | views::transform(&QPersistentModelIndex::row)
+        | ranges::to<std::unordered_set>()
+        ;
+
+    auto closedNodes = _childEdges
+        | views::transform(&InodeEdge::target)
+        | views::transform(&asInode)
+        | views::filter(&Inode::isClosed)
+        ;
+
+    auto closedIndices = closedNodes | views::transform(&Inode::index);
+    if (ranges::all_of(closedIndices, &QPersistentModelIndex::isValid)) {
+        return;
+    }
+
+    if (const auto count = ranges::distance(closedIndices); count > 0) {
+        auto startIndex = _index.model()->sibling(0, 0, _index);
+        if (auto betterStart = ranges::find_if(closedIndices, &QPersistentModelIndex::isValid);
+            betterStart != closedIndices.end()) {
+            startIndex = *betterStart;
+        }
+        auto rebuilt = gatherIndices(startIndex, count, openOrHalfClosedRows);
+
+        for (auto* node : closedNodes) {
+            if (rebuilt.empty()) { break; }
+            /// set index even if node has valid index, b/c the oder might
+            /// have changed.
+            node->setIndex(rebuilt.front());
+            node->parentEdge()->setName(node->name());
+            rebuilt.pop_front();
+        }
+    }
 }
 
 void Inode::setIndex(const QPersistentModelIndex& index)
