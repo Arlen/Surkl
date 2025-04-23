@@ -12,13 +12,10 @@
 class QVariantAnimation;
 class QSequentialAnimationGroup;
 
-namespace core
+namespace  core
 {
     class FileSystemScene;
-}
 
-namespace  gui::view
-{
     enum class Rotation
     {
         CCW, CW ///, NoRotation

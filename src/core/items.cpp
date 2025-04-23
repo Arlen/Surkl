@@ -1,5 +1,5 @@
-#include "Inode.hpp"
-#include "core/Scene.hpp"
+#include "items.hpp"
+#include "Scene.hpp"
 
 #include <QCursor>
 #include <QGraphicsScene>
@@ -17,7 +17,7 @@
 #include <unordered_set>
 
 
-using namespace gui::view;
+using namespace core;
 
 namespace
 {
@@ -568,7 +568,7 @@ QVariant NewFolderNode::itemChange(GraphicsItemChange change, const QVariant& va
 
 
 /// animation functions
-void gui::view::animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input)
+void core::animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input)
 {
     auto startCW    = [](InodeEdge* edge, const QString& text)
     {
@@ -1582,7 +1582,7 @@ void Inode::spread(QPointF dxy)
     }
 }
 
-void gui::view::extend(Inode* inode, qreal distance)
+void core::extend(Inode* inode, qreal distance)
 {
     const auto* pe = inode->parentEdge();
 
@@ -1597,7 +1597,7 @@ void gui::view::extend(Inode* inode, qreal distance)
     inode->setPos(line.p2());
 }
 
-void gui::view::shrink(Inode* inode, qreal distance)
+void core::shrink(Inode* inode, qreal distance)
 {
     const auto* pe = inode->parentEdge();
 
@@ -1612,14 +1612,14 @@ void gui::view::shrink(Inode* inode, qreal distance)
     inode->setPos(line.p2());
 }
 
-void gui::view::adjustAllEdges(const Inode* inode)
+void core::adjustAllEdges(const Inode* inode)
 {
     inode->parentEdge()->adjust();
     std::ranges::for_each(inode->childEdges(), &InodeEdge::adjust);
 }
 
 /// only used on closed nodes, but can be made more general if needed.
-void gui::view::setAllEdgeState(const Inode* inode, InodeEdge::State state)
+void core::setAllEdgeState(const Inode* inode, InodeEdge::State state)
 {
     using std::views::transform;
     using std::views::filter;
