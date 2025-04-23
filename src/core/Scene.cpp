@@ -1,9 +1,9 @@
 #include "Scene.hpp"
+#include "Inode.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
 #include "db.hpp"
 #include "gui/theme.hpp"
-#include "gui/view/Inode.hpp"
 #include "nodes.hpp"
 
 #include <QFileSystemModel>
