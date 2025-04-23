@@ -320,7 +320,7 @@ void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int en
 {
     std::vector<Node*> toBeUnloaded;
 
-    /// can't call Inode::unload() while traversing items() because Inode::unload()
+    /// can't call Node::unload() while traversing items() because Node::unload()
     /// deletes child nodes and subtrees of items still in items().
     for (const auto _items = items(); auto* node : _items | filterNodes) {
         if (node->index() == parent) {

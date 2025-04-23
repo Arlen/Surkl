@@ -155,9 +155,9 @@ namespace
 }
 
 
-//////////////////////
-/// InodeEdgeLabel ///
-//////////////////////
+/////////////////
+/// EdgeLabel ///
+/////////////////
 EdgeLabel::EdgeLabel(QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent)
 {
@@ -173,7 +173,7 @@ void EdgeLabel::alignToAxis(const QLineF& axis)
 
 /// sets this label's text so that it fits within length the of given segment.
 /// computes a normal that is perpendicular to the segment, and it marks the
-/// start of this InodeEdgeLabel's shape().
+/// start of this EdgeLabel's shape().
 void EdgeLabel::alignToAxis(const QLineF& axis, const QString& newText)
 {
     _axis = axis;
@@ -208,7 +208,7 @@ void EdgeLabel::alignToAxis(const QLineF& axis, const QString& newText)
 /// This simpler version is used when there is no label animation, or when
 /// the label animation is running (i.e., updatePosCCW and updatePosCW are
 /// being called), but the position needs to be updated using the current
-/// t value b/c an Inode was moved.
+/// t value b/c an Node was moved.
 void EdgeLabel::updatePos()
 {
     if (_t == 0) {
@@ -287,9 +287,9 @@ void EdgeLabel::setGradient(const QPointF& a, const QPointF& b, LabelFade fade, 
 }
 
 
-/////////////////
-/// InodeEdge ///
-/////////////////
+////////////
+/// Edge ///
+////////////
 Edge::Edge(QGraphicsItem* source, QGraphicsItem* target)
     : _source(source)
     , _target(target)
@@ -341,8 +341,8 @@ void Edge::adjust()
 
     setLine(QLineF());
 
-    /// line from the very edge of an Inode to the very edge of the other
-    /// Inode, while accounting for the pen width.
+    /// line from the very edge of an Node to the very edge of the other
+    /// Node, while accounting for the pen width.
     if (const auto len = segment.length(); len > diameter) {
         const auto lenInv    = 1.0 / len;
         const auto edgeWidth = EDGE_WIDTH * lenInv * 0.5;
@@ -392,7 +392,7 @@ void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget *
 /// CollapsedState is only used when a source node is in HalfClosed state. The
 /// target node is disabled and hidden, but the edge remains visible and
 /// disabled. The edge is set up as a tick mark for a HalfClosed source node,
-/// and this set up takes place in InodeEdge::adjust().
+/// and this set up takes place in Edge::adjust().
 ///
 /// NOTE: visibility of nextLabel() is not and should not be set here;
 /// otherwise, the assertion in animateRotation() will fail. i.e., the
@@ -677,9 +677,9 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
 }
 
 
-/////////////
-/// Inode ///
-/////////////
+////////////
+/// Node ///
+////////////
 Node::Node(const QPersistentModelIndex& index)
 {
     _index = index;
@@ -721,9 +721,7 @@ Node* Node::createNode(QGraphicsScene* scene, QGraphicsItem* parent)
 
 Node::~Node()
 {
-    //qDebug() << "Inode::~Inode" << scene()->items().count();
-    // qDebug() << "Inode::~Inode:" << name();
-    // doClose();
+
 }
 
 void Node::init()
@@ -1212,14 +1210,14 @@ void Node::destroyChildren()
         Q_ASSERT(node);
         for (auto* childEdge : node->childEdges()) {
             Q_ASSERT(childEdge->source() == node);
-            auto* childInode = asNode(childEdge->target());
-            Q_ASSERT(childInode);
-            if (childInode->isOpen() || childInode->isHalfClosed()) {
+            auto* childNode = asNode(childEdge->target());
+            Q_ASSERT(childNode);
+            if (childNode->isOpen() || childNode->isHalfClosed()) {
                 stack.emplace(childEdge);
             } else {
-                Q_ASSERT(scene()->items().contains(childInode));
-                scene()->removeItem(childInode);
-                delete childInode;
+                Q_ASSERT(scene()->items().contains(childNode));
+                scene()->removeItem(childNode);
+                delete childNode;
                 Q_ASSERT(scene()->items().contains(childEdge));
                 scene()->removeItem(childEdge);
                 delete childEdge;
@@ -1264,7 +1262,7 @@ void Node::internalRotationAfterClose(Edge* closedEdge)
 /// user may not want the edge they just closed to change and point to a
 /// different "folder".  Instead, we can offer the user an option to perform
 /// the compacting whenever they want.
-/// Inode::rotate partially solves the problem by continuing to rotate until
+/// Node::rotate partially solves the problem by continuing to rotate until
 /// there is no gap between two edges.
 InternalRotState Node::doInternalRotationAfterClose(Edge* closedEdge)
 {
