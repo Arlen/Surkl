@@ -209,13 +209,13 @@ namespace
     {
         return item != nullptr;
     };
-    auto toNode = [](QGraphicsItem* item) -> Inode*
+    auto toNode = [](QGraphicsItem* item) -> Node*
     {
-        return qgraphicsitem_cast<Inode*>(item);
+        return qgraphicsitem_cast<Node*>(item);
     };
-    auto toEdge = [](QGraphicsItem* item) -> InodeEdge*
+    auto toEdge = [](QGraphicsItem* item) -> Edge*
     {
-        return qgraphicsitem_cast<InodeEdge*>(item);
+        return qgraphicsitem_cast<Edge*>(item);
     };
 
     auto filterNodes = std::views::transform(toNode) | std::views::filter(notNull);
@@ -227,7 +227,7 @@ void FileSystemScene::configure(FileSystemScene* scene)
     if (auto db = db::get(); false && db.isOpen()) {
         /// how do we save and restore the scene???
     } else {
-        auto* n1 = Inode::createRootNode(scene);
+        auto* n1 = Node::createRootNode(scene);
     }
 }
 
@@ -318,7 +318,7 @@ void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int e
 
 void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int end) const
 {
-    std::vector<Inode*> toBeUnloaded;
+    std::vector<Node*> toBeUnloaded;
 
     /// can't call Inode::unload() while traversing items() because Inode::unload()
     /// deletes child nodes and subtrees of items still in items().

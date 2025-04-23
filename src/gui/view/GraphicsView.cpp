@@ -341,7 +341,7 @@ void GraphicsView::drawBookmarkingCursorAnimation(QPainter& p) const
 
 void GraphicsView::addSceneBookmark(const QPoint& pos)
 {
-    if (auto* gs = qobject_cast<core::Scene*>(scene())) {
+    if (auto* gs = qobject_cast<core::FileSystemScene*>(scene())) {
         gs->addSceneBookmark(mapToScene(pos).toPoint(), "test");
     }
 }

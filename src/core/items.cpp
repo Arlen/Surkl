@@ -23,27 +23,27 @@ namespace
 {
     constexpr qreal GOLDEN = 1.0 / std::numbers::phi;
     /// These don't change, because the scene view offers zoom feature.
-    constexpr qreal INODE_OPEN_RADIUS           = 32.0;
-    constexpr qreal INODE_OPEN_DIAMETER         = INODE_OPEN_RADIUS * 2.0;
-    //constexpr qreal INODE_CLOSED_RADIUS       = INODE_OPEN_RADIUS * GOLDEN;
-    constexpr qreal INODE_CLOSED_DIAMETER       = INODE_OPEN_DIAMETER * GOLDEN;
-    constexpr qreal INODE_HALF_CLOSED_DIAMETER  = INODE_OPEN_DIAMETER * (1.0 - GOLDEN*GOLDEN*GOLDEN);
-    constexpr qreal INODEEDGE_WIDTH             = 4.0;
-    constexpr qreal INODEEDGE_COLLAPSED_LEN     = INODE_HALF_CLOSED_DIAMETER;
-    constexpr qreal INODE_OPEN_PEN_WIDTH        = 4.0;
-    constexpr qreal INODE_CLOSED_PEN_WIDTH      = INODEEDGE_WIDTH * GOLDEN;
-    constexpr qreal INODE_HALF_CLOSED_PEN_WIDTH = INODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
+    constexpr qreal NODE_OPEN_RADIUS           = 32.0;
+    constexpr qreal NODE_OPEN_DIAMETER         = NODE_OPEN_RADIUS * 2.0;
+    //constexpr qreal NODE_CLOSED_RADIUS       = NODE_OPEN_RADIUS * GOLDEN;
+    constexpr qreal NODE_CLOSED_DIAMETER       = NODE_OPEN_DIAMETER * GOLDEN;
+    constexpr qreal NODE_HALF_CLOSED_DIAMETER  = NODE_OPEN_DIAMETER * (1.0 - GOLDEN*GOLDEN*GOLDEN);
+    constexpr qreal EDGE_WIDTH                 = 4.0;
+    constexpr qreal EDGE_COLLAPSED_LEN         = NODE_HALF_CLOSED_DIAMETER;
+    constexpr qreal NODE_OPEN_PEN_WIDTH        = 4.0;
+    constexpr qreal NODE_CLOSED_PEN_WIDTH      = EDGE_WIDTH * GOLDEN;
+    constexpr qreal NODE_HALF_CLOSED_PEN_WIDTH = NODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
 
     /// fixed for now.
     constexpr int NODE_CHILD_COUNT = 12;
 
     /// ---- These will need to go into theme.[hpp,cpp]
-    QFont inodeFont() { return {"Adwaita Sans", 11}; }
-    QColor inodeColor() { return {41, 117, 156, 255}; }
-    QColor inodeEdgeColor() { return {8, 8, 8, 255}; }
-    QColor inodeEdgeTextColor() { return {220, 220, 220, 255}; }
-    QColor inodeOpenBorderColor() { return {220, 220, 220, 255}; }
-    QColor inodeClosedBorderColor() { return {8, 8, 8, 255}; }
+    QFont nodeFont() { return {"Adwaita Sans", 11}; }
+    QColor nodeColor() { return {41, 117, 156, 255}; }
+    QColor edgeColor() { return {8, 8, 8, 255}; }
+    QColor edgeTextColor() { return {220, 220, 220, 255}; }
+    QColor nodeOpenBorderColor() { return {220, 220, 220, 255}; }
+    QColor nodeClosedBorderColor() { return {8, 8, 8, 255}; }
     /// ----
 
     std::deque<QLineF> circle(QLineF line1, int sides, qreal startAngle = 0.0)
@@ -64,11 +64,11 @@ namespace
         return result;
     }
 
-    Inode* asInode(QGraphicsItem* item)
+    Node* asNode(QGraphicsItem* item)
     {
         Q_ASSERT(item != nullptr);
 
-        return qgraphicsitem_cast<Inode*>(item);
+        return qgraphicsitem_cast<Node*>(item);
     }
 
     SharedVariantAnimation getVariantAnimation()
@@ -90,7 +90,7 @@ namespace
     }
 
     /// TODO rename
-    std::vector<std::pair<QGraphicsItem*, QPointF>> getAncestorPos(Inode* node)
+    std::vector<std::pair<QGraphicsItem*, QPointF>> getAncestorPos(Node* node)
     {
         Q_ASSERT(node != nullptr);
         Q_ASSERT(!isRoot(node));
@@ -100,7 +100,7 @@ namespace
 
         while (!isRoot(parent)) {
             result.emplace_back(parent, parent->mapToScene(parent->boundingRect().center()));
-            parent = asInode(parent)->parentEdge()->source();
+            parent = asNode(parent)->parentEdge()->source();
         }
         result.emplace_back(parent, parent->mapToScene(parent->boundingRect().center()));
         return result;
@@ -158,15 +158,15 @@ namespace
 //////////////////////
 /// InodeEdgeLabel ///
 //////////////////////
-InodeEdgeLabel::InodeEdgeLabel(QGraphicsItem* parent)
+EdgeLabel::EdgeLabel(QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent)
 {
-    setFont(inodeFont());
+    setFont(nodeFont());
     setPen(Qt::NoPen);
-    setBrush(inodeEdgeTextColor());
+    setBrush(edgeTextColor());
 }
 
-void InodeEdgeLabel::alignToAxis(const QLineF& axis)
+void EdgeLabel::alignToAxis(const QLineF& axis)
 {
     alignToAxis(axis, _text);
 }
@@ -174,7 +174,7 @@ void InodeEdgeLabel::alignToAxis(const QLineF& axis)
 /// sets this label's text so that it fits within length the of given segment.
 /// computes a normal that is perpendicular to the segment, and it marks the
 /// start of this InodeEdgeLabel's shape().
-void InodeEdgeLabel::alignToAxis(const QLineF& axis, const QString& newText)
+void EdgeLabel::alignToAxis(const QLineF& axis, const QString& newText)
 {
     _axis = axis;
     _text = newText;
@@ -209,7 +209,7 @@ void InodeEdgeLabel::alignToAxis(const QLineF& axis, const QString& newText)
 /// the label animation is running (i.e., updatePosCCW and updatePosCW are
 /// being called), but the position needs to be updated using the current
 /// t value b/c an Inode was moved.
-void InodeEdgeLabel::updatePos()
+void EdgeLabel::updatePos()
 {
     if (_t == 0) {
         /// only update when _t == zero to avoid flickering when fade in/out
@@ -226,7 +226,7 @@ void InodeEdgeLabel::updatePos()
     }
 }
 
-void InodeEdgeLabel::updatePosCW(qreal t, LabelFade fade)
+void EdgeLabel::updatePosCW(qreal t, LabelFade fade)
 {
     _t = t;
     const auto left    = _axis.angle() >= 90 && _axis.angle() <= 270;
@@ -249,7 +249,7 @@ void InodeEdgeLabel::updatePosCW(qreal t, LabelFade fade)
     setGradient(p2Local, p1Local, fade, 1.0 - t);
 }
 
-void InodeEdgeLabel::updatePosCCW(qreal t, LabelFade fade)
+void EdgeLabel::updatePosCCW(qreal t, LabelFade fade)
 {
     _t = t;
     const auto left    = _axis.angle() >= 90 && _axis.angle() <= 270;
@@ -272,15 +272,15 @@ void InodeEdgeLabel::updatePosCCW(qreal t, LabelFade fade)
     setGradient(p1Local, p2Local, fade, 1.0 - t);
 }
 
-void InodeEdgeLabel::setGradient(const QPointF& a, const QPointF& b, LabelFade fade, qreal t01)
+void EdgeLabel::setGradient(const QPointF& a, const QPointF& b, LabelFade fade, qreal t01)
 {
     auto gradient = QLinearGradient(a, b);
 
     if (fade == LabelFade::FadeOut) {
-        gradient.setColorAt(qBound(0.0, t01-0.05, 1.0), inodeEdgeTextColor());
+        gradient.setColorAt(qBound(0.0, t01-0.05, 1.0), edgeTextColor());
         gradient.setColorAt(qBound(0.0, t01,      1.0), QColor(0, 0, 0, 0));
     } else {
-        gradient.setColorAt(qBound(0.0, t01+0.05, 1.0), inodeEdgeTextColor());
+        gradient.setColorAt(qBound(0.0, t01+0.05, 1.0), edgeTextColor());
         gradient.setColorAt(qBound(0.0, t01,      1.0), QColor(0, 0, 0, 0));
     }
     setBrush(QBrush(gradient));
@@ -290,15 +290,15 @@ void InodeEdgeLabel::setGradient(const QPointF& a, const QPointF& b, LabelFade f
 /////////////////
 /// InodeEdge ///
 /////////////////
-InodeEdge::InodeEdge(QGraphicsItem* source, QGraphicsItem* target)
+Edge::Edge(QGraphicsItem* source, QGraphicsItem* target)
     : _source(source)
     , _target(target)
 {
     Q_ASSERT(source != nullptr);
     Q_ASSERT(target != nullptr);
 
-    _currLabel = new InodeEdgeLabel(this);
-    _nextLabel = new InodeEdgeLabel(this);
+    _currLabel = new EdgeLabel(this);
+    _nextLabel = new EdgeLabel(this);
     _nextLabel->hide();
 
     setAcceptedMouseButtons(Qt::LeftButton);
@@ -307,17 +307,17 @@ InodeEdge::InodeEdge(QGraphicsItem* source, QGraphicsItem* target)
 
     /// the color doesn't matter b/c it's set in paint(), but need to set the
     /// size so the boundingRect() produces the correct sized QRect.
-    setPen(QPen(Qt::red, INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    setPen(QPen(Qt::red, EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
 }
 
-void InodeEdge::setName(const QString& name) const
+void Edge::setName(const QString& name) const
 {
     Q_ASSERT(_currLabel->isVisible());
     Q_ASSERT(!_nextLabel->isVisible());
     _currLabel->alignToAxis(line(), name);
 }
 
-void InodeEdge::adjust()
+void Edge::adjust()
 {
     Q_ASSERT(scene());
 
@@ -334,7 +334,7 @@ void InodeEdge::adjust()
         /// the edge becomes a tick mark indicator when the source node is
         /// half-closed and the target node is closed.
         auto tick = QLineF(pA, pB);
-        tick.setLength(INODEEDGE_COLLAPSED_LEN);
+        tick.setLength(EDGE_COLLAPSED_LEN);
         setLine(QLineF(tick.pointAt(0.4), tick.pointAt(0.6)));
         return;
     }
@@ -345,7 +345,7 @@ void InodeEdge::adjust()
     /// Inode, while accounting for the pen width.
     if (const auto len = segment.length(); len > diameter) {
         const auto lenInv    = 1.0 / len;
-        const auto edgeWidth = INODEEDGE_WIDTH * lenInv * 0.5;
+        const auto edgeWidth = EDGE_WIDTH * lenInv * 0.5;
         const auto t1 = recA.width() * 0.5 * lenInv + edgeWidth;
         const auto t2 = 1.0 - (recB.width() * 0.5 * lenInv + edgeWidth);
         const auto p1 = segment.pointAt(t1);
@@ -360,7 +360,7 @@ void InodeEdge::adjust()
     }
 }
 
-void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget * widget)
+void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget * widget)
 {
     Q_UNUSED(widget);
 
@@ -371,9 +371,9 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
 
     p->setRenderHint(QPainter::Antialiasing);
     p->setPen(QPen(option->state & QStyle::State_Selected
-            ? inodeEdgeColor().lighter(1600)
-            : inodeEdgeColor()
-        , INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+            ? edgeColor().lighter(1600)
+            : edgeColor()
+        , EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
     p->drawLine(line());
 
     if (_state == CollapsedState) {
@@ -385,7 +385,7 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
     const auto v2 = QPointF(uv.dx(), uv.dy()) * 2.0;
 
     p->setBrush(Qt::NoBrush);
-    p->setPen(QPen(inodeOpenBorderColor(), INODEEDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    p->setPen(QPen(nodeOpenBorderColor(), EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
     p->drawLine(QLineF(p1, p1 + v2));
 }
 
@@ -397,7 +397,7 @@ void InodeEdge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWid
 /// NOTE: visibility of nextLabel() is not and should not be set here;
 /// otherwise, the assertion in animateRotation() will fail. i.e., the
 /// visibility of nextLabel() is handled in animateRotation().
-void InodeEdge::setState(State state)
+void Edge::setState(State state)
 {
     Q_ASSERT(_state != state);
     _state = state;
@@ -429,7 +429,7 @@ void InodeEdge::setState(State state)
     }
 }
 
-QPainterPath InodeEdge::shape() const
+QPainterPath Edge::shape() const
 {
     Q_ASSERT(pen().width() > 0);
 
@@ -460,7 +460,7 @@ RootNode::RootNode(QGraphicsItem* parent)
 {
     setRect(QRectF(-12, -12, 24, 24));
     setPen(Qt::NoPen);
-    setBrush(inodeEdgeColor());
+    setBrush(edgeColor());
     setFlags(ItemIsSelectable | ItemIsMovable |  ItemSendsScenePositionChanges);
 }
 
@@ -489,7 +489,7 @@ QVariant RootNode::itemChange(GraphicsItemChange change, const QVariant& value)
 {
     switch (change) {
     case ItemScenePositionHasChanged:
-        if (auto* pe = qgraphicsitem_cast<InodeEdge*>(parentItem())) {
+        if (auto* pe = qgraphicsitem_cast<Edge*>(parentItem())) {
             pe->adjust();
         }
         break;
@@ -511,7 +511,7 @@ NewFolderNode::NewFolderNode(QGraphicsItem* parent)
 {
     setRect(QRectF(-12, -12, 24, 24));
     setPen(Qt::NoPen);
-    setBrush(inodeEdgeColor());
+    setBrush(edgeColor());
     setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsScenePositionChanges);
 }
 
@@ -570,7 +570,7 @@ QVariant NewFolderNode::itemChange(GraphicsItemChange change, const QVariant& va
 /// animation functions
 void core::animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input)
 {
-    auto startCW    = [](InodeEdge* edge, const QString& text)
+    auto startCW    = [](Edge* edge, const QString& text)
     {
         Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->alignToAxis(edge->line());
@@ -580,21 +580,21 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
         edge->nextLabel()->updatePosCW(0, LabelFade::FadeIn);
         edge->nextLabel()->show();
     };
-    auto progressCW = [](InodeEdge* edge, qreal t)
+    auto progressCW = [](Edge* edge, qreal t)
     {
         edge->currLabel()->alignToAxis(edge->line());
         edge->nextLabel()->alignToAxis(edge->line());
         edge->currLabel()->updatePosCW(t, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCW(t, LabelFade::FadeIn);
     };
-    auto finishCW   = [](InodeEdge* edge)
+    auto finishCW   = [](Edge* edge)
     {
         edge->nextLabel()->updatePosCW(0, LabelFade::FadeOut);
         edge->currLabel()->hide();
         edge->swapLabels();
     };
 
-    auto startCCW    = [](InodeEdge* edge, const QString& text)
+    auto startCCW    = [](Edge* edge, const QString& text)
     {
         Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->alignToAxis(edge->line());
@@ -604,14 +604,14 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
         edge->nextLabel()->updatePosCCW(0, LabelFade::FadeIn);
         edge->nextLabel()->show();
     };
-    auto progressCCW = [](InodeEdge* edge, qreal t)
+    auto progressCCW = [](Edge* edge, qreal t)
     {
         edge->currLabel()->alignToAxis(edge->line());
         edge->nextLabel()->alignToAxis(edge->line());
         edge->currLabel()->updatePosCCW(t, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCCW(t, LabelFade::FadeIn);
     };
-    auto finishCCW   = [](InodeEdge* edge)
+    auto finishCCW   = [](Edge* edge)
     {
         edge->nextLabel()->updatePosCCW(0, LabelFade::FadeOut);
         edge->currLabel()->hide();
@@ -680,13 +680,13 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
 /////////////
 /// Inode ///
 /////////////
-Inode::Inode(const QPersistentModelIndex& index)
+Node::Node(const QPersistentModelIndex& index)
 {
     _index = index;
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
 }
 
-Inode* Inode::createRootNode(core::FileSystemScene* scene)
+Node* Node::createRootNode(FileSystemScene* scene)
 {
     Q_ASSERT(scene);
 
@@ -702,14 +702,14 @@ Inode* Inode::createRootNode(core::FileSystemScene* scene)
     return node;
 }
 
-Inode* Inode::createNode(QGraphicsScene* scene, QGraphicsItem* parent)
+Node* Node::createNode(QGraphicsScene* scene, QGraphicsItem* parent)
 {
     Q_ASSERT(scene);
     Q_ASSERT(parent);
     Q_ASSERT(scene == parent->scene());
 
-    auto* node = new Inode(QModelIndex());
-    auto* edge = new InodeEdge(parent, node);
+    auto* node = new Node(QModelIndex());
+    auto* edge = new Edge(parent, node);
 
     scene->addItem(node);
     scene->addItem(edge);
@@ -719,14 +719,14 @@ Inode* Inode::createNode(QGraphicsScene* scene, QGraphicsItem* parent)
     return node;
 }
 
-Inode::~Inode()
+Node::~Node()
 {
     //qDebug() << "Inode::~Inode" << scene()->items().count();
     // qDebug() << "Inode::~Inode:" << name();
     // doClose();
 }
 
-void Inode::init()
+void Node::init()
 {
     Q_ASSERT(scene());
     Q_ASSERT(_childEdges.empty());
@@ -740,7 +740,7 @@ void Inode::init()
     }
 }
 
-void Inode::reload(int start, int end)
+void Node::reload(int start, int end)
 {
     if (_state != FolderState::Open) {
         return;
@@ -763,7 +763,7 @@ void Inode::reload(int start, int end)
     skipTo(start);
 }
 
-void Inode::unload(int start, int end)
+void Node::unload(int start, int end)
 {
     Q_UNUSED(start);
     Q_UNUSED(end);
@@ -771,8 +771,8 @@ void Inode::unload(int start, int end)
     using namespace std;
 
     auto all = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
         ;
 
     /// 1. close all invalid nodes that are not closed.
@@ -789,7 +789,7 @@ void Inode::unload(int start, int end)
                             _index.model()->rowCount(_index);
 
     /// 2. destroy excessive nodes.
-    if (InodeEdges edges; ghostNodes > 0) {
+    if (EdgeVector edges; ghostNodes > 0) {
         edges.reserve(_childEdges.size());
         for (int deletedNodes = 0; auto* node : all) {
             if (deletedNodes >= ghostNodes) {
@@ -816,21 +816,21 @@ void Inode::unload(int start, int end)
     }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
-        | views::transform(&Inode::index)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter([](const Node* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Node::index)
         | views::transform(&QPersistentModelIndex::row)
         | ranges::to<std::unordered_set>()
         ;
 
     auto closedNodes = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter(&Inode::isClosed)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter(&Node::isClosed)
         ;
 
-    auto closedIndices = closedNodes | views::transform(&Inode::index);
+    auto closedIndices = closedNodes | views::transform(&Node::index);
     if (ranges::all_of(closedIndices, &QPersistentModelIndex::isValid)) {
         return;
     }
@@ -854,27 +854,27 @@ void Inode::unload(int start, int end)
     }
 }
 
-void Inode::setIndex(const QPersistentModelIndex& index)
+void Node::setIndex(const QPersistentModelIndex& index)
 {
     _index = index;
 }
 
-QString Inode::name() const
+QString Node::name() const
 {
     Q_ASSERT(_index.isValid());
 
     return _index.data().toString();
 }
 
-QRectF Inode::boundingRect() const
+QRectF Node::boundingRect() const
 {
     /// closed and half-closed are smaller.
     qreal side = 1.0;
 
     switch (_state) {
-        case FolderState::Open: side = INODE_OPEN_DIAMETER; break;
-        case FolderState::Closed: side = INODE_CLOSED_DIAMETER; break;
-        case FolderState::HalfClosed: side = INODE_HALF_CLOSED_DIAMETER; break;
+        case FolderState::Open: side = NODE_OPEN_DIAMETER; break;
+        case FolderState::Closed: side = NODE_CLOSED_DIAMETER; break;
+        case FolderState::HalfClosed: side = NODE_HALF_CLOSED_DIAMETER; break;
     }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
@@ -885,7 +885,7 @@ QRectF Inode::boundingRect() const
     return rec;
 }
 
-QPainterPath Inode::shape() const
+QPainterPath Node::shape() const
 {
     QPainterPath path;
     path.addEllipse(boundingRect());
@@ -893,44 +893,44 @@ QPainterPath Inode::shape() const
     return path;
 }
 
-bool Inode::hasOpenOrHalfClosedChild() const
+bool Node::hasOpenOrHalfClosedChild() const
 {
     const auto children = _childEdges
-        | std::views::transform(&InodeEdge::target)
-        | std::views::transform(&asInode);
+        | std::views::transform(&Edge::target)
+        | std::views::transform(&asNode);
 
     return std::ranges::any_of(children, [](auto* item) -> bool
     {
-        return asInode(item)->isOpen() || asInode(item)->isHalfClosed();
+        return asNode(item)->isOpen() || asNode(item)->isHalfClosed();
     });
 }
 
-void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
+void Node::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
     Q_UNUSED(option);
     Q_UNUSED(widget);
 
     const auto& rec = boundingRect();
     p->setRenderHint(QPainter::Antialiasing);
-    p->setBrush(isSelected() ? inodeColor().lighter() : inodeColor());
+    p->setBrush(isSelected() ? nodeColor().lighter() : nodeColor());
 
     qreal radius = 0;
     if (_state == FolderState::Open) {
-        radius = rec.width() * 0.5 - INODE_OPEN_PEN_WIDTH * 0.5;
+        radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
         //p->setPen(QPen(openNodeHighlight(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
-        p->setPen(QPen(inodeOpenBorderColor(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(nodeOpenBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
     } else if (_state == FolderState::Closed) {
-        radius = rec.width() * 0.5 - INODE_CLOSED_PEN_WIDTH * 0.5;
-        p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        radius = rec.width() * 0.5 - NODE_CLOSED_PEN_WIDTH * 0.5;
+        p->setPen(QPen(nodeClosedBorderColor(), NODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
-        p->setPen(QPen(inodeClosedBorderColor(), INODE_CLOSED_PEN_WIDTH * 0.5, Qt::SolidLine));
+        p->setPen(QPen(nodeClosedBorderColor(), NODE_CLOSED_PEN_WIDTH * 0.5, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius * 0.8, radius * 0.8);
     } else if (_state == FolderState::HalfClosed) {
-        radius = rec.width() * 0.5 - INODE_HALF_CLOSED_PEN_WIDTH * 0.5;
-        p->setPen(QPen(inodeClosedBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        radius = rec.width() * 0.5 - NODE_HALF_CLOSED_PEN_WIDTH * 0.5;
+        p->setPen(QPen(nodeClosedBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
-        p->setPen(QPen(inodeOpenBorderColor(), INODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(nodeOpenBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->setBrush(Qt::NoBrush);
         /// draw a 20 degree arc indicator for every child edge that is visible.
         auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
@@ -943,7 +943,7 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
             }
         }
     }
-    if (auto *pr = asInode(parentEdge()->source()); pr && pr->_state == FolderState::HalfClosed) {
+    if (auto *pr = asNode(parentEdge()->source()); pr && pr->_state == FolderState::HalfClosed) {
         /// need to update the half-closed parent to avoid tearing of the
         /// 20-degree arc. A node can be Open, Closed, or Half-Closed and have
         /// a parent that's HalfClosed, so this update is needed for all.
@@ -951,28 +951,28 @@ void Inode::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *
     }
 }
 
-void Inode::close()
+void Node::close()
 {
     destroyChildren();
     setState(FolderState::Closed);
 
     shrink(this);
 
-    if (auto* pr = asInode(_parentEdge->source())) {
+    if (auto* pr = asNode(_parentEdge->source())) {
         pr->internalRotationAfterClose(_parentEdge);
     }
 }
 
-void Inode::halfClose()
+void Node::halfClose()
 {
     Q_ASSERT(hasOpenOrHalfClosedChild());
 
-    setAllEdgeState(this, InodeEdge::CollapsedState);
+    setAllEdgeState(this, Edge::CollapsedState);
     setState(FolderState::HalfClosed);
     adjustAllEdges(this);
 }
 
-void Inode::closeOrHalfClose(bool forceClose)
+void Node::closeOrHalfClose(bool forceClose)
 {
     if (hasOpenOrHalfClosedChild()) {
         /// pick half closing as it is less destructive, unless the user is
@@ -987,7 +987,7 @@ void Inode::closeOrHalfClose(bool forceClose)
     }
 }
 
-void Inode::open()
+void Node::open()
 {
     if (_state == FolderState::Closed) {
         Q_ASSERT(_childEdges.empty());
@@ -1000,12 +1000,12 @@ void Inode::open()
     } else if (_state == FolderState::HalfClosed) {
         setState(FolderState::Open);
         spread();
-        setAllEdgeState(this, InodeEdge::ActiveState);
+        setAllEdgeState(this, Edge::ActiveState);
         adjustAllEdges(this);
     }
 }
 
-void Inode::rotate(Rotation rot)
+void Node::rotate(Rotation rot)
 {
     if (_childEdges.empty()) {
         return;
@@ -1030,7 +1030,7 @@ void Inode::rotate(Rotation rot)
     _singleRotAnimation->start();
 }
 
-void Inode::rotatePage(Rotation rot)
+void Node::rotatePage(Rotation rot)
 {
     if (_childEdges.empty()) {
         return;
@@ -1080,7 +1080,7 @@ void Inode::rotatePage(Rotation rot)
     _seqRotAnimation->start();
 }
 
-QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
+QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     switch (change) {
     case ItemScenePositionHasChanged:
@@ -1099,7 +1099,7 @@ QVariant Inode::itemChange(GraphicsItemChange change, const QVariant &value)
     return QGraphicsItem::itemChange(change, value);
 }
 
-void Inode::keyPressEvent(QKeyEvent *event)
+void Node::keyPressEvent(QKeyEvent *event)
 {
     const auto mod = event->modifiers() == Qt::ShiftModifier;
 
@@ -1112,7 +1112,7 @@ void Inode::keyPressEvent(QKeyEvent *event)
     }
 }
 
-void Inode::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
+void Node::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
     Q_UNUSED(event);
 
@@ -1129,7 +1129,7 @@ void Inode::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
     }
 }
 
-void Inode::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
+void Node::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
     if (scene()->mouseGrabberItem() == this) {
         if (!_ancestorPos.empty()) {
@@ -1140,7 +1140,7 @@ void Inode::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsItem::mouseReleaseEvent(event);
 }
 
-void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+void Node::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
     if (scene()->mouseGrabberItem() == this) {
         if (event->modifiers() & Qt::ShiftModifier) {
@@ -1151,7 +1151,7 @@ void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             auto lastPos = event->lastScenePos();
             spread(currPos - lastPos);
 
-            for (auto& [node, pos] : _ancestorPos) {
+            for (auto& [item, pos] : _ancestorPos) {
                 const auto lastVec = QLineF(lastPos, pos);
                 const auto currVec = QLineF(currPos, pos);
 
@@ -1160,9 +1160,9 @@ void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
                 const auto newPos = currPos + QPointF(dir.dx(), dir.dy()) * len;
 
-                node->setPos(newPos);
-                if (auto* inode = asInode(node); inode) {
-                    inode->spread(newPos - pos);
+                item->setPos(newPos);
+                if (auto* node = asNode(item); node) {
+                    node->spread(newPos - pos);
                 }
 
                 lastPos = pos;
@@ -1171,16 +1171,16 @@ void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             }
         } else {
             /// 1. spread the parent node.
-            if (auto* inode = asInode(_parentEdge->source())) {
-                inode->spread();
+            if (auto* node = asNode(_parentEdge->source())) {
+                node->spread();
             }
             /// 2. spread this node, which is moving.
             const auto dxy = event->scenePos() - event->lastScenePos();
             spread(dxy);
             /// 3. spread the child nodes.
             for (const auto* edge : _childEdges) {
-                if (auto* inode = asInode(edge->target()); !inode->isClosed()) {
-                    inode->spread();
+                if (auto* node = asNode(edge->target()); !node->isClosed()) {
+                    node->spread();
                 }
             }
         }
@@ -1189,7 +1189,7 @@ void Inode::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsItem::mouseMoveEvent(event);
 }
 
-void Inode::setState(FolderState state)
+void Node::setState(FolderState state)
 {
     if (_state != state) {
         prepareGeometryChange();
@@ -1198,7 +1198,7 @@ void Inode::setState(FolderState state)
 }
 
 /// recursively destroys all child nodes and edges.
-void Inode::destroyChildren()
+void Node::destroyChildren()
 {
     /// QGraphicsScene will remove an item from the scene upon delete, but
     /// "it is more efficient to remove the item from the QGraphicsScene
@@ -1208,11 +1208,11 @@ void Inode::destroyChildren()
 
     while (!stack.empty()) {
         auto* edge = stack.top(); stack.pop();
-        auto* node = asInode(edge->target());
+        auto* node = asNode(edge->target());
         Q_ASSERT(node);
         for (auto* childEdge : node->childEdges()) {
             Q_ASSERT(childEdge->source() == node);
-            auto* childInode = asInode(childEdge->target());
+            auto* childInode = asNode(childEdge->target());
             Q_ASSERT(childInode);
             if (childInode->isOpen() || childInode->isHalfClosed()) {
                 stack.emplace(childEdge);
@@ -1239,7 +1239,7 @@ void Inode::destroyChildren()
     _childEdges.clear();
 }
 
-void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
+void Node::internalRotationAfterClose(Edge* closedEdge)
 {
     const auto result = doInternalRotationAfterClose(closedEdge);
 
@@ -1266,30 +1266,30 @@ void Inode::internalRotationAfterClose(InodeEdge* closedEdge)
 /// the compacting whenever they want.
 /// Inode::rotate partially solves the problem by continuing to rotate until
 /// there is no gap between two edges.
-InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
+InternalRotState Node::doInternalRotationAfterClose(Edge* closedEdge)
 {
-    Q_ASSERT(asInode(closedEdge->target())->isClosed());
-    Q_ASSERT(asInode(closedEdge->target())->index().isValid());
+    Q_ASSERT(asNode(closedEdge->target())->isClosed());
+    Q_ASSERT(asNode(closedEdge->target())->index().isValid());
 
     using namespace std;
 
     auto closedIndices = _childEdges
-        | views::filter([closedEdge](InodeEdge* edge) -> bool
+        | views::filter([closedEdge](Edge* edge) -> bool
             { return edge != closedEdge; })
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter(&Inode::isClosed)
-        | views::transform(&Inode::index)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter(&Node::isClosed)
+        | views::transform(&Node::index)
         | ranges::to<std::deque>()
         ;
 
     if (closedIndices.empty()) { return {}; }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
-        | views::transform(&Inode::index)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter([](const Node* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Node::index)
         | views::transform(&QPersistentModelIndex::row)
         | ranges::to<std::unordered_set>()
         ;
@@ -1333,9 +1333,9 @@ InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
     auto result = InternalRotState{};
 
     auto closedNodes = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter(&Inode::isClosed)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter(&Node::isClosed)
         ;
 
     Q_ASSERT(std::ranges::all_of(closedIndices, &QPersistentModelIndex::isValid));
@@ -1356,16 +1356,16 @@ InternalRotState Inode::doInternalRotationAfterClose(InodeEdge* closedEdge)
 }
 
 /// performs CCW or CW rotation.
-/// CCW means going forward (i.e., the new inode index is greater than the
+/// CCW means going forward (i.e., the new node index is greater than the
 /// previous).
-void Inode::doInternalRotation(Rotation rot, InternalRotState& result)
+void Node::doInternalRotation(Rotation rot, InternalRotState& result)
 {
     using namespace std;
 
     auto closedNodes = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter(&Inode::isClosed)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter(&Node::isClosed)
         | ranges::to<std::vector>();
 
     if (closedNodes.empty()) {
@@ -1374,10 +1374,10 @@ void Inode::doInternalRotation(Rotation rot, InternalRotState& result)
     }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
-        | views::transform(&Inode::index)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter([](const Node* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Node::index)
         | views::transform(&QPersistentModelIndex::row)
         | ranges::to<std::unordered_set>();
 
@@ -1406,7 +1406,7 @@ void Inode::doInternalRotation(Rotation rot, InternalRotState& result)
 
     sibling = candidates.front();
 
-    Inode* prev = nullptr;
+    Node* prev = nullptr;
     for (auto* node : closedNodes) {
         if (prev) {
             Q_ASSERT(prev->isClosed());
@@ -1422,7 +1422,7 @@ void Inode::doInternalRotation(Rotation rot, InternalRotState& result)
     }
 }
 
-void Inode::skipTo(int row)
+void Node::skipTo(int row)
 {
     InternalRotState result{};
     skipTo(row, result);
@@ -1441,7 +1441,7 @@ void Inode::skipTo(int row)
     _singleRotAnimation->start();
 }
 
-void Inode::skipTo(int row, InternalRotState& result)
+void Node::skipTo(int row, InternalRotState& result)
 {
     const auto rowCount = _index.model()->rowCount(_index);
 
@@ -1450,9 +1450,9 @@ void Inode::skipTo(int row, InternalRotState& result)
     using namespace std;
 
     auto closedNodes = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter(&Inode::isClosed)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter(&Node::isClosed)
         ;
 
     if (closedNodes.empty()) {
@@ -1467,10 +1467,10 @@ void Inode::skipTo(int row, InternalRotState& result)
     }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
-        | views::filter([](const Inode* node) -> bool { return !node->isClosed(); })
-        | views::transform(&Inode::index)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter([](const Node* node) -> bool { return !node->isClosed(); })
+        | views::transform(&Node::index)
         | views::transform(&QPersistentModelIndex::row)
         | ranges::to<std::unordered_set>()
         ;
@@ -1516,7 +1516,7 @@ void Inode::skipTo(int row, InternalRotState& result)
 /// dxy is used only for the node that is being moved by the mouse.  Without
 /// dxy, the child nodes get scattered all over when the parent node is moved
 /// too quickly or rapidly.
-void Inode::spread(QPointF dxy)
+void Node::spread(QPointF dxy)
 {
     using namespace std;
 
@@ -1534,11 +1534,11 @@ void Inode::spread(QPointF dxy)
             return other.intersects(line) == QLineF::BoundedIntersection;
         };
     };
-    auto isIncluded = [grabber](Inode* node) -> bool
+    auto isIncluded = [grabber](Node* node) -> bool
     {
         return node->isClosed() && node != grabber;
     };
-    auto isExcluded = [grabber](Inode* node) -> bool
+    auto isExcluded = [grabber](Node* node) -> bool
     {
         return node->isOpen() || node->isHalfClosed() || node == grabber;
     };
@@ -1551,8 +1551,8 @@ void Inode::spread(QPointF dxy)
     }
 
     auto excludedNodes = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
         | views::filter(isExcluded)
         ;
     for (auto* node : excludedNodes) {
@@ -1562,8 +1562,8 @@ void Inode::spread(QPointF dxy)
     }
 
     auto includedNodes = _childEdges
-        | views::transform(&InodeEdge::target)
-        | views::transform(&asInode)
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
         | views::filter(isIncluded)
         ;
     for (auto* node : includedNodes) {
@@ -1582,53 +1582,53 @@ void Inode::spread(QPointF dxy)
     }
 }
 
-void core::extend(Inode* inode, qreal distance)
+void core::extend(Node* node, qreal distance)
 {
-    const auto* pe = inode->parentEdge();
+    const auto* pe = node->parentEdge();
 
     /// pos()/setPos() are in scene coordinates if there is no parent.
-    Q_ASSERT(inode->parentItem() == nullptr);
-    Q_ASSERT(pe->target() == inode);
+    Q_ASSERT(node->parentItem() == nullptr);
+    Q_ASSERT(pe->target() == node);
 
     const auto& source = pe->source()->pos();
     const auto& target = pe->target()->pos();
     auto line = QLineF(source, target);
     line.setLength(line.length() + distance);
-    inode->setPos(line.p2());
+    node->setPos(line.p2());
 }
 
-void core::shrink(Inode* inode, qreal distance)
+void core::shrink(Node* node, qreal distance)
 {
-    const auto* pe = inode->parentEdge();
+    const auto* pe = node->parentEdge();
 
     /// pos()/setPos() are in scene coordinates if there is no parent.
-    Q_ASSERT(inode->parentItem() == nullptr);
-    Q_ASSERT(pe->target() == inode);
+    Q_ASSERT(node->parentItem() == nullptr);
+    Q_ASSERT(pe->target() == node);
 
     const auto& source = pe->source()->pos();
     const auto& target = pe->target()->pos();
     auto line = QLineF(source, target);
     line.setLength(qMax(distance, line.length() - distance));
-    inode->setPos(line.p2());
+    node->setPos(line.p2());
 }
 
-void core::adjustAllEdges(const Inode* inode)
+void core::adjustAllEdges(const Node* node)
 {
-    inode->parentEdge()->adjust();
-    std::ranges::for_each(inode->childEdges(), &InodeEdge::adjust);
+    node->parentEdge()->adjust();
+    std::ranges::for_each(node->childEdges(), &Edge::adjust);
 }
 
 /// only used on closed nodes, but can be made more general if needed.
-void core::setAllEdgeState(const Inode* inode, InodeEdge::State state)
+void core::setAllEdgeState(const Node* node, Edge::State state)
 {
     using std::views::transform;
     using std::views::filter;
 
-    for (auto* edge : inode->childEdges()
-        | transform(&InodeEdge::target)
-        | transform(&asInode)
-        | filter(&Inode::isClosed)
-        | transform(&Inode::parentEdge))
+    for (auto* edge : node->childEdges()
+        | transform(&Edge::target)
+        | transform(&asNode)
+        | filter(&Node::isClosed)
+        | transform(&Node::parentEdge))
     {
         edge->setState(state);
     }

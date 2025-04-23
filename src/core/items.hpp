@@ -63,10 +63,10 @@ namespace  core
     }
 
 
-    class InodeEdgeLabel final : public QGraphicsSimpleTextItem
+    class EdgeLabel final : public QGraphicsSimpleTextItem
     {
     public:
-        explicit InodeEdgeLabel(QGraphicsItem* parent = nullptr);
+        explicit EdgeLabel(QGraphicsItem* parent = nullptr);
         void alignToAxis(const QLineF& line);
         void alignToAxis(const QLineF& line, const QString& newText);
         void updatePos();
@@ -85,13 +85,13 @@ namespace  core
     };
 
 
-    class InodeEdge final : public QGraphicsLineItem
+    class Edge final : public QGraphicsLineItem
     {
     public:
         enum { Type = UserType + 1 };
         enum State { ActiveState, CollapsedState, InactiveState };
 
-        explicit InodeEdge(QGraphicsItem* source = nullptr, QGraphicsItem* target = nullptr);
+        explicit Edge(QGraphicsItem* source = nullptr, QGraphicsItem* target = nullptr);
         void setName(const QString& name) const;
         void adjust();
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -100,8 +100,8 @@ namespace  core
         [[nodiscard]] State state() const { return _state; }
         [[nodiscard]] QGraphicsItem *source() const { return _source; }
         [[nodiscard]] QGraphicsItem *target() const { return _target; }
-        [[nodiscard]] InodeEdgeLabel* currLabel() const { return _currLabel; }
-        [[nodiscard]] InodeEdgeLabel* nextLabel() const { return _nextLabel; }
+        [[nodiscard]] EdgeLabel* currLabel() const { return _currLabel; }
+        [[nodiscard]] EdgeLabel* nextLabel() const { return _nextLabel; }
         [[nodiscard]] QPainterPath shape() const override;
         [[nodiscard]] int type() const override { return Type; }
         void swapLabels() { std::swap(_currLabel, _nextLabel); }
@@ -110,8 +110,8 @@ namespace  core
         State _state{ActiveState};
         QGraphicsItem* _source{nullptr};
         QGraphicsItem* _target{nullptr};
-        InodeEdgeLabel* _currLabel{nullptr};
-        InodeEdgeLabel* _nextLabel{nullptr};
+        EdgeLabel* _currLabel{nullptr};
+        EdgeLabel* _nextLabel{nullptr};
     };
 
 
@@ -139,7 +139,7 @@ namespace  core
 
         explicit NewFolderNode(QGraphicsItem* parent = nullptr);
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
-        void setEdge(InodeEdge* edge) { _parentEdge = edge; }
+        void setEdge(Edge* edge) { _parentEdge = edge; }
 
         [[nodiscard]] int type() const override { return Type; }
 
@@ -147,7 +147,7 @@ namespace  core
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
 
     private:
-        InodeEdge* _parentEdge{nullptr};
+        Edge* _parentEdge{nullptr};
     };
 
 
@@ -157,10 +157,10 @@ namespace  core
         Rotation rot;
     };
 
-    using EdgeStringMap = std::unordered_map<InodeEdge*, StringRotation>;
+    using EdgeStringMap = std::unordered_map<Edge*, StringRotation>;
     using SharedVariantAnimation = QSharedPointer<QVariantAnimation>;
     using SharedSequentialAnimation = QSharedPointer<QSequentialAnimationGroup>;
-    using InodeEdges    = std::vector<InodeEdge*>;
+    using EdgeVector    = std::vector<Edge*>;
 
     void animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input);
 
@@ -172,16 +172,16 @@ namespace  core
     };
 
 
-    class Inode final : public QGraphicsItem
+    class Node final : public QGraphicsItem
     {
     public:
         enum { Type = UserType + 2 };
 
-        explicit Inode(const QPersistentModelIndex& index);
-        [[nodiscard]] static Inode* createRootNode(core::FileSystemScene* scene);
-        [[nodiscard]] static Inode* createNode(QGraphicsScene* scene, QGraphicsItem* parent);
+        explicit Node(const QPersistentModelIndex& index);
+        [[nodiscard]] static Node* createRootNode(core::FileSystemScene* scene);
+        [[nodiscard]] static Node* createNode(QGraphicsScene* scene, QGraphicsItem* parent);
 
-        ~Inode() override;
+        ~Node() override;
         void init();
         void reload(int start, int end);
         void unload(int start, int end);
@@ -196,9 +196,9 @@ namespace  core
         [[nodiscard]] bool isOpen() const           { return _state == FolderState::Open; }
         [[nodiscard]] bool isHalfClosed() const     { return _state == FolderState::HalfClosed; }
         [[nodiscard]] bool hasChildren() const      { return !_childEdges.empty(); }
-        [[nodiscard]] InodeEdges childEdges() const { return _childEdges; }
+        [[nodiscard]] EdgeVector childEdges() const { return _childEdges; }
         [[nodiscard]] int type() const override     { return Type; }
-        [[nodiscard]] InodeEdge* parentEdge() const { return _parentEdge; }
+        [[nodiscard]] Edge* parentEdge() const { return _parentEdge; }
         [[nodiscard]] const QPersistentModelIndex& index() const { return _index; }
 
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -220,8 +220,8 @@ namespace  core
     private:
         void destroyChildren();
 
-        void internalRotationAfterClose(InodeEdge* closedEdge);
-        InternalRotState doInternalRotationAfterClose(InodeEdge* closedEdge);
+        void internalRotationAfterClose(Edge* closedEdge);
+        InternalRotState doInternalRotationAfterClose(Edge* closedEdge);
         void doInternalRotation(Rotation rot, InternalRotState& result);
         void skipTo(int row, InternalRotState& result);
         void skipTo(int row);
@@ -230,8 +230,8 @@ namespace  core
 
         FolderState _state{FolderState::Closed};
         QPersistentModelIndex _index;
-        InodeEdge* _parentEdge{nullptr};
-        InodeEdges _childEdges;
+        Edge* _parentEdge{nullptr};
+        EdgeVector _childEdges;
 
         SharedVariantAnimation _singleRotAnimation;
         SharedSequentialAnimation _seqRotAnimation;
@@ -239,8 +239,8 @@ namespace  core
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
     };
 
-    void extend(Inode* inode, qreal distance = 144.0);
-    void shrink(Inode* inode, qreal distance = 144.0);
-    void adjustAllEdges(const Inode* inode);
-    void setAllEdgeState(const Inode* inode, InodeEdge::State state);
+    void extend(Node* node, qreal distance = 144.0);
+    void shrink(Node* node, qreal distance = 144.0);
+    void adjustAllEdges(const Node* node);
+    void setAllEdgeState(const Node* node, Edge::State state);
 }
