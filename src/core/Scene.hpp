@@ -4,6 +4,7 @@
 
 
 class QFileSystemModel;
+class QSortFilterProxyModel;
 
 namespace  gui::view
 {
@@ -44,5 +45,6 @@ namespace core
 
     private:
         QFileSystemModel* _model{nullptr};
+        QSortFilterProxyModel* _proxyModel{nullptr};
     };
 }

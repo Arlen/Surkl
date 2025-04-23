@@ -7,6 +7,7 @@
 #include "nodes.hpp"
 
 #include <QFileSystemModel>
+#include <QSortFilterProxyModel>
 #include <QPainter>
 
 #include <ranges>
@@ -204,24 +205,29 @@ namespace
         p->restore();
     }
 
-    auto notNull = [](auto* item) -> bool { return item != nullptr; };
+    auto notNull = [](auto* item) -> bool
+    {
+        return item != nullptr;
+    };
     auto toNode = [](QGraphicsItem* item) -> gui::view::Inode*
-        { return qgraphicsitem_cast<gui::view::Inode*>(item); };
+    {
+        return qgraphicsitem_cast<gui::view::Inode*>(item);
+    };
     auto toEdge = [](QGraphicsItem* item) -> gui::view::InodeEdge*
-    { return qgraphicsitem_cast<gui::view::InodeEdge*>(item); };
+    {
+        return qgraphicsitem_cast<gui::view::InodeEdge*>(item);
+    };
 
     auto filterNodes = std::views::transform(toNode) | std::views::filter(notNull);
     auto filterEdges = std::views::transform(toEdge) | std::views::filter(notNull);
 }
-
 
 void FileSystemScene::configure(FileSystemScene* scene)
 {
     if (auto db = db::get(); false && db.isOpen()) {
         /// how do we save and restore the scene???
     } else {
-        auto* n1 = gui::view::Inode::createRoot(scene);
-        n1->open();
+        auto* n1 = gui::view::Inode::createRootNode(scene);
     }
 }
 
@@ -234,9 +240,14 @@ FileSystemScene::FileSystemScene(QObject* parent)
     _model->setRootPath("/");
     _model->fetchMore(QModelIndex());
 
+    _proxyModel = new QSortFilterProxyModel(this);
+    _proxyModel->setSourceModel(_model);
+    _proxyModel->setDynamicSortFilter(true);
+    _proxyModel->sort(0);
+
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
-    connect(_model, &QAbstractItemModel::rowsInserted, this, &FileSystemScene::onRowsInserted);
-    connect(_model, &QAbstractItemModel::rowsRemoved, this, &FileSystemScene::onRowsRemoved);
+    connect(_proxyModel, &QAbstractItemModel::rowsInserted, this, &FileSystemScene::onRowsInserted);
+    connect(_proxyModel, &QAbstractItemModel::rowsRemoved, this, &FileSystemScene::onRowsRemoved);
 
     connect(session()->tm(), &gui::ThemeManager::bgColorChanged, this,
         [this] { update(sceneRect()); });
@@ -270,7 +281,9 @@ void FileSystemScene::addSceneBookmark(const QPoint& pos, const QString& name)
 
 QPersistentModelIndex FileSystemScene::rootIndex() const
 {
-    return _model->index(QDir::rootPath());
+    auto index = _model->index(QDir::rootPath());
+
+    return _proxyModel->mapFromSource(index);
 }
 
 void FileSystemScene::openSelectedNodes() const
@@ -296,7 +309,7 @@ void FileSystemScene::halfCloseSelectedNodes() const
 
 void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int end) const
 {
-    for (const auto allItems = items(); auto* node : allItems | filterNodes) {
+    for (const auto _items = items(); auto* node : _items | filterNodes) {
         if (node->index() == parent) {
             node->reload(start, end);
         }
@@ -305,10 +318,18 @@ void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int e
 
 void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int end) const
 {
-    for (const auto allItems = items(); auto* node : allItems | filterNodes) {
+    std::vector<gui::view::Inode*> toBeUnloaded;
+
+    /// can't call Inode::unload() while traversing items() because Inode::unload()
+    /// deletes child nodes and subtrees of items still in items().
+    for (const auto _items = items(); auto* node : _items | filterNodes) {
         if (node->index() == parent) {
-            node->unload(start, end);
+            toBeUnloaded.push_back(node);
         }
+    }
+
+    for (auto* node : toBeUnloaded) {
+        node->unload(start, end);
     }
 }
 
@@ -330,13 +351,13 @@ void FileSystemScene::onSelectionChange()
     const auto nodes    = std::ranges::to<std::vector>(selected | filterNodes);
     const auto edges    = std::ranges::to<std::vector>(selected | filterEdges);
 
-    /// for now, we'll give nodes priority over edges.
+    /// for now, give nodes priority over edges.
     if ((!nodes.empty() && !edges.empty()) || edges.empty()) {
         for (auto* edge : edges) {
             edge->setSelected(false);
         }
         for (auto* node : nodes) {
-            _model->fetchMore(node->index());
+            _proxyModel->fetchMore(node->index());
         }
     } else {
         for (auto* nodes : nodes) {
