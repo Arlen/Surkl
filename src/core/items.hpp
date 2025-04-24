@@ -102,12 +102,14 @@ namespace  core
         [[nodiscard]] QGraphicsItem *target() const { return _target; }
         [[nodiscard]] EdgeLabel* currLabel() const { return _currLabel; }
         [[nodiscard]] EdgeLabel* nextLabel() const { return _nextLabel; }
+        [[nodiscard]] QLineF lineWithMargin() const { return _lineWithMargin; }
         [[nodiscard]] QPainterPath shape() const override;
         [[nodiscard]] int type() const override { return Type; }
         void swapLabels() { std::swap(_currLabel, _nextLabel); }
 
     private:
         State _state{ActiveState};
+        QLineF _lineWithMargin;
         QGraphicsItem* _source{nullptr};
         QGraphicsItem* _target{nullptr};
         EdgeLabel* _currLabel{nullptr};

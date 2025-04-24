@@ -29,6 +29,8 @@ namespace
     constexpr qreal NODE_CLOSED_DIAMETER       = NODE_OPEN_DIAMETER * GOLDEN;
     constexpr qreal NODE_HALF_CLOSED_DIAMETER  = NODE_OPEN_DIAMETER * (1.0 - GOLDEN*GOLDEN*GOLDEN);
     constexpr qreal EDGE_WIDTH                 = 4.0;
+    constexpr qreal EDGE_TEXT_MARGIN_P1        = 6.0;
+    constexpr qreal EDGE_TEXT_MARGIN_P2        = 4.0;
     constexpr qreal EDGE_COLLAPSED_LEN         = NODE_HALF_CLOSED_DIAMETER;
     constexpr qreal NODE_OPEN_PEN_WIDTH        = 4.0;
     constexpr qreal NODE_CLOSED_PEN_WIDTH      = EDGE_WIDTH * GOLDEN;
@@ -69,6 +71,16 @@ namespace
         Q_ASSERT(item != nullptr);
 
         return qgraphicsitem_cast<Node*>(item);
+    }
+
+    QLineF shrinkLine(const QLineF& line, qreal margin_p1, qreal margin_p2)
+    {
+        auto a = line;
+        auto b = QLineF(a.p2(), a.p1());
+        a.setLength(a.length() - margin_p2);
+        b.setLength(b.length() - margin_p1);
+
+        return QLineF(b.p2(), a.p2());
     }
 
     SharedVariantAnimation getVariantAnimation()
@@ -314,7 +326,7 @@ void Edge::setName(const QString& name) const
 {
     Q_ASSERT(_currLabel->isVisible());
     Q_ASSERT(!_nextLabel->isVisible());
-    _currLabel->alignToAxis(line(), name);
+    _currLabel->alignToAxis(lineWithMargin(), name);
 }
 
 void Edge::adjust()
@@ -340,6 +352,7 @@ void Edge::adjust()
     }
 
     setLine(QLineF());
+    _lineWithMargin = QLineF();
 
     /// line from the very edge of an Node to the very edge of the other
     /// Node, while accounting for the pen width.
@@ -352,9 +365,10 @@ void Edge::adjust()
         const auto p2 = segment.pointAt(t2);
 
         setLine(QLineF(p1, p2));
+        _lineWithMargin = shrinkLine(line(), EDGE_TEXT_MARGIN_P1, EDGE_TEXT_MARGIN_P2);
 
-        _currLabel->alignToAxis(line());
-        _nextLabel->alignToAxis(line());
+        _currLabel->alignToAxis(lineWithMargin());
+        _nextLabel->alignToAxis(lineWithMargin());
         _currLabel->updatePos();
         _nextLabel->updatePos();
     }
@@ -573,8 +587,8 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
     auto startCW    = [](Edge* edge, const QString& text)
     {
         Q_ASSERT(edge->nextLabel()->isVisible() == false);
-        edge->currLabel()->alignToAxis(edge->line());
-        edge->nextLabel()->alignToAxis(edge->line(), text);
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin(), text);
         Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->updatePosCW(0, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCW(0, LabelFade::FadeIn);
@@ -582,8 +596,8 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
     };
     auto progressCW = [](Edge* edge, qreal t)
     {
-        edge->currLabel()->alignToAxis(edge->line());
-        edge->nextLabel()->alignToAxis(edge->line());
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin());
         edge->currLabel()->updatePosCW(t, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCW(t, LabelFade::FadeIn);
     };
@@ -597,8 +611,8 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
     auto startCCW    = [](Edge* edge, const QString& text)
     {
         Q_ASSERT(edge->nextLabel()->isVisible() == false);
-        edge->currLabel()->alignToAxis(edge->line());
-        edge->nextLabel()->alignToAxis(edge->line(), text);
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin(), text);
         Q_ASSERT(edge->nextLabel()->isVisible() == false);
         edge->currLabel()->updatePosCCW(0, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCCW(0, LabelFade::FadeIn);
@@ -606,8 +620,8 @@ void core::animateRotation(const QVariantAnimation* animation, const EdgeStringM
     };
     auto progressCCW = [](Edge* edge, qreal t)
     {
-        edge->currLabel()->alignToAxis(edge->line());
-        edge->nextLabel()->alignToAxis(edge->line());
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin());
         edge->currLabel()->updatePosCCW(t, LabelFade::FadeOut);
         edge->nextLabel()->updatePosCCW(t, LabelFade::FadeIn);
     };
