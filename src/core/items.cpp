@@ -319,7 +319,7 @@ Edge::Edge(QGraphicsItem* source, QGraphicsItem* target)
 
     /// the color doesn't matter b/c it's set in paint(), but need to set the
     /// size so the boundingRect() produces the correct sized QRect.
-    setPen(QPen(Qt::red, EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    setPen(QPen(Qt::red, EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
 }
 
 void Edge::setName(const QString& name) const
@@ -358,9 +358,8 @@ void Edge::adjust()
     /// Node, while accounting for the pen width.
     if (const auto len = segment.length(); len > diameter) {
         const auto lenInv    = 1.0 / len;
-        const auto edgeWidth = EDGE_WIDTH * lenInv * 0.5;
-        const auto t1 = recA.width() * 0.5 * lenInv + edgeWidth;
-        const auto t2 = 1.0 - (recB.width() * 0.5 * lenInv + edgeWidth);
+        const auto t1 = recA.width() * 0.5 * lenInv;
+        const auto t2 = 1.0 - recB.width() * 0.5 * lenInv;
         const auto p1 = segment.pointAt(t1);
         const auto p2 = segment.pointAt(t2);
 
@@ -387,7 +386,7 @@ void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget *
     p->setPen(QPen(option->state & QStyle::State_Selected
             ? edgeColor().lighter(1600)
             : edgeColor()
-        , EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+        , EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
     p->drawLine(line());
 
     if (_state == CollapsedState) {
@@ -396,7 +395,7 @@ void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget *
 
     const auto p1 = line().p1();
     const auto uv = line().unitVector();
-    const auto v2 = QPointF(uv.dx(), uv.dy()) * 2.0;
+    const auto v2 = QPointF(uv.dx(), uv.dy()) * 3.0;
 
     p->setBrush(Qt::NoBrush);
     p->setPen(QPen(nodeOpenBorderColor(), EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
