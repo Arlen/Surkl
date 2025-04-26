@@ -42,6 +42,7 @@ namespace
     /// ---- These will need to go into theme.[hpp,cpp]
     QFont nodeFont() { return {"Adwaita Sans", 11}; }
     QColor nodeColor() { return {41, 117, 156, 255}; }
+    QColor closedNodeColor() { return {110, 110, 110, 255}; }
     QColor edgeColor() { return {8, 8, 8, 255}; }
     QColor edgeTextColor() { return {220, 220, 220, 255}; }
     QColor nodeOpenBorderColor() { return {220, 220, 220, 255}; }
@@ -163,6 +164,59 @@ namespace
         Q_ASSERT(ranges::none_of(result, isExcluded));
 
         return result;
+    }
+
+    QPainterPath closedNodeShape(const Node* node, const QRectF& rec)
+    {
+        const auto center = rec.center();
+        const auto angle  = node->parentEdge()->line().angle() + 180;
+
+        auto guide = QLineF(center, center + QPointF(rec.width()*0.5, 0));
+        guide.setAngle(angle);
+        auto path = QPainterPath();
+
+        /// in CCW order
+        guide.setAngle(guide.angle() + 25);
+        path.moveTo(guide.p2());
+        guide.setAngle(guide.angle() + 110);
+        path.lineTo(guide.p2());
+        guide.setAngle(guide.angle() + 90);
+        path.lineTo(guide.p2());
+        guide.setAngle(guide.angle() + 110);
+        path.lineTo(guide.p2());
+
+        return path;
+    }
+
+    void paintClosedFolder(QPainter* p, Node* node)
+    {
+        const auto rec    = node->boundingRect();
+        const auto center = rec.center();
+        const auto shape  = node->shape();
+        const auto top    = QLineF(shape.elementAt(1), shape.elementAt(2));
+        const auto bot    = QLineF(shape.elementAt(0), shape.elementAt(3));
+        const auto spine  = QLineF(bot.pointAt(0.5), top.pointAt(0.5));
+        const auto tri    = QPolygonF() << shape.elementAt(1)
+                                        << center
+                                        << shape.elementAt(2);
+
+        const auto color = node->isSelected()
+            ? closedNodeColor().lighter()
+            : closedNodeColor();
+
+        p->save();
+        p->setBrush(nodeClosedBorderColor());
+        p->setPen(Qt::NoPen);
+        p->drawPath(shape);
+
+        p->setBrush(Qt::NoBrush);
+        p->setPen(QPen(color.darker(), 2));
+        p->drawLine(QLineF(spine.pointAt(0.1), spine.pointAt(0.5)));
+
+        p->setPen(Qt::NoPen);
+        p->setBrush(color);
+
+        p->drawPolygon(tri);
     }
 }
 
@@ -879,13 +933,18 @@ QString Node::name() const
 
 QRectF Node::boundingRect() const
 {
-    /// closed and half-closed are smaller.
     qreal side = 1.0;
 
     switch (_state) {
-        case FolderState::Open: side = NODE_OPEN_DIAMETER; break;
-        case FolderState::Closed: side = NODE_CLOSED_DIAMETER; break;
-        case FolderState::HalfClosed: side = NODE_HALF_CLOSED_DIAMETER; break;
+        case FolderState::Open:
+            side = NODE_OPEN_DIAMETER + NODE_OPEN_PEN_WIDTH;
+        break;
+        case FolderState::Closed:
+            side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
+        break;
+        case FolderState::HalfClosed:
+            side = NODE_HALF_CLOSED_DIAMETER + NODE_HALF_CLOSED_PEN_WIDTH;
+        break;
     }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
@@ -899,7 +958,18 @@ QRectF Node::boundingRect() const
 QPainterPath Node::shape() const
 {
     QPainterPath path;
-    path.addEllipse(boundingRect());
+
+    switch (_state) {
+        case FolderState::Open:
+        path.addEllipse(boundingRect());
+        break;
+        case FolderState::Closed:
+        path = closedNodeShape(this, boundingRect());
+        break;
+        case FolderState::HalfClosed:
+        path.addEllipse(boundingRect());
+        break;
+    }
 
     return path;
 }
@@ -928,15 +998,10 @@ void Node::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *w
     qreal radius = 0;
     if (_state == FolderState::Open) {
         radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
-        //p->setPen(QPen(openNodeHighlight(), INODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->setPen(QPen(nodeOpenBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
     } else if (_state == FolderState::Closed) {
-        radius = rec.width() * 0.5 - NODE_CLOSED_PEN_WIDTH * 0.5;
-        p->setPen(QPen(nodeClosedBorderColor(), NODE_CLOSED_PEN_WIDTH, Qt::SolidLine));
-        p->drawEllipse(rec.center(), radius, radius);
-        p->setPen(QPen(nodeClosedBorderColor(), NODE_CLOSED_PEN_WIDTH * 0.5, Qt::SolidLine));
-        p->drawEllipse(rec.center(), radius * 0.8, radius * 0.8);
+        paintClosedFolder(p, this);
     } else if (_state == FolderState::HalfClosed) {
         radius = rec.width() * 0.5 - NODE_HALF_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(nodeClosedBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
