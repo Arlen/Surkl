@@ -1,4 +1,5 @@
 #include "Scene.hpp"
+#include "GraphicsView.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
 #include "db.hpp"
@@ -6,9 +7,12 @@
 #include "items.hpp"
 #include "nodes.hpp"
 
+#include <QDesktopServices>
 #include <QFileSystemModel>
-#include <QSortFilterProxyModel>
+#include <QGraphicsSceneMouseEvent>
 #include <QPainter>
+#include <QSortFilterProxyModel>
+#include <QUrl>
 
 #include <ranges>
 
@@ -238,7 +242,6 @@ FileSystemScene::FileSystemScene(QObject* parent)
 
     _model = new QFileSystemModel(this);
     _model->setRootPath("/");
-    _model->fetchMore(QModelIndex());
 
     _proxyModel = new QSortFilterProxyModel(this);
     _proxyModel->setSourceModel(_model);
@@ -294,7 +297,11 @@ bool FileSystemScene::isDir(const QModelIndex& index) const
 void FileSystemScene::openSelectedNodes() const
 {
     for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {
-        node->open();
+        if (isDir(node->index())) {
+            node->open();
+        } else {
+            openFile(node);
+        }
     }
 }
 
@@ -348,6 +355,20 @@ void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
     p->restore();
 }
 
+void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e)
+{
+    using std::views::filter;
+
+    for (const auto vs = views(); auto* v : vs | filter(&QWidget::hasFocus)) {
+        const auto pos = v->mapFromScene(e->scenePos());
+        if (auto* node = qgraphicsitem_cast<Node*>(v->itemAt(pos)); node && openFile(node)) {
+            return;
+        }
+    }
+
+    return QGraphicsScene::mouseDoubleClickEvent(e);
+}
+
 void FileSystemScene::onSelectionChange()
 {
     disconnect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
@@ -371,4 +392,14 @@ void FileSystemScene::onSelectionChange()
     }
 
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
+}
+
+bool FileSystemScene::openFile(const Node* node) const
+{
+    bool success = false;
+    if (const auto& index = node->index(); !isDir(index)) {
+        auto info = _model->filePath(_proxyModel->mapToSource(index));
+        success = QDesktopServices::openUrl(QUrl::fromLocalFile(info));
+    }
+    return success;
 }

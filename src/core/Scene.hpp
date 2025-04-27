@@ -6,10 +6,6 @@
 class QFileSystemModel;
 class QSortFilterProxyModel;
 
-namespace  gui::view
-{
-    class Inode;
-}
 
 namespace core
 {
@@ -17,6 +13,7 @@ namespace core
     {
         class SceneBookmarkItem;
     }
+    class Node;
 
     class FileSystemScene final : public QGraphicsScene
     {
@@ -38,6 +35,7 @@ namespace core
 
     protected:
         void drawBackground(QPainter* p, const QRectF& rec) override;
+        void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) override;
 
     private slots:
         void onSelectionChange();
@@ -45,6 +43,8 @@ namespace core
         void onRowsRemoved(const QModelIndex& parent, int start, int end) const;
 
     private:
+        bool openFile(const Node* node) const;
+
         QFileSystemModel* _model{nullptr};
         QSortFilterProxyModel* _proxyModel{nullptr};
     };

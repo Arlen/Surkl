@@ -1105,6 +1105,8 @@ void Node::closeOrHalfClose(bool forceClose)
 
 void Node::open()
 {
+    Q_ASSERT(fsScene()->isDir(_index));
+
     if (_state == FolderState::Closed) {
         Q_ASSERT(_childEdges.empty());
 
@@ -1231,6 +1233,7 @@ void Node::keyPressEvent(QKeyEvent *event)
 void Node::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
     Q_UNUSED(event);
+    Q_ASSERT(fsScene()->isDir(_index));
 
     switch (_state) {
     case FolderState::Open:
