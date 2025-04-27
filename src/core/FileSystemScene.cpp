@@ -1,4 +1,4 @@
-#include "Scene.hpp"
+#include "FileSystemScene.hpp"
 #include "GraphicsView.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
@@ -252,12 +252,12 @@ FileSystemScene::FileSystemScene(QObject* parent)
     connect(_proxyModel, &QAbstractItemModel::rowsInserted, this, &FileSystemScene::onRowsInserted);
     connect(_proxyModel, &QAbstractItemModel::rowsRemoved, this, &FileSystemScene::onRowsRemoved);
 
-    connect(session()->tm(), &gui::ThemeManager::bgColorChanged, this,
+    connect(SessionManager::tm(), &gui::ThemeManager::bgColorChanged, this,
         [this] { update(sceneRect()); });
-    connect(session()->tm(), &gui::ThemeManager::resetTriggered, this,
+    connect(SessionManager::tm(), &gui::ThemeManager::resetTriggered, this,
         [this] { update(sceneRect()); });
 
-    for (const auto& [pos, name] : session()->bm()->sceneBookmarksAsList()) {
+    for (const auto& [pos, name] : SessionManager::bm()->sceneBookmarksAsList()) {
         addItem(new nodes::SceneBookmarkItem{pos, name});
     }
 }

@@ -1,5 +1,5 @@
 #include "items.hpp"
-#include "Scene.hpp"
+#include "FileSystemScene.hpp"
 
 #include <QCursor>
 #include <QGraphicsScene>

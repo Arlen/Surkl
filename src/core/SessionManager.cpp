@@ -1,5 +1,5 @@
 #include "core/SessionManager.hpp"
-#include "core/Scene.hpp"
+#include "core/FileSystemScene.hpp"
 #include "core/bookmark.hpp"
 #include "gui/MainWindow.hpp"
 #include "gui/theme.hpp"

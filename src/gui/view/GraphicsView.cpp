@@ -1,7 +1,7 @@
 #include "GraphicsView.hpp"
 #include "QuadrantButton.hpp"
 #include "core/nodes.hpp"
-#include "core/Scene.hpp"
+#include "core/FileSystemScene.hpp"
 
 #include <QMouseEvent>
 #include <QVariantAnimation>

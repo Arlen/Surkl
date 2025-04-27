@@ -1,6 +1,6 @@
 #include "MainWindow.hpp"
 #include "view/GraphicsView.hpp"
-#include "core/Scene.hpp"
+#include "core/FileSystemScene.hpp"
 
 #include <QShortcut>
 

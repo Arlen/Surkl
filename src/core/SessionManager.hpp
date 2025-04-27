@@ -33,7 +33,7 @@ namespace core
         void init();
         static SessionManager* session();
 
-        FileSystemScene*             _sc{nullptr};
+        FileSystemScene*   _sc{nullptr};
         BookmarkManager*   _bm{nullptr};
         gui::ThemeManager* _tm{nullptr};
         gui::MainWindow*   _mw{nullptr};
