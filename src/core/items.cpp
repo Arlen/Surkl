@@ -971,13 +971,14 @@ QRectF Node::boundingRect() const
         switch (_state) {
         case FolderState::Open:
             side = NODE_OPEN_DIAMETER + NODE_OPEN_PEN_WIDTH;
-        break;
+            break;
         case FolderState::Closed:
             side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
-        break;
+            break;
         case FolderState::HalfClosed:
             side = NODE_HALF_CLOSED_DIAMETER + NODE_HALF_CLOSED_PEN_WIDTH;
-        break;
+            break;
+        }
     }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
@@ -997,14 +998,15 @@ QPainterPath Node::shape() const
     } else {
         switch (_state) {
         case FolderState::Open:
-        path.addEllipse(boundingRect());
-        break;
+            path.addEllipse(boundingRect());
+            break;
         case FolderState::Closed:
-        path = closedNodeShape(this, boundingRect());
-        break;
+            path = closedNodeShape(this, boundingRect());
+            break;
         case FolderState::HalfClosed:
-        path.addEllipse(boundingRect());
-        break;
+            path.addEllipse(boundingRect());
+            break;
+        }
     }
 
     return path;
