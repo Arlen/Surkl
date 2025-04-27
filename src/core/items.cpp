@@ -1273,6 +1273,13 @@ void Node::setState(FolderState state)
     }
 }
 
+FileSystemScene* Node::fsScene() const
+{
+    Q_ASSERT(scene());
+
+    return qobject_cast<FileSystemScene*>(scene());
+}
+
 /// recursively destroys all child nodes and edges.
 void Node::destroyChildren()
 {

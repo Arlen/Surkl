@@ -220,6 +220,7 @@ namespace  core
         void setState(FolderState state);
 
     private:
+        FileSystemScene* fsScene() const;
         void destroyChildren();
 
         void internalRotationAfterClose(Edge* closedEdge);
