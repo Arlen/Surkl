@@ -29,6 +29,7 @@ namespace core
         ~FileSystemScene() override;
         void addSceneBookmark(const QPoint& pos, const QString& name);
         QPersistentModelIndex rootIndex() const;
+        bool isDir(const QModelIndex& index) const;
 
     public slots:
         void openSelectedNodes() const;

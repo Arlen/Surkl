@@ -188,6 +188,29 @@ namespace
         return path;
     }
 
+    QPainterPath fileNodeShape(const Node* node, const QRectF& rec)
+    {
+        const auto center = rec.center();
+        const auto angle  = node->parentEdge()->line().angle() + 180;
+
+        auto guide = QLineF(center, center + QPointF(rec.width()*0.5, 0));
+        guide.setAngle(angle);
+        auto path = QPainterPath();
+
+        /// in CCW order
+        path.moveTo(guide.p2());
+        guide.setAngle(guide.angle() + 45);
+        path.lineTo(guide.p2());
+        guide.setAngle(guide.angle() + 135);
+        path.lineTo(guide.p2());
+        guide.setAngle(guide.angle() + 135);
+        path.lineTo(guide.p2());
+        guide.setAngle(guide.angle() + 45);
+        path.lineTo(guide.p2());
+
+        return path;
+    }
+
     void paintClosedFolder(QPainter* p, Node* node)
     {
         const auto rec    = node->boundingRect();
@@ -217,6 +240,13 @@ namespace
         p->setBrush(color);
 
         p->drawPolygon(tri);
+    }
+
+    void paintFile(QPainter* p, Node* node)
+    {
+        p->setBrush(nodeClosedBorderColor());
+        p->setPen(Qt::NoPen);
+        p->drawPath(node->shape());
     }
 }
 
@@ -935,7 +965,10 @@ QRectF Node::boundingRect() const
 {
     qreal side = 1.0;
 
-    switch (_state) {
+    if (!fsScene()->isDir(_index)) {
+        side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
+    } else {
+        switch (_state) {
         case FolderState::Open:
             side = NODE_OPEN_DIAMETER + NODE_OPEN_PEN_WIDTH;
         break;
@@ -959,7 +992,10 @@ QPainterPath Node::shape() const
 {
     QPainterPath path;
 
-    switch (_state) {
+    if (!fsScene()->isDir(_index)) {
+        path = fileNodeShape(this, boundingRect());
+    } else {
+        switch (_state) {
         case FolderState::Open:
         path.addEllipse(boundingRect());
         break;
@@ -996,7 +1032,9 @@ void Node::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *w
     p->setBrush(isSelected() ? nodeColor().lighter() : nodeColor());
 
     qreal radius = 0;
-    if (_state == FolderState::Open) {
+    if (!fsScene()->isDir(_index)) {
+        paintFile(p, this);
+    } else if (_state == FolderState::Open) {
         radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
         p->setPen(QPen(nodeOpenBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);

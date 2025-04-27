@@ -286,6 +286,11 @@ QPersistentModelIndex FileSystemScene::rootIndex() const
     return _proxyModel->mapFromSource(index);
 }
 
+bool FileSystemScene::isDir(const QModelIndex& index) const
+{
+    return _model->isDir(_proxyModel->mapToSource(index));
+}
+
 void FileSystemScene::openSelectedNodes() const
 {
     for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {
