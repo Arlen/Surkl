@@ -222,6 +222,8 @@ namespace  core
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
     };
 
+    using NodeVector = std::vector<Node*>;
+
     void extend(Node* node, qreal distance = 144.0);
     void shrink(Node* node, qreal distance = 144.0);
     void adjustAllEdges(const Node* node);
@@ -239,6 +241,10 @@ namespace  core
         void addRotation(Edge* edge, const Rotation& rot, const QString& newText);
         void addPageRotation(Node* node, int duration, int pageSize, auto&& fun);
         void stop(const Node* node);
+        [[nodiscard]] bool isEnabled() const { return _enabled; }
+        [[nodiscard]] bool isDisabled() const { return !_enabled; }
+        void disable() { _enabled = false; }
+        void enable() { _enabled = true; }
 
     private:
         QVariantAnimation* newVariantAnimation(const Node* node);
@@ -248,6 +254,7 @@ namespace  core
         void stopVariantAnimation(const Node* node);
         void stopTimeline(const Node* node);
 
+        bool _enabled{true};
         std::unordered_map<const Node*, QTimeLine*> _timelines;
         std::unordered_map<const Node*, QVariantAnimation*> _variantAnimations;
 

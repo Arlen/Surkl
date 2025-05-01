@@ -714,8 +714,8 @@ void Node::init()
 
 void Node::reload(int start, int end)
 {
-    if (_state != FolderState::Open) {
-        return;
+    if (_state == FolderState::Closed) {
+       return;
     }
 
     const auto rowCount = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
@@ -723,16 +723,45 @@ void Node::reload(int start, int end)
     /// room to grow
     if (_childEdges.size() < rowCount) {
         const auto sizeBefore = _childEdges.size();
+        NodeVector nodes; nodes.reserve(rowCount - _childEdges.size());
         while (_childEdges.size() < rowCount) {
-            _childEdges.emplace_back(createNode(scene(), this)->parentEdge());
+            nodes.push_back(createNode(scene(), this));
+            _childEdges.push_back(nodes.back()->parentEdge());
         }
+
         const auto sizeAfter = _childEdges.size();
         if (sizeBefore != sizeAfter) {
-            spread();
+            if (_state == FolderState::Open) {
+                spread();
+            }
+            else if (_state == FolderState::HalfClosed) {
+                for (auto* n : nodes) {
+                    n->parentEdge()->setState(Edge::CollapsedState);
+                }
+                /// open(), then skiptTo(start), and then halfClose() to
+                /// update the index of each newly created node in nodes.
+                /// Don't need the all the details of those functions mentioned,
+                /// so those parts are commented out to show what is used.
+                ///
+                //spread();
+                setAllEdgeState(this, Edge::ActiveState);
+                //adjustAllEdges(this);
+
+                animator->disable();
+                skipTo(start);
+                animator->enable();
+
+                setAllEdgeState(this, Edge::CollapsedState);
+                //setState(FolderState::HalfClosed);
+                spread();
+                adjustAllEdges(this);
+            }
         }
     }
 
-    skipTo(start);
+    if (_state == FolderState::Open) {
+        skipTo(start);
+    }
 }
 
 void Node::unload(int start, int end)
@@ -1620,6 +1649,11 @@ void Animator::endAnimation(const Node* node)
 
 void Animator::addRotation(Edge* edge, const Rotation& rot, const QString& newText)
 {
+    if (isDisabled()) {
+        edge->setName(newText);
+        return;
+    }
+
     auto* node = asNode(edge->source());
     auto* va = _variantAnimations[node];
     Q_ASSERT(va);
