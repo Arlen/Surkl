@@ -8,6 +8,7 @@
 #include <QPainter>
 #include <QSequentialAnimationGroup>
 #include <QStyleOptionGraphicsItem>
+#include <QTimeLine>
 #include <QTimer>
 #include <QVariantAnimation>
 
@@ -492,8 +493,8 @@ void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget *
 /// and this set up takes place in Edge::adjust().
 ///
 /// NOTE: visibility of nextLabel() is not and should not be set here;
-/// otherwise, the assertion in animateRotation() will fail. i.e., the
-/// visibility of nextLabel() is handled in animateRotation().
+/// otherwise, the assertion in Animator::addRotation() will fail. i.e., the
+/// visibility of nextLabel() is handled in Animator::addRotation().
 void Edge::setState(State state)
 {
     Q_ASSERT(_state != state);
@@ -660,117 +661,6 @@ QVariant NewFolderNode::itemChange(GraphicsItemChange change, const QVariant& va
     };
 
     return QGraphicsEllipseItem::itemChange(change, value);
-}
-
-
-
-/// animation functions
-void core::animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input)
-{
-    auto startCW    = [](Edge* edge, const QString& text)
-    {
-        Q_ASSERT(edge->nextLabel()->isVisible() == false);
-        edge->currLabel()->alignToAxis(edge->lineWithMargin());
-        edge->nextLabel()->alignToAxis(edge->lineWithMargin(), text);
-        Q_ASSERT(edge->nextLabel()->isVisible() == false);
-        edge->currLabel()->updatePosCW(0, LabelFade::FadeOut);
-        edge->nextLabel()->updatePosCW(0, LabelFade::FadeIn);
-        edge->nextLabel()->show();
-    };
-    auto progressCW = [](Edge* edge, qreal t)
-    {
-        edge->currLabel()->alignToAxis(edge->lineWithMargin());
-        edge->nextLabel()->alignToAxis(edge->lineWithMargin());
-        edge->currLabel()->updatePosCW(t, LabelFade::FadeOut);
-        edge->nextLabel()->updatePosCW(t, LabelFade::FadeIn);
-    };
-    auto finishCW   = [](Edge* edge)
-    {
-        edge->nextLabel()->updatePosCW(0, LabelFade::FadeOut);
-        edge->currLabel()->hide();
-        edge->swapLabels();
-    };
-
-    auto startCCW    = [](Edge* edge, const QString& text)
-    {
-        Q_ASSERT(edge->nextLabel()->isVisible() == false);
-        edge->currLabel()->alignToAxis(edge->lineWithMargin());
-        edge->nextLabel()->alignToAxis(edge->lineWithMargin(), text);
-        Q_ASSERT(edge->nextLabel()->isVisible() == false);
-        edge->currLabel()->updatePosCCW(0, LabelFade::FadeOut);
-        edge->nextLabel()->updatePosCCW(0, LabelFade::FadeIn);
-        edge->nextLabel()->show();
-    };
-    auto progressCCW = [](Edge* edge, qreal t)
-    {
-        edge->currLabel()->alignToAxis(edge->lineWithMargin());
-        edge->nextLabel()->alignToAxis(edge->lineWithMargin());
-        edge->currLabel()->updatePosCCW(t, LabelFade::FadeOut);
-        edge->nextLabel()->updatePosCCW(t, LabelFade::FadeIn);
-    };
-    auto finishCCW   = [](Edge* edge)
-    {
-        edge->nextLabel()->updatePosCCW(0, LabelFade::FadeOut);
-        edge->currLabel()->hide();
-        edge->swapLabels();
-    };
-
-
-    for (auto [edge, sr] : input) {
-        const auto [text, rot] = sr;
-        if (rot == Rotation::CW) {
-            QObject::connect(animation, &QVariantAnimation::stateChanged,
-                [edge, text, startCW, finishCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
-                {
-                    if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
-                        startCW(edge, text);
-                    } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
-                        /// This happens when the user triggers another rotation
-                        /// while the current animation is still running.  The pause
-                        /// comes from 'oldAnimation->pause()'.
-                        finishCW(edge);
-                    }
-                });
-
-            QObject::connect(animation, &QVariantAnimation::valueChanged,
-                [edge, progressCW] (const QVariant& value)
-                {
-                    progressCW(edge, value.toReal());
-                });
-
-            QObject::connect(animation, &QVariantAnimation::finished,
-                [edge, finishCW]
-                {
-                    finishCW(edge);
-                });
-        }
-        if (rot == Rotation::CCW) {
-            QObject::connect(animation, &QVariantAnimation::stateChanged,
-                [edge, text, startCCW, finishCCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
-                {
-                    if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
-                        startCCW(edge, text);
-                    } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
-                        /// This happens when the user triggers another rotation
-                        /// while the current animation is still running.  The pause
-                        /// comes from 'oldAnimation->pause()'.
-                        finishCCW(edge);
-                    }
-                });
-
-            QObject::connect(animation, &QVariantAnimation::valueChanged,
-                [edge, progressCCW] (const QVariant& value)
-                {
-                    progressCCW(edge, value.toReal());
-                });
-
-            QObject::connect(animation, &QVariantAnimation::finished,
-                [edge, finishCCW]
-                {
-                    finishCCW(edge);
-                });
-        }
-    }
 }
 
 
@@ -1125,77 +1015,47 @@ void Node::open()
 
 void Node::rotate(Rotation rot)
 {
-    if (_childEdges.empty()) {
-        return;
+    if (!_childEdges.empty()) {
+        animator->beginAnimation(this, 250);
+
+        doInternalRotation(rot);
+        updateAllChildNodes(this);
+
+        animator->endAnimation(this);
     }
-
-    InternalRotState result{};
-    doInternalRotation(rot, result);
-
-    if (result.changes.empty()) {
-        /// TODO: process result.status and perform visual indication animation.
-        return;
-    }
-    assert(scene());
-
-    if (!_singleRotAnimation.isNull() && _singleRotAnimation->state() == QAbstractAnimation::Running) {
-        _singleRotAnimation->pause();
-    }
-    _singleRotAnimation = getVariantAnimation();
-
-    animateRotation(_singleRotAnimation.data(), result.changes);
-
-    _singleRotAnimation->start();
 }
 
 void Node::rotatePage(Rotation rot)
 {
-    if (_childEdges.empty()) {
+    using namespace std::ranges;
+
+    /// only closed nodes can rotate, so the size of the page is the number of
+    /// closed nodes.
+    auto closedNodes = _childEdges
+        | views::transform(&Edge::target)
+        | views::transform(&asNode)
+        | views::filter(&Node::isClosed)
+        ;
+
+    const auto pageSize = distance(closedNodes);
+
+    if (pageSize == 0) {
         return;
     }
+    Q_ASSERT(!_childEdges.empty());
 
-    if (!_seqRotAnimation.isNull() && _seqRotAnimation->state() == QAbstractAnimation::Running) {
-        _seqRotAnimation->pause();
-        _seqRotAnimation.clear();
-    }
-    _seqRotAnimation = SharedSequentialAnimation::create();
+    const auto durPerRot = 200.0 / pageSize;
+    const auto totalDur  = static_cast<int>(qBound(5.0, 200.0 + durPerRot, 250.0));
 
-    for (auto _ : _childEdges) {
-        InternalRotState result{};
-        doInternalRotation(rot, result);
+    auto advance = [durPerRot, rot, this]
+    {
+        animator->beginAnimation(this, durPerRot);
+        doInternalRotation(rot);
+        updateAllChildNodes(this);
+        animator->endAnimation(this);
+    };
 
-        if (result.changes.empty()) {
-            /// TODO: process result.status and perform visual indication animation.
-            break;
-        }
-
-        auto* animation = new QVariantAnimation();
-        /// all animations except the last one are set to [0.0,0.1].
-        animation->setStartValue(0.0);
-        animation->setEndValue(0.1);
-        animation->setEasingCurve(QEasingCurve::OutSine);
-        animation->setLoopCount(1);
-        animateRotation(animation, result.changes);
-        _seqRotAnimation->addAnimation(animation);
-    }
-
-    constexpr int totalDuration = 250;
-    int duration = totalDuration / 2;
-    const int lastAnimation = _seqRotAnimation->animationCount() - 1;
-    for (int i = lastAnimation; i >= 0; --i) {
-        if (auto* anim = qobject_cast<QVariantAnimation*>( _seqRotAnimation->animationAt(i))) {
-            if (i == lastAnimation) {
-                anim->setDuration(duration);
-                anim->setStartValue(0.0);
-                anim->setEndValue(1.0);
-                anim->setEasingCurve(QEasingCurve::OutSine);
-            } else {
-                anim->setDuration(duration);
-            }
-            duration = qMax(2, duration /= 2);
-        }
-    }
-    _seqRotAnimation->start();
+    animator->addPageRotation(this, totalDur, pageSize, advance);
 }
 
 QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -1326,6 +1186,8 @@ FileSystemScene* Node::fsScene() const
 /// recursively destroys all child nodes and edges.
 void Node::destroyChildren()
 {
+    animator->stop(this);
+
     /// QGraphicsScene will remove an item from the scene upon delete, but
     /// "it is more efficient to remove the item from the QGraphicsScene
     /// before destroying the item." -- Qt docs
@@ -1367,21 +1229,12 @@ void Node::destroyChildren()
 
 void Node::internalRotationAfterClose(Edge* closedEdge)
 {
-    const auto result = doInternalRotationAfterClose(closedEdge);
+    animator->beginAnimation(this, 250);
 
-    if (result.changes.empty()) {
-        return;
-    }
-    assert(scene());
+    doInternalRotationAfterClose(closedEdge);
+    updateAllChildNodes(this);
 
-    if (!_singleRotAnimation.isNull() && _singleRotAnimation->state() == QAbstractAnimation::Running) {
-        _singleRotAnimation->pause();
-    }
-    _singleRotAnimation = getVariantAnimation();
-
-    animateRotation(_singleRotAnimation.data(), result.changes);
-
-    _singleRotAnimation->start();
+    animator->endAnimation(this);
 }
 
 /// This is basically a sorting of all closed edges.
@@ -1392,7 +1245,7 @@ void Node::internalRotationAfterClose(Edge* closedEdge)
 /// the compacting whenever they want.
 /// Node::rotate partially solves the problem by continuing to rotate until
 /// there is no gap between two edges.
-InternalRotState Node::doInternalRotationAfterClose(Edge* closedEdge)
+void Node::doInternalRotationAfterClose(Edge* closedEdge)
 {
     Q_ASSERT(asNode(closedEdge->target())->isClosed());
     Q_ASSERT(asNode(closedEdge->target())->index().isValid());
@@ -1409,7 +1262,19 @@ InternalRotState Node::doInternalRotationAfterClose(Edge* closedEdge)
         | ranges::to<std::deque>()
         ;
 
-    if (closedIndices.empty()) { return {}; }
+    if (_state == FolderState::HalfClosed) {
+        Q_ASSERT(closedEdge->state() == Edge::ActiveState);
+        closedEdge->setState(Edge::CollapsedState);
+        /// need to call both adjustAllEdges() and spread(). closedEdge is about
+        /// to go into collapsed state, and without adjustAllEdges(), parts of
+        /// it will remain un-collapsed.  spread() will indirectly trigger a
+        /// call to adjustAllEdges(), but only if causes a change in position.
+        /// a call to spread() is needed for when closedEdge doesn't line up
+        /// with reset of the collapsed edges.
+        adjustAllEdges(this);
+        spread();
+    }
+    if (closedIndices.empty()) { return; }
 
     const auto openOrHalfClosedRows = _childEdges
         | views::transform(&Edge::target)
@@ -1456,7 +1321,6 @@ InternalRotState Node::doInternalRotationAfterClose(Edge* closedEdge)
     }
 
     RELAYOUT:
-    auto result = InternalRotState{};
 
     auto closedNodes = _childEdges
         | views::transform(&Edge::target)
@@ -1473,18 +1337,16 @@ InternalRotState Node::doInternalRotationAfterClose(Edge* closedEdge)
         auto oldIndex = node->index();
         if (newIndex == oldIndex) { continue; }
         node->setIndex(newIndex);
-        result.changes[node->parentEdge()] =
-            { node->name()
-            , newIndex.row() > oldIndex.row() ? Rotation::CCW : Rotation::CW};
+        animator->addRotation(node->parentEdge()
+            , newIndex.row() > oldIndex.row() ? Rotation::CCW : Rotation::CW
+            , node->name());
     }
-
-    return result;
 }
 
 /// performs CCW or CW rotation.
 /// CCW means going forward (i.e., the new node index is greater than the
 /// previous).
-void Node::doInternalRotation(Rotation rot, InternalRotState& result)
+void Node::doInternalRotation(Rotation rot)
 {
     using namespace std;
 
@@ -1494,10 +1356,7 @@ void Node::doInternalRotation(Rotation rot, InternalRotState& result)
         | views::filter(&Node::isClosed)
         | ranges::to<std::vector>();
 
-    if (closedNodes.empty()) {
-        result.status = InternalRotationStatus::MovementImpossible;
-        return;
-    }
+    if (closedNodes.empty()) { return; }
 
     const auto openOrHalfClosedRows = _childEdges
         | views::transform(&Edge::target)
@@ -1524,9 +1383,10 @@ void Node::doInternalRotation(Rotation rot, InternalRotState& result)
         | views::filter(isIndexClosed);
 
     if (candidates.empty()) {
-        result.status = rot == Rotation::CCW
-            ? InternalRotationStatus::EndReachedCCW
-            : InternalRotationStatus::EndReachedCW;
+        /// TODO: animator add animation for this??
+            // rot == Rotation::CCW
+            // ? InternalRotationStatus::EndReachedCCW
+            // : InternalRotationStatus::EndReachedCW;
         return;
     }
 
@@ -1538,36 +1398,27 @@ void Node::doInternalRotation(Rotation rot, InternalRotState& result)
             Q_ASSERT(prev->isClosed());
             Q_ASSERT(prev->index() != node->index());
             prev->setIndex(node->index());
-            result.changes[prev->parentEdge()] = {prev->name(), rot};
+            animator->addRotation(prev->parentEdge(), rot, prev->name());
         }
         prev = node;
     }
     if (prev) {
         prev->setIndex(sibling);
-        result.changes[prev->parentEdge()] = {prev->name(), rot};
+        animator->addRotation(prev->parentEdge(), rot, prev->name());
     }
 }
 
 void Node::skipTo(int row)
 {
-    InternalRotState result{};
-    skipTo(row, result);
+    animator->beginAnimation(this, 250);
 
-    if (result.changes.empty()) {
-        return;
-    }
+    doSkipTo(row);
+    updateAllChildNodes(this);
 
-    if (!_singleRotAnimation.isNull() && _singleRotAnimation->state() == QAbstractAnimation::Running) {
-        _singleRotAnimation->pause();
-    }
-    _singleRotAnimation = getVariantAnimation();
-
-    animateRotation(_singleRotAnimation.data(), result.changes);
-
-    _singleRotAnimation->start();
+    animator->endAnimation(this);
 }
 
-void Node::skipTo(int row, InternalRotState& result)
+void Node::doSkipTo(int row)
 {
     const auto rowCount = _index.model()->rowCount(_index);
 
@@ -1588,7 +1439,6 @@ void Node::skipTo(int row, InternalRotState& result)
     auto target = _index.model()->index(row, 0, _index);
 
     if (!target.isValid()) {
-        result.status = InternalRotationStatus::MovementImpossible;
         return;
     }
 
@@ -1633,7 +1483,7 @@ void Node::skipTo(int row, InternalRotState& result)
             const auto rot = node->index().row() < newIndex.row()
                 ? Rotation::CCW : Rotation::CW;
             node->setIndex(newIndex);
-            result.changes[node->parentEdge()] = {node->name(), rot};
+            animator->addRotation(node->parentEdge(), rot, node->name());
         }
         newIndices.pop_front();
     }
@@ -1757,5 +1607,221 @@ void core::setAllEdgeState(const Node* node, Edge::State state)
         | transform(&Node::parentEdge))
     {
         edge->setState(state);
+    }
+}
+
+
+////////////////
+/// Animator ///
+////////////////
+void Animator::beginAnimation(const Node* node, int duration)
+{
+    auto* var = newVariantAnimation(node);
+    var->setDuration(duration);
+    var->setProperty(ADD_ROTATION_COUNT, 0);
+}
+
+void Animator::endAnimation(const Node* node)
+{
+    if (auto* animation = getVariantAnimation(node); animation->property(ADD_ROTATION_COUNT).toInt() == 0) {
+        animation->deleteLater();
+        _variantAnimations.erase(node);
+    } else {
+        animation->start();
+    }
+}
+
+void Animator::addRotation(Edge* edge, const Rotation& rot, const QString& newText)
+{
+    auto* node = asNode(edge->source());
+    auto* va = _variantAnimations[node];
+    Q_ASSERT(va);
+
+    const auto count = va->property(ADD_ROTATION_COUNT).toInt();
+    va->setProperty(ADD_ROTATION_COUNT, count + 1);
+
+    auto startCW    = [](Edge* edge, const QString& text)
+    {
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin(), text);
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
+        edge->currLabel()->updatePosCW(0, LabelFade::FadeOut);
+        edge->nextLabel()->updatePosCW(0, LabelFade::FadeIn);
+        edge->nextLabel()->show();
+    };
+    auto progressCW = [](Edge* edge, qreal t)
+    {
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin());
+        edge->currLabel()->updatePosCW(t, LabelFade::FadeOut);
+        edge->nextLabel()->updatePosCW(t, LabelFade::FadeIn);
+    };
+    auto finishCW   = [](Edge* edge)
+    {
+        edge->nextLabel()->updatePosCW(0, LabelFade::FadeOut);
+        edge->currLabel()->hide();
+        edge->swapLabels();
+    };
+
+    auto startCCW    = [](Edge* edge, const QString& text)
+    {
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin(), text);
+        Q_ASSERT(edge->nextLabel()->isVisible() == false);
+        edge->currLabel()->updatePosCCW(0, LabelFade::FadeOut);
+        edge->nextLabel()->updatePosCCW(0, LabelFade::FadeIn);
+        edge->nextLabel()->show();
+    };
+    auto progressCCW = [](Edge* edge, qreal t)
+    {
+        edge->currLabel()->alignToAxis(edge->lineWithMargin());
+        edge->nextLabel()->alignToAxis(edge->lineWithMargin());
+        edge->currLabel()->updatePosCCW(t, LabelFade::FadeOut);
+        edge->nextLabel()->updatePosCCW(t, LabelFade::FadeIn);
+    };
+    auto finishCCW   = [](Edge* edge)
+    {
+        edge->nextLabel()->updatePosCCW(0, LabelFade::FadeOut);
+        edge->currLabel()->hide();
+        edge->swapLabels();
+    };
+
+
+     if (rot == Rotation::CW) {
+         QObject::connect(va, &QVariantAnimation::stateChanged,
+             [edge, newText, startCW, finishCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
+             {
+                 if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
+                     startCW(edge, newText);
+                 } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
+                     /// This happens when the user triggers another rotation
+                     /// while the current animation is still running.
+                     finishCW(edge);
+                 }
+             });
+
+         QObject::connect(va, &QVariantAnimation::valueChanged,
+             [edge, progressCW] (const QVariant& value)
+             {
+                 progressCW(edge, value.toReal());
+             });
+
+         QObject::connect(va, &QVariantAnimation::finished,
+             [edge, finishCW]
+             {
+                 finishCW(edge);
+             });
+     }
+    if (rot == Rotation::CCW) {
+        QObject::connect(va, &QVariantAnimation::stateChanged,
+            [edge, newText, startCCW, finishCCW] (QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
+            {
+                if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
+                    startCCW(edge, newText);
+                } else if (oldState == QAbstractAnimation::Running && newState == QAbstractAnimation::Paused) {
+                    /// This happens when the user triggers another rotation
+                    /// while the current animation is still running.
+                    finishCCW(edge);
+                }
+            });
+
+        QObject::connect(va, &QVariantAnimation::valueChanged,
+            [edge, progressCCW] (const QVariant& value)
+            {
+                progressCCW(edge, value.toReal());
+            });
+
+        QObject::connect(va, &QVariantAnimation::finished,
+            [edge, finishCCW]
+            {
+                finishCCW(edge);
+            });
+    }
+}
+
+void Animator::addPageRotation(Node* node, int duration, int pageSize, auto&& fun)
+{
+    auto* timeline = newTimeline(node);
+    timeline->setFrameRange(0, pageSize);
+    timeline->setDuration(duration);
+    timeline->setEasingCurve(QEasingCurve::InCubic);
+    QObject::connect(timeline, &QTimeLine::frameChanged, fun);
+    timeline->start();
+}
+
+void Animator::stop(const Node* node)
+{
+    stopTimeline(node);
+    stopVariantAnimation(node);
+}
+
+QVariantAnimation* Animator::newVariantAnimation(const Node* node)
+{
+    stopVariantAnimation(node);
+
+    QVariantAnimation* animation = nullptr;
+    animation = new QVariantAnimation(this);
+    animation->setStartValue(0.0);
+    animation->setEndValue(1.0);
+    animation->setLoopCount(1);
+    animation->setEasingCurve(QEasingCurve::OutSine);
+    _variantAnimations[node] = animation;
+
+    return animation;
+}
+
+QVariantAnimation* Animator::getVariantAnimation(const Node* node)
+{
+    QVariantAnimation* animation = nullptr;
+
+    if (auto it = _variantAnimations.find(node); it != _variantAnimations.end()) {
+        animation = it->second;
+    }
+
+    return animation;
+}
+
+QTimeLine* Animator::newTimeline(const Node* node)
+{
+    stopTimeline(node);
+
+    auto* timeline = new QTimeLine(1, this);
+    _timelines[node] = timeline;
+
+    return timeline;
+}
+
+QTimeLine* Animator::getTimeline(const Node* node)
+{
+    QTimeLine* tl = nullptr;
+
+    if (auto it = _timelines.find(node); it != _timelines.end()) {
+        tl = it->second;
+    }
+
+    return tl;
+}
+
+void Animator::stopVariantAnimation(const Node* node)
+{
+    if (auto* animation = getVariantAnimation(node); animation != nullptr) {
+        if  (animation->state() == QAbstractAnimation::Running) {
+            animation->pause();
+        }
+        animation->deleteLater();
+        _variantAnimations.erase(node);
+    }
+}
+
+void Animator::stopTimeline(const Node* node)
+{
+    if (auto* timeline = getTimeline(node); timeline != nullptr) {
+        if (timeline->state() == QTimeLine::Running) {
+            timeline->stop();
+        }
+        timeline->deleteLater();
+        _timelines.erase(node);
     }
 }

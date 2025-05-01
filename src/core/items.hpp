@@ -11,6 +11,7 @@
 
 class QVariantAnimation;
 class QSequentialAnimationGroup;
+class QTimeLine;
 
 namespace  core
 {
@@ -153,25 +154,7 @@ namespace  core
     };
 
 
-    struct StringRotation
-    {
-        QString text;
-        Rotation rot;
-    };
-
-    using EdgeStringMap = std::unordered_map<Edge*, StringRotation>;
-    using SharedVariantAnimation = QSharedPointer<QVariantAnimation>;
-    using SharedSequentialAnimation = QSharedPointer<QSequentialAnimationGroup>;
-    using EdgeVector    = std::vector<Edge*>;
-
-    void animateRotation(const QVariantAnimation* animation, const EdgeStringMap& input);
-
-
-    struct InternalRotState
-    {
-        InternalRotationStatus status{InternalRotationStatus::MovementImpossible};
-        EdgeStringMap changes;
-    };
+    using EdgeVector = std::vector<Edge*>;
 
 
     class Node final : public QGraphicsItem
@@ -224,10 +207,10 @@ namespace  core
         void destroyChildren();
 
         void internalRotationAfterClose(Edge* closedEdge);
-        InternalRotState doInternalRotationAfterClose(Edge* closedEdge);
-        void doInternalRotation(Rotation rot, InternalRotState& result);
-        void skipTo(int row, InternalRotState& result);
+        void doInternalRotationAfterClose(Edge* closedEdge);
+        void doInternalRotation(Rotation rot);
         void skipTo(int row);
+        void doSkipTo(int row);
 
         void spread(QPointF dxy = QPointF(0,0));
 
@@ -236,9 +219,6 @@ namespace  core
         Edge* _parentEdge{nullptr};
         EdgeVector _childEdges;
 
-        SharedVariantAnimation _singleRotAnimation;
-        SharedSequentialAnimation _seqRotAnimation;
-
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
     };
 
@@ -246,4 +226,32 @@ namespace  core
     void shrink(Node* node, qreal distance = 144.0);
     void adjustAllEdges(const Node* node);
     void setAllEdgeState(const Node* node, Edge::State state);
+
+
+
+    class Animator final : public QObject
+    {
+        static constexpr const char* const ADD_ROTATION_COUNT = "addRotationCount";
+
+    public:
+        void beginAnimation(const Node* node, int duration = 250);
+        void endAnimation(const Node* node);
+        void addRotation(Edge* edge, const Rotation& rot, const QString& newText);
+        void addPageRotation(Node* node, int duration, int pageSize, auto&& fun);
+        void stop(const Node* node);
+
+    private:
+        QVariantAnimation* newVariantAnimation(const Node* node);
+        QVariantAnimation* getVariantAnimation(const Node* node);
+        QTimeLine* newTimeline(const Node* node);
+        QTimeLine* getTimeline(const Node* node);
+        void stopVariantAnimation(const Node* node);
+        void stopTimeline(const Node* node);
+
+        std::unordered_map<const Node*, QTimeLine*> _timelines;
+        std::unordered_map<const Node*, QVariantAnimation*> _variantAnimations;
+
+    };
 }
+
+Q_GLOBAL_STATIC(core::Animator, animator)
