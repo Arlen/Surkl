@@ -11,7 +11,7 @@ using namespace core;
 
 namespace
 {
-    constexpr auto OBJ_NAME = QLatin1StringView("ksed-session-manager");
+    constexpr auto OBJ_NAME = QLatin1StringView("surkl-session-manager");
 }
 
 

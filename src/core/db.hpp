@@ -7,8 +7,8 @@
 
 namespace core::db
 {
-    constexpr auto DB_CONNECTION_NAME = QLatin1StringView("Ksed_db_connection");
-    constexpr auto DB_DATABASE_NAME   = QLatin1StringView("Ksed.db");
+    constexpr auto DB_CONNECTION_NAME = QLatin1StringView("Surkl_db_connection");
+    constexpr auto DB_DATABASE_NAME   = QLatin1StringView("Surkl.db");
 
     inline auto get()
     {
@@ -25,8 +25,7 @@ namespace core::db
                 if (_db.open()) {
                     QSqlQuery q(_db);
                     q.exec(QLatin1String("PRAGMA synchronous = OFF;"));
-                    /// KSED in ASCII = 75836968
-                    q.exec(QLatin1String("PRAGMA application_id = 75836968;"));
+                    q.exec(QLatin1String("PRAGMA application_id = 314159265;"));
                 } else {
                     qWarning() << "database" << DB_DATABASE_NAME << "failed to open!";
                 }
