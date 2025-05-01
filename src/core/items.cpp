@@ -1680,9 +1680,9 @@ void Animator::addRotation(Edge* edge, const Rotation& rot, const QString& newTe
     };
     auto finishCW   = [](Edge* edge)
     {
-        edge->nextLabel()->updatePosCW(0, LabelFade::FadeOut);
-        edge->currLabel()->hide();
         edge->swapLabels();
+        edge->nextLabel()->hide();
+        edge->currLabel()->updatePosCW(0, LabelFade::FadeOut);
     };
 
     auto startCCW    = [](Edge* edge, const QString& text)
@@ -1704,9 +1704,9 @@ void Animator::addRotation(Edge* edge, const Rotation& rot, const QString& newTe
     };
     auto finishCCW   = [](Edge* edge)
     {
-        edge->nextLabel()->updatePosCCW(0, LabelFade::FadeOut);
-        edge->currLabel()->hide();
         edge->swapLabels();
+        edge->nextLabel()->hide();
+        edge->currLabel()->updatePosCCW(0, LabelFade::FadeOut);
     };
 
 
