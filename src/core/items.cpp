@@ -85,19 +85,6 @@ namespace
         return QLineF(b.p2(), a.p2());
     }
 
-    SharedVariantAnimation getVariantAnimation()
-    {
-        auto animation = SharedVariantAnimation::create();
-        animation->setDuration(250);
-        animation->setStartValue(0.0);
-        animation->setEndValue(1.0);
-        animation->setLoopCount(1);
-        //animation->setEasingCurve(QEasingCurve::Linear);
-        animation->setEasingCurve(QEasingCurve::OutSine);
-
-        return animation;
-    }
-
     bool isRoot(QGraphicsItem* node)
     {
         return qgraphicsitem_cast<RootNode*>(node) != nullptr;
