@@ -1,6 +1,6 @@
-#include "core/SessionManager.hpp"
-#include "core/FileSystemScene.hpp"
-#include "core/bookmark.hpp"
+#include "SessionManager.hpp"
+#include "FileSystemScene.hpp"
+#include "bookmark.hpp"
 #include "gui/MainWindow.hpp"
 #include "gui/theme.hpp"
 
@@ -43,7 +43,6 @@ gui::MainWindow* SessionManager::mw()
 
 void SessionManager::cleanup() const
 {
-    gui::ThemeManager::saveToDatabase(_tm);
     BookmarkManager::saveToDatabase(_bm);
 }
 
@@ -62,6 +61,8 @@ void SessionManager::init()
 
     connect(qApp, &QApplication::aboutToQuit, _mw, &QWidget::deleteLater);
     connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);
+
+    connect(_tm, &gui::ThemeManager::themeChanged, [this] { _sc->update(); });
 }
 
 SessionManager* SessionManager::session()
