@@ -4,45 +4,19 @@
 #include <QSqlQuery>
 #include <QSqlRecord>
 
-
 namespace core::db
 {
-    constexpr auto DB_CONNECTION_NAME = QLatin1StringView("Surkl_db_connection");
-    constexpr auto DB_DATABASE_NAME   = QLatin1StringView("Surkl.db");
+    constexpr auto DB_CONNECTION_NAME      = QLatin1StringView("Surkl_db_connection");
+    constexpr auto DB_DATABASE_NAME        = QLatin1StringView("Surkl.db");
+    constexpr auto DB_TEST_CONNECTION_NAME = QLatin1StringView("Surkl_test_db_connection");
+    constexpr auto DB_TEST_DATABASE_NAME   = QLatin1StringView("Surkl_test.db");
 
-    inline auto get()
-    {
-        class Database
-        {
-            QSqlDatabase _db;
-
-        public:
-            Database()
-            {
-                _db = QSqlDatabase::addDatabase("QSQLITE", DB_CONNECTION_NAME);
-                _db.setDatabaseName(DB_DATABASE_NAME);
-
-                if (_db.open()) {
-                    QSqlQuery q(_db);
-                    q.exec(QLatin1String("PRAGMA synchronous = OFF;"));
-                    q.exec(QLatin1String("PRAGMA application_id = 314159265;"));
-                } else {
-                    qWarning() << "database" << DB_DATABASE_NAME << "failed to open!";
-                }
-            }
-
-            ~Database()
-            {
-                QSqlDatabase::removeDatabase(DB_CONNECTION_NAME);
-            }
-
-            [[nodiscard]] QSqlDatabase sqlite() const { return _db; }
-        };
-
-        static auto* instance = new Database{};
-
-        return instance->sqlite();
-    }
-
+    void init(QLatin1StringView dbName = DB_DATABASE_NAME, QLatin1StringView connectionName = DB_CONNECTION_NAME);
     bool doesTableExists(QLatin1StringView name);
+
+    inline QSqlDatabase get(QLatin1StringView connectionName = DB_CONNECTION_NAME)
+    {
+        return QSqlDatabase::database(connectionName);
+    }
 }
+
