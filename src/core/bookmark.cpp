@@ -1,6 +1,8 @@
 #include "bookmark.hpp"
 #include "db.hpp"
 
+#include <QSqlRecord>
+
 
 using namespace core;
 using namespace Qt::Literals::StringLiterals;

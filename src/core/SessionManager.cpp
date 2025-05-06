@@ -1,6 +1,7 @@
 #include "SessionManager.hpp"
 #include "FileSystemScene.hpp"
 #include "bookmark.hpp"
+#include "db.hpp"
 #include "gui/MainWindow.hpp"
 #include "gui/theme.hpp"
 
@@ -48,6 +49,8 @@ void SessionManager::cleanup() const
 
 void SessionManager::init()
 {
+    db::init();
+
     _tm = new gui::ThemeManager(this);
     gui::ThemeManager::configure(_tm);
 
