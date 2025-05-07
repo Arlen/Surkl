@@ -1,5 +1,7 @@
 #include "src/core/SessionManager.hpp"
 
+#include "db.hpp"
+
 #include <QApplication>
 #include <QSqlDatabase>
 
@@ -13,6 +15,11 @@ int main(int argc, char* argv[])
         qWarning() << "Error: QSQLITE database driver not available.";
         return -1;
     }
+
+    app->setProperty(core::db::DB_NAME
+        , core::db::DB_CONFIG.databaseName);
+    app->setProperty(core::db::DB_CONNECTION_NAME
+        , core::db::DB_CONFIG.connectionName);
 
     core::SessionManager::mw()->resize(640*2, 480*2);
     core::SessionManager::mw()->show();
