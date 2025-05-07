@@ -5,6 +5,8 @@
 
 #include <QTest>
 
+#include "theme.hpp"
+
 
 class TestTheme final : public QObject
 {
@@ -19,5 +21,11 @@ private slots:
 
     void factoryPalette() const;
     void randomPalettes() const;
-    void randomPalettes_data();
+    void activePalette() const;
+    void keepAndDiscardPalette();
+
+private:
+    void generateRandomPalettes(int N);
+
+    gui::Colors _keptColors;
 };

@@ -3,11 +3,14 @@
 
 #include "tst_theme.hpp"
 #include "core/db.hpp"
-#include "gui/theme.hpp"
+#include "core/SessionManager.hpp"
+#include "gui/ThemeSettings.hpp"
 
 #include <QRandomGenerator>
+#include <QStandardItemModel>
 
-// ReSharper disable CppMemberFunctionMayBeStatic
+#include <ranges>
+
 
 
 using namespace core;
@@ -15,21 +18,28 @@ using namespace gui;
 
 void TestTheme::initTestCase()
 {
-    db::init(db::DB_CONFIG_TEST);
-    QVERIFY(QFile::exists(db::DB_CONFIG_TEST.databaseName));
+    qApp->setProperty(db::DB_NAME, db::DB_CONFIG_TEST.databaseName);
+    qApp->setProperty(db::DB_CONNECTION_NAME, db::DB_CONFIG_TEST.connectionName);
+
+    auto* tm = SessionManager::tm();
+    const auto factoryPal = ThemeManager::factory();
+    const auto factoryId  = ThemeManager::idFromPalette(factoryPal);
+    QVERIFY(tm->isActive(factoryId));
 }
 
 void TestTheme::initTestCase_data()
 {
-
+    generateRandomPalettes(1024);
 }
 
 void TestTheme::cleanupTestCase()
 {
-    QSqlDatabase::removeDatabase(db::DB_CONFIG_TEST.databaseName);
-    QVERIFY(QFile::exists(db::DB_CONFIG_TEST.databaseName));
-    QFile::remove(db::DB_CONFIG_TEST.databaseName);
-    QVERIFY(!QFile::exists(db::DB_CONFIG_TEST.databaseName));
+    const auto databaseName   = qApp->property(db::DB_NAME).toString();
+    const auto connectionName = qApp->property(db::DB_CONNECTION_NAME).toString();
+
+    QVERIFY(QFile::exists(databaseName));
+    QFile::remove(databaseName);
+    QVERIFY(!QFile::exists(databaseName));
 }
 
 void TestTheme::init()
@@ -60,8 +70,8 @@ void TestTheme::factoryPalette() const
 
 void TestTheme::randomPalettes() const
 {
-    QFETCH(std::string, id);
-    QFETCH(Palette, palette);
+    QFETCH_GLOBAL(std::string, id);
+    QFETCH_GLOBAL(Palette, palette);
 
     const auto pfi = ThemeManager::paletteFromId(id);
     const auto ifp = ThemeManager::idFromPalette(pfi);
@@ -75,25 +85,102 @@ void TestTheme::randomPalettes() const
     QCOMPARE(ifp, id);
 }
 
-void TestTheme::randomPalettes_data()
+void TestTheme::activePalette() const
 {
-    QTest::addColumn<std::string>("id");
+    constexpr auto factoryPal = ThemeManager::factory();
+    const auto factoryId      = ThemeManager::idFromPalette(factoryPal);
+
+    QFETCH_GLOBAL(std::string, id);
+    QFETCH_GLOBAL(Palette, palette);
+
+    auto* tm = SessionManager::tm();
+    QVERIFY(tm->isActive(factoryId));
+    QVERIFY(!tm->isActive(id));
+    tm->setActivePalette(palette);
+    QVERIFY(tm->isActive(id));
+    tm->switchTo(factoryId);
+    QVERIFY(!tm->isActive(id));
+    QVERIFY(tm->isActive(factoryId));
+}
+
+void TestTheme::generateRandomPalettes(int N)
+{
+    QTest::addColumn<PaletteId>("id");
     QTest::addColumn<Palette>("palette");
 
-    for (int i = 0; i < 1024; ++i) {
+    auto* rng = QRandomGenerator::global();
+    std::vector<Palette> palettes;
+
+    for (int i = 0; i < N; ++i) {
         auto palette = Palette{};
         palette.fill(QColor(0, 0, 0, 0));
         for (int j = 0; j < PLACEHOLDER_COLOR_1; ++j) {
-            const auto h = QRandomGenerator::global()->bounded(1.0);
-            const auto s = QRandomGenerator::global()->bounded(1.0);
-            const auto v = QRandomGenerator::global()->bounded(1.0);
-            const auto a = QRandomGenerator::global()->bounded(1.0);
+            const auto h = rng->bounded(1.0);
+            const auto s = rng->bounded(1.0);
+            const auto v = rng->bounded(1.0);
+            const auto a = rng->bounded(1.0);
             const auto c = QColor::fromHsvF(h, s, v, a).rgba();
             palette[j] = c;
         }
-        QTest::newRow(QString::number(i).toLatin1())
-            << ThemeManager::idFromPalette(palette)
-            << palette;
+        palettes.push_back(palette);
+
+        /// ~ %33 duplicates
+        if (rng->bounded(0, 3) == false) {
+            palettes.push_back(palette);
+        }
+    }
+
+    std::ranges::shuffle(palettes, *QRandomGenerator::global());
+
+    for (int i = 0; const auto& palette : palettes) {
+        const auto id = ThemeManager::idFromPalette(palette);
+        QTest::newRow(QString::number(i++).toLatin1())
+            << id << palette;
+    }
+}
+
+void TestTheme::keepAndDiscardPalette()
+{
+    QFETCH_GLOBAL(std::string, id);
+    QFETCH_GLOBAL(Palette, palette);
+
+    constexpr auto factoryPal = ThemeManager::factory();
+    const auto factoryId      = ThemeManager::idFromPalette(factoryPal);
+    auto* tm = SessionManager::tm();
+    auto* model = tm->model();
+
+    const auto keep    = QRandomGenerator::global()->bounded(0, 2) == false; // %50
+    const auto discard = QRandomGenerator::global()->bounded(0, 5) == false; // %25
+
+    auto itemCount = [model](const PaletteId& id) -> int {
+        const auto text = QString::fromStdString(id);
+        return model->findItems(text, Qt::MatchExactly, ThemeManager::PaletteIdColumn)
+            .count();
+    };
+
+    if (keep) {
+        if (_keptColors.contains(id)) {
+            QCOMPARE(itemCount(id), 1);
+        } else {
+            QCOMPARE(itemCount(id), 0);
+            tm->keep(palette);
+            QCOMPARE(tm->isActive(id), true);
+            QCOMPARE(itemCount(id), 1);
+            _keptColors[id] = palette;
+        }
+    }
+    if (discard) {
+        if (_keptColors.contains(id)) {
+            QCOMPARE(itemCount(id), 1);
+            const bool wasActive = tm->isActive(id);
+            tm->discard(id);
+            QCOMPARE(tm->isActive(id), false);
+            QCOMPARE(itemCount(id), 0);
+            if (wasActive) {
+                QCOMPARE(tm->isActive(factoryId), true);
+            }
+            _keptColors.erase(id);
+        }
     }
 }
 
