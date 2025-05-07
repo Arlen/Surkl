@@ -6,7 +6,7 @@
 #include <QTest>
 
 
-class TestTheme : public QObject
+class TestTheme final : public QObject
 {
     Q_OBJECT
 
@@ -17,5 +17,7 @@ private slots:
     void init();
     void cleanup();
 
-    void paletteIdConversion();
+    void factoryPalette() const;
+    void randomPalettes() const;
+    void randomPalettes_data();
 };
