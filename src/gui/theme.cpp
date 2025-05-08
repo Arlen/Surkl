@@ -1,135 +1,420 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "gui/theme.hpp"
 #include "core/db.hpp"
 
-#include <QMetaProperty>
+#include <QSqlRecord>
+#include <QStandardItemModel>
+
+#include <ranges>
+#include <set>
 
 
 using namespace gui;
-using namespace Qt::Literals::StringLiterals;
 
 void ThemeManager::configure(ThemeManager* tm)
 {
-    if (auto db = core::db::get(); db.isOpen()) {
-        if (core::db::doesTableExists(TABLE_NAME)) {
+    using namespace std::ranges;
 
-            /// setProperty() will trigger the NOTIFY signal of each property,
-            /// which are connected to 'save##Color' slots, and those call
-            /// save() which starts a new QSqlQuery, and that somehow corrupts
-            /// the QSqlQuery object below, which then causes the while loop to
-            /// run forever.
-            QSignalBlocker blocker(tm);
+    createTables();
+    Q_ASSERT(core::db::doesTableExists(PALETTES_TABLE));
+    Q_ASSERT(core::db::doesTableExists(COLORS_TABLE));
 
-            QSqlQuery q(db);
-            q.prepare(QLatin1StringView("SELECT %1,%2 FROM %3")
-                .arg(PROPERTY_NAME_COL)
-                .arg(COLOR_VALUE_COL)
-                .arg(TABLE_NAME));
-            q.exec();
-            const auto rec         = q.record();
-            const auto name_index  = rec.indexOf(PROPERTY_NAME_COL);
-            const auto value_index = rec.indexOf(COLOR_VALUE_COL);
-            while (q.next())
-            {
-                const auto name = q.value(name_index).toString().toLatin1();
+    const auto db = core::db::get();
+    if (!db.isOpen()) {
+        return;
+    }
 
-                if (!tm->property(name).isValid()) {
-                    /// if what is in the DB does not exists in the class
-                    /// definition, then skip.
-                    continue;
-                }
+    QSqlQuery q(db);
+    Palettes palettes;
+    Colors colors;
+    auto ok = false;
 
-                const auto color = QColor::fromRgba(q.value(value_index).toInt());
-                tm->setProperty(name, color);
-            }
-        } else {
-            db.transaction();
-            QSqlQuery q(db);
-            q.prepare(
-                QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                                    ( %2 TEXT NOT NULL PRIMARY KEY
-                                    , %3 INTEGER NOT NULL
-                                    , UNIQUE(%2)))")
-                .arg(TABLE_NAME)
-                .arg(PROPERTY_NAME_COL)
-                .arg(COLOR_VALUE_COL));
-            q.exec();
+    ok = q.prepare(QLatin1StringView("SELECT %1,%2 FROM %3")
+            .arg(PALETTE_ID)
+            .arg(PALETTE_NAME)
+            .arg(PALETTES_TABLE));
+    Q_ASSERT(ok);
 
-            const auto* metaObj = tm->metaObject();
-            for (auto i = metaObj->propertyOffset(); i < metaObj->propertyCount(); ++i) {
-                const auto prop  = metaObj->property(i);
-                const auto color = prop.read(tm).value<QColor>();
-                saveToDatabase(QLatin1StringView(prop.name()), color);
-            }
+    if (q.exec()) {
+        const auto rec       = q.record();
+        const auto idIndex   = rec.indexOf(PALETTE_ID);
+        const auto nameIndex = rec.indexOf(PALETTE_NAME);
 
-            if (!db.commit()) {
-                qWarning()
-                    << "ThemeManager::configure: Failed to commit changes ("
-                    << db.lastError()
-                    << ")";
-            }
+        while (q.next())
+        {
+            const auto id   = q.value(idIndex).toString().toStdString();
+            const auto name = q.value(nameIndex).toString().toStdString();
+            palettes[id]    = name;
         }
     }
-}
 
-void ThemeManager::saveToDatabase(ThemeManager* tm)
-{
-    if (auto db = core::db::get(); db.isOpen()) {
-        db.transaction();
-        const auto* metaObj = tm->metaObject();
-        for (auto i = metaObj->propertyOffset(); i < metaObj->propertyCount(); ++i) {
-            const auto prop  = metaObj->property(i);
-            const auto color = prop.read(tm).value<QColor>();
-            saveToDatabase(QLatin1StringView(prop.name()), color);
+    ok = q.prepare(QLatin1StringView("SELECT %1,%2,%3 FROM %4")
+            .arg(PALETTE_ID)
+            .arg(COLOR_POSITION)
+            .arg(COLOR_VALUE)
+            .arg(COLORS_TABLE));
+    Q_ASSERT(ok);
+
+    if (q.exec()) {
+        const auto rec      = q.record();
+        const auto idIndex  = rec.indexOf(PALETTE_ID);
+        const auto posIndex = rec.indexOf(COLOR_POSITION);
+        const auto valIndex = rec.indexOf(COLOR_VALUE);
+
+        while (q.next()) {
+            const auto id    = q.value(idIndex).toString().toStdString();
+            const auto pos   = q.value(posIndex).toInt(&ok);
+            const auto value = q.value(valIndex).value<QColor>();
+            const auto posi  = qBound(0, pos, static_cast<int>(PaletteIndexSize));
+
+            Q_ASSERT(ok);
+            Q_ASSERT(pos >= 0 && pos < PaletteIndexSize);
+            Q_ASSERT(palettes.contains(id));
+
+            colors[id][posi] = value;
         }
-        if (!db.commit()) {
-            qWarning()
-                << "ThemeManager::save: Failed to commit changes ("
-                << db.lastError()
-                << ")";
+    }
+
+    Q_ASSERT(tm->_palettes.size() == 1);
+    Q_ASSERT(tm->_colors.size()   == 1);
+    Q_ASSERT(palettes.size() == colors.size());
+    Q_ASSERT(
+        std::ranges::equal(
+            views::keys(palettes) | std::ranges::to<std::set>(),
+            views::keys(colors) | std::ranges::to<std::set>()));
+
+    for (const auto& [id, name] : palettes) {
+        if (colors.contains(id)) {
+            tm->addPalette(colors[id], name);
         }
+    }
+    if (const auto active = tm->getActiveTheme().toStdString();
+        palettes.contains(active) && colors.contains(active)) {
+        tm->_active = colors[active];
     }
 }
 
 ThemeManager::ThemeManager(QObject* parent)
     : QObject(parent)
 {
-    reset();
+    _model = new QStandardItemModel(0, ModelColumnCount, this);
+    _model->setHeaderData(NameColumn, Qt::Horizontal, "Name");
+    _model->setHeaderData(PreviewColumn, Qt::Horizontal, "Preview");
 
-    connect(this, &ThemeManager::bgColorChanged, this, &ThemeManager::saveBgColor);
+    connect(_model, &QStandardItemModel::itemChanged, [this](const QStandardItem* item) {
+        /// palette name changed, update raw data.
+        if (item->column() == NameColumn) {
+            const auto nameIndex = item->index();
+            Q_ASSERT(nameIndex.isValid());
+
+            const auto name = nameIndex.data();
+            Q_ASSERT(name.isValid());
+
+            const auto paletteIdIndex = nameIndex.siblingAtColumn(PaletteIdColumn);
+            Q_ASSERT(paletteIdIndex.isValid());
+
+            const auto paletteId = paletteIdIndex.data();
+            Q_ASSERT(paletteId.isValid());
+
+            setName(paletteId.toString().toStdString(), name.toString().toStdString());
+        }
+    });
+
+    addPalette(factory(), "Monochrom");
+    _active = factory();
 }
 
-void ThemeManager::setBgColor(const QColor& color) noexcept
+void ThemeManager::keep(const Palette &palette)
 {
-    _bg_color = color;
+    /// don't call setActive() b/c we don't want to emit themeChanged().
+    /// ThemeSettings already sets a palette to active by Apply or Generate,
+    /// so 'palette' must already be active.  This is to ensure that 'palette'
+    /// is active in cases (e.g., unit test) where keep() is called without
+    /// a prior call to setActivePalette().
+    _active = palette;
 
-    emit bgColorChanged(_bg_color);
+    savePalettes(std::ranges::single_view{addPalette(palette)});
 }
 
-void ThemeManager::reset() noexcept
+Palette ThemeManager::paletteFromId(const PaletteId& id)
 {
-    {
-        QSignalBlocker blocker(this);
-        _bg_color = builtin::bgColor();
+    const auto bytes = QByteArray::fromBase64(QString::fromStdString(id).toUtf8());
+
+    Palette result; result.fill(QColor(0, 0, 0, 0));
+
+    /// J += 9 b/c HexArgb is '#AARRGGBB' long.
+    for (int i = 0, j = 0; i < result.size() && j < bytes.size()-8; ++i, j += 9) {
+        result[i] = QColor::fromString(bytes.sliced(j, 9));
     }
 
-    emit resetTriggered();
+    return result;
 }
 
-void ThemeManager::saveToDatabase(QLatin1StringView name, const QColor& color)
+PaletteId ThemeManager::idFromPalette(const Palette& palette)
+{
+    QByteArray bytes;
+
+    for (const auto& color : palette) {
+        bytes += color.name(QColor::HexArgb).toLatin1();
+    }
+
+    return bytes.toBase64().toStdString();
+}
+
+void ThemeManager::setActivePalette(const Palette& palette)
+{
+    _active = palette;
+
+    emit themeChanged();
+}
+
+void ThemeManager::switchTo(const PaletteId& id)
+{
+    if (const auto found = _colors.find(id); found != _colors.end()) {
+        saveActiveTheme(found->first);
+        setActivePalette(found->second);
+    }
+}
+
+void ThemeManager::discard(const PaletteId& id)
+{
+    /// never discard Monochrom.
+    if (!isFactory(id)) {
+        removePalette(id);
+
+        /// if discarding an active theme, then switch to factory default.
+        if (isActive(id)) {
+            setActivePalette(factory());
+        }
+    }
+}
+
+PaletteId ThemeManager::addPalette(const Palette& palette, const std::string &name)
+{
+    const auto id = idFromPalette(palette);
+
+    /// just a debug check; in reality it doesn't matter b/c the id is unique.
+    if (_palettes.contains(id)) { qWarning() << "Palette already exists!"; }
+
+    _palettes[id] = name;
+    _colors[id]   = palette;
+
+    addToModel(id);
+
+    return id;
+}
+
+void ThemeManager::removePalette(const PaletteId& id)
+{
+    deletePalettes(std::ranges::single_view{id});
+    removeFromModel(id);
+    _palettes.erase(id);
+    _colors.erase(id);
+}
+
+void ThemeManager::setName(const PaletteId& id, const PaletteName& name)
+{
+    if (const auto found = _palettes.find(id); found != _palettes.end()) {
+        found->second = name;
+        savePalettes(std::ranges::single_view{id});
+    }
+}
+
+void ThemeManager::addToModel(const PaletteId& id)
+{
+    Q_ASSERT(_palettes.contains(id));
+    Q_ASSERT(_colors.contains(id));
+
+    const auto& name = _palettes[id];
+
+    auto* nameItem      = new QStandardItem(QString::fromStdString(name));
+    auto* previewItem   = new QStandardItem();
+    auto* applyItem     = new QStandardItem();
+    auto* discardItem   = new QStandardItem();
+    auto* paletteIdItem = new QStandardItem();
+
+    previewItem->setEnabled(false);
+
+    if (id == idFromPalette(factory())) {
+        discardItem->setEnabled(false);
+    }
+
+    paletteIdItem->setText(QString::fromStdString(id));
+
+    _model->appendRow({nameItem, previewItem, applyItem, discardItem, paletteIdItem});
+}
+
+void ThemeManager::removeFromModel(const PaletteId& id) const
+{
+    for (const auto toBeRemoved = _model->findItems
+            ( QString::fromStdString(id)
+            , Qt::MatchExactly
+            , PaletteIdColumn
+            ); const auto item : toBeRemoved) {
+        _model->removeRow(item->row());
+    }
+}
+
+void ThemeManager::createTables()
+{
+    const auto db = core::db::get();
+
+    if (!db.isOpen()) { return; }
+
+    QSqlQuery q(db);
+
+    /// CREATE TABLE Palettes (id TEXT, name TEXT)
+    q.exec(
+        QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 TEXT NOT NULL PRIMARY KEY
+                            , %3 TEXT NOT NULL))")
+            .arg(PALETTES_TABLE)
+            .arg(PALETTE_ID)
+            .arg(PALETTE_NAME));
+
+    /// CREATE TABLE Colors (palette_id TEXT, position INTEGER, value INTEGER)
+    q.exec(
+        QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 TEXT NOT NULL
+                            , %3 INTEGER NOT NULL
+                            , %4 INTEGER NOT NULL))")
+            .arg(COLORS_TABLE)
+            .arg(PALETTE_ID)
+            .arg(COLOR_POSITION)
+            .arg(COLOR_VALUE));
+
+    /// CREATE TABLE ThemeSettings (attr_key TEXT, attr_value TEXT)
+    q.exec(
+        QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 TEXT PRIMARY KEY
+                            , %3 TEXT NOT NULL))")
+            .arg(THEME_SETTINGS_TABLE)
+            .arg(ATTRIBUTE_KEY)
+            .arg(ATTRIBUTE_VALUE));
+}
+
+/// takes a range of PaletteIds.
+void ThemeManager::savePalettes(std::ranges::input_range auto&& rg)
 {
     if (auto db = core::db::get(); db.isOpen()) {
-        QSqlQuery q(db);
-        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2, %3) VALUES(?, ?)")
-            .arg(TABLE_NAME)
-            .arg(PROPERTY_NAME_COL)
-            .arg(COLOR_VALUE_COL));
-        q.addBindValue(name);
-        q.addBindValue(color.rgba());
-        q.exec();
+        db.transaction();
+        QSqlQuery q1(db);
+        QSqlQuery q2(db);
+
+        q1.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3) VALUES(?, ?)")
+            .arg(PALETTES_TABLE)
+            .arg(PALETTE_ID)
+            .arg(PALETTE_NAME));
+
+        q2.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4) VALUES(?, ?, ?)")
+            .arg(COLORS_TABLE)
+            .arg(PALETTE_ID)
+            .arg(COLOR_POSITION)
+            .arg(COLOR_VALUE));
+
+        for (const auto& id : rg) {
+            Q_ASSERT(_palettes.contains(id));
+            if (auto found = _palettes.find(id); found != _palettes.end()) {
+                q1.addBindValue(QString::fromStdString(found->first));  // id
+                q1.addBindValue(QString::fromStdString(found->second)); // name
+                if (!q1.exec()) {
+                    qWarning() << q1.lastError();
+                }
+            }
+            Q_ASSERT(_colors.contains(id));
+            if (auto found = _colors.find(id); found != _colors.end()) {
+                const auto& palette = found->second;
+                for (int pos = 0; pos < PaletteIndexSize; ++pos) {
+                    q2.addBindValue(QString::fromStdString(id));
+                    q2.addBindValue(pos);
+                    q2.addBindValue(palette[pos]);
+                    if (!q2.exec()) {
+                        qWarning() << q2.lastError();
+                    }
+                }
+            }
+        }
+
+        if (!db.commit()) {
+            qWarning() << db.lastError();
+        }
     }
 }
 
-void ThemeManager::saveBgColor() const
+/// takes a range of PaletteIds.
+void ThemeManager::deletePalettes(std::ranges::input_range auto&& rg)
 {
-    saveToDatabase("bgColor"_L1, _bg_color);
+    if (auto db = core::db::get(); db.isOpen()) {
+        db.transaction();
+        QSqlQuery q1(db);
+        QSqlQuery q2(db);
+
+        q1.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:key")
+            .arg(PALETTES_TABLE)
+            .arg(PALETTE_ID));
+
+        q2.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:key")
+            .arg(COLORS_TABLE)
+            .arg(PALETTE_ID));
+
+        for (const auto& id : rg) {
+            q1.bindValue(":key", QString::fromStdString(id));
+            q2.bindValue(":key", QString::fromStdString(id));
+            const auto ok1 = q1.exec();
+            const auto ok2 = q2.exec();
+            Q_ASSERT(ok1 && ok2);
+        }
+
+        if (!db.commit()) {
+            qWarning() << db.lastError();
+        }
+    }
+}
+
+void ThemeManager::saveActiveTheme(const std::string& id)
+{
+    if (const auto db = core::db::get(); db.isOpen()) {
+        QSqlQuery q(db);
+        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2, %3) VALUES(?, ?)")
+            .arg(THEME_SETTINGS_TABLE)
+            .arg(ATTRIBUTE_KEY)
+            .arg(ATTRIBUTE_VALUE));
+
+        q.addBindValue(ACTIVE_THEME_KEY);
+        q.addBindValue(QString::fromStdString(id));
+
+        if (!q.exec()) {
+            qWarning()
+                << "ThemeManager: failed to save active theme ("
+                << q.lastError()
+                << ")";
+        }
+    }
+}
+
+QString ThemeManager::getActiveTheme()
+{
+    QString active;
+
+    if (const auto db = core::db::get(); db.isOpen()) {
+        QSqlQuery q(db);
+        q.prepare(QLatin1StringView("SELECT %2 FROM %3 WHERE %1=:key")
+            .arg(ATTRIBUTE_KEY)
+            .arg(ATTRIBUTE_VALUE)
+            .arg(THEME_SETTINGS_TABLE));
+
+        q.bindValue(":key", ACTIVE_THEME_KEY);
+
+        if (q.exec()) {
+            const auto rec = q.record();
+            const auto val = rec.indexOf(ATTRIBUTE_VALUE);
+            if (q.next()) {
+                active = q.value(val).toString();
+            }
+        }
+    }
+
+    return active;
 }
