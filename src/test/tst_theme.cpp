@@ -59,7 +59,7 @@ void TestTheme::factoryPalette() const
     const auto palette        = ThemeManager::paletteFromId(factoryId);
     const auto id             = ThemeManager::idFromPalette(palette);
 
-    for (int i = 0; i < PLACEHOLDER_COLOR_1; ++i) {
+    for (int i = 0; i < PaletteIndexSize; ++i) {
         const auto c1 = factoryPal[i];
         const auto c2 = palette[i];
         QCOMPARE_EQ(c2, c1);
@@ -76,7 +76,7 @@ void TestTheme::randomPalettes() const
     const auto pfi = ThemeManager::paletteFromId(id);
     const auto ifp = ThemeManager::idFromPalette(pfi);
 
-    for (int i = 0; i < PLACEHOLDER_COLOR_1; ++i) {
+    for (int i = 0; i < PaletteIndexSize; ++i) {
         const auto c1 = palette[i];
         const auto c2 = pfi[i];
         QCOMPARE_EQ(c2, c1);
@@ -114,7 +114,7 @@ void TestTheme::generateRandomPalettes(int N)
     for (int i = 0; i < N; ++i) {
         auto palette = Palette{};
         palette.fill(QColor(0, 0, 0, 0));
-        for (int j = 0; j < PLACEHOLDER_COLOR_1; ++j) {
+        for (int j = 0; j < PaletteIndexSize; ++j) {
             const auto h = rng->bounded(1.0);
             const auto s = rng->bounded(1.0);
             const auto v = rng->bounded(1.0);
