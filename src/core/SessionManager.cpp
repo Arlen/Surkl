@@ -1,3 +1,6 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "SessionManager.hpp"
 #include "FileSystemScene.hpp"
 #include "bookmark.hpp"
@@ -20,6 +23,11 @@ SessionManager::SessionManager(QObject* parent)
     : QObject(parent)
 {
 
+}
+
+SessionManager::~SessionManager()
+{
+    delete _mw;
 }
 
 FileSystemScene* SessionManager::scene()
@@ -62,7 +70,6 @@ void SessionManager::init()
 
     _mw = new gui::MainWindow(_sc);
 
-    connect(qApp, &QApplication::aboutToQuit, _mw, &QWidget::deleteLater);
     connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);
 
     connect(_tm, &gui::ThemeManager::themeChanged, [this] { _sc->update(); });
