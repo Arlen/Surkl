@@ -6,12 +6,63 @@
 
 #include <QSqlRecord>
 #include <QStandardItemModel>
+#include <QRandomGenerator>
 
 #include <ranges>
 #include <set>
 
 
 using namespace gui;
+
+Palette gui::generatePalette(const HsvRange& range)
+{
+    auto isBounded = [](double min, double x, double max) -> bool {
+        return min <= x && x <= max;
+    };
+
+    Q_ASSERT(0 <= range.hue.p1 && range.hue.p2 <= 360.0);
+    Q_ASSERT(0 <= range.sat.p1 && range.sat.p2 <= 1.0);
+    Q_ASSERT(0 <= range.val.p1 && range.val.p2 <= 1.0);
+
+    const auto hueP1 = range.hue.p1/360.0;
+    const auto hueP2 = range.hue.p2/360.0;
+    const auto satP1 = range.sat.p1;
+    const auto satP2 = range.sat.p2;
+    const auto valP1 = range.val.p1;
+    const auto valP2 = range.val.p2;
+
+    auto hueDelta = hueP2 - hueP1;
+    auto satDelta = satP2 - satP1;
+    auto valDelta = valP2 - valP1;
+
+    if (hueP2 < hueP1) { hueDelta = 1.0 - std::fabs(hueP2 - hueP1); }
+    if (satP2 < satP1) { satDelta = 1.0 - std::fabs(satP2 - satP1); }
+    if (valP2 < valP1) { valDelta = 1.0 - std::fabs(valP2 - valP1); }
+
+    GoldenLds hueLds{QRandomGenerator::global()->bounded(1.0)};
+    GoldenLds satLds{QRandomGenerator::global()->bounded(1.0)};
+    GoldenLds valLds{QRandomGenerator::global()->bounded(1.0)};
+
+    Palette result;
+
+    for (int i = 0; i < PaletteIndexSize; ++i) {
+        auto hue = std::lerp(hueP1, hueP1 + hueDelta, hueLds.next());
+        if (hue >= 1.0) { hue -= 1.0; }
+        auto sat = std::lerp(satP1, satP1 + satDelta, satLds.next());
+        if (sat >= 1.0) { sat -= 1.0; }
+        auto val = std::lerp(valP1, valP1 + valDelta, valLds.next());
+        if (val >= 1.0) { val -= 1.0; }
+
+        Q_ASSERT(isBounded(hueP1, hue, hueP2) || isBounded(hueP1, hue, 1.0) || isBounded(0, hue, hueP2));
+        Q_ASSERT(isBounded(satP1, sat, satP2) || isBounded(satP1, sat, 1.0) || isBounded(0, sat, satP2));
+        Q_ASSERT(isBounded(valP1, val, valP2) || isBounded(valP1, val, 1.0) || isBounded(0, val, valP2));
+
+        result[i] = QColor::fromHsvF(hue, sat, val).rgba();
+    }
+
+    return result;
+}
+
 
 void ThemeManager::configure(ThemeManager* tm)
 {

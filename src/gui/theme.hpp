@@ -34,6 +34,52 @@ namespace gui
     using Palettes    = std::unordered_map<PaletteId, PaletteName>;
     using Colors      = std::unordered_map<PaletteId, Palette>;
 
+    struct GoldenLds
+    {
+        static constexpr auto phi_1 = std::numbers::phi - 1.0;
+        double _value{0};
+
+        GoldenLds(double value) : _value{value}
+        {
+            Q_ASSERT(value >= 0.0 && value <= 1.0);
+        }
+
+        double next()
+        {
+            const auto result = _value;
+            _value += phi_1;
+            if (_value >= 1.0) {
+                _value -= 1.0;
+            }
+            return result;
+        }
+    };
+
+    struct HsvRange
+    {
+        struct HueRange
+        {
+            qreal p1{0};
+            qreal p2{360};
+        };
+        struct SaturationRange
+        {
+            qreal p1{0};
+            qreal p2{1};
+        };
+        struct ValueRange
+        {
+            qreal p1{0};
+            qreal p2{1};
+        };
+
+        HueRange hue;
+        SaturationRange sat;
+        ValueRange val;
+    };
+
+    Palette generatePalette(const HsvRange& range);
+
 
     class ThemeManager final : public QObject
     {
