@@ -3,9 +3,10 @@
 
 #pragma once
 
+#include "theme.hpp"
+
 #include <QTest>
 
-#include "theme.hpp"
 
 
 class TestTheme final : public QObject
@@ -19,10 +20,19 @@ private slots:
     void init();
     void cleanup();
 
-    void factoryPalette() const;
-    void randomPalettes() const;
-    void activePalette() const;
+    void factoryPalette();
+
+    void randomPalettes();
+    void randomPalettes_data();
+
+    void activePalette();
+    void activePalette_data();
+
     void keepAndDiscardPalette();
+    void keepAndDiscardPalette_data();
+
+    void generateRangedPalette();
+    void generateRangedPalette_data();
 
 private:
     void generateRandomPalettes(int N);

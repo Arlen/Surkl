@@ -12,7 +12,6 @@
 #include <ranges>
 
 
-
 using namespace core;
 using namespace gui;
 
@@ -22,14 +21,14 @@ void TestTheme::initTestCase()
     qApp->setProperty(db::DB_CONNECTION_NAME, db::DB_CONFIG_TEST.connectionName);
 
     auto* tm = SessionManager::tm();
-    const auto factoryPal = ThemeManager::factory();
+    constexpr auto factoryPal = ThemeManager::factory();
     const auto factoryId  = ThemeManager::idFromPalette(factoryPal);
     QVERIFY(tm->isActive(factoryId));
 }
 
 void TestTheme::initTestCase_data()
 {
-    generateRandomPalettes(1024);
+
 }
 
 void TestTheme::cleanupTestCase()
@@ -52,7 +51,7 @@ void TestTheme::cleanup()
 
 }
 
-void TestTheme::factoryPalette() const
+void TestTheme::factoryPalette()
 {
     constexpr auto factoryPal = ThemeManager::factory();
     const auto factoryId      = ThemeManager::idFromPalette(factoryPal);
@@ -68,10 +67,10 @@ void TestTheme::factoryPalette() const
     QCOMPARE(id, factoryId);
 }
 
-void TestTheme::randomPalettes() const
+void TestTheme::randomPalettes()
 {
-    QFETCH_GLOBAL(std::string, id);
-    QFETCH_GLOBAL(Palette, palette);
+    QFETCH(std::string, id);
+    QFETCH(Palette, palette);
 
     const auto pfi = ThemeManager::paletteFromId(id);
     const auto ifp = ThemeManager::idFromPalette(pfi);
@@ -85,13 +84,18 @@ void TestTheme::randomPalettes() const
     QCOMPARE(ifp, id);
 }
 
-void TestTheme::activePalette() const
+void TestTheme::randomPalettes_data()
+{
+    generateRandomPalettes(1024);
+}
+
+void TestTheme::activePalette()
 {
     constexpr auto factoryPal = ThemeManager::factory();
     const auto factoryId      = ThemeManager::idFromPalette(factoryPal);
 
-    QFETCH_GLOBAL(std::string, id);
-    QFETCH_GLOBAL(Palette, palette);
+    QFETCH(std::string, id);
+    QFETCH(Palette, palette);
 
     auto* tm = SessionManager::tm();
     QVERIFY(tm->isActive(factoryId));
@@ -103,46 +107,15 @@ void TestTheme::activePalette() const
     QVERIFY(tm->isActive(factoryId));
 }
 
-void TestTheme::generateRandomPalettes(int N)
+void TestTheme::activePalette_data()
 {
-    QTest::addColumn<PaletteId>("id");
-    QTest::addColumn<Palette>("palette");
-
-    auto* rng = QRandomGenerator::global();
-    std::vector<Palette> palettes;
-
-    for (int i = 0; i < N; ++i) {
-        auto palette = Palette{};
-        palette.fill(QColor(0, 0, 0, 0));
-        for (int j = 0; j < PaletteIndexSize; ++j) {
-            const auto h = rng->bounded(1.0);
-            const auto s = rng->bounded(1.0);
-            const auto v = rng->bounded(1.0);
-            const auto a = rng->bounded(1.0);
-            const auto c = QColor::fromHsvF(h, s, v, a).rgba();
-            palette[j] = c;
-        }
-        palettes.push_back(palette);
-
-        /// ~ %33 duplicates
-        if (rng->bounded(0, 3) == false) {
-            palettes.push_back(palette);
-        }
-    }
-
-    std::ranges::shuffle(palettes, *QRandomGenerator::global());
-
-    for (int i = 0; const auto& palette : palettes) {
-        const auto id = ThemeManager::idFromPalette(palette);
-        QTest::newRow(QString::number(i++).toLatin1())
-            << id << palette;
-    }
+    generateRandomPalettes(1024);
 }
 
 void TestTheme::keepAndDiscardPalette()
 {
-    QFETCH_GLOBAL(std::string, id);
-    QFETCH_GLOBAL(Palette, palette);
+    QFETCH(std::string, id);
+    QFETCH(Palette, palette);
 
     constexpr auto factoryPal = ThemeManager::factory();
     const auto factoryId      = ThemeManager::idFromPalette(factoryPal);
@@ -181,6 +154,77 @@ void TestTheme::keepAndDiscardPalette()
             }
             _keptColors.erase(id);
         }
+    }
+}
+
+void TestTheme::keepAndDiscardPalette_data()
+{
+    generateRandomPalettes(1024);
+}
+
+void TestTheme::generateRangedPalette()
+{
+    QFETCH(qreal, p1);
+    QFETCH(qreal, p2);
+    constexpr auto count = 1024;
+
+    for (int i = 0; i < count; ++i) {
+        HsvRange range {{p1*360, p2*360}, {p1, p2}, {p1, p2}};
+        const auto palette = generatePalette(range);
+        const auto ifp = ThemeManager::idFromPalette(palette);
+        const auto pfi = ThemeManager::paletteFromId(ifp);
+
+        QCOMPARE(pfi, palette);
+    }
+}
+
+void TestTheme::generateRangedPalette_data()
+{
+    QTest::addColumn<double>("p1");
+    QTest::addColumn<double>("p2");
+
+    QTest::newRow("normal: (0,1)")     << 0.0 << 1.0;
+    QTest::newRow("normal: (0.2,0.8)") << 0.2 << 0.8;
+    QTest::newRow("normal: (0.4,0.6)") << 0.4 << 0.6;
+
+    QTest::newRow("wrap: (1,0)")     << 1.0 << 0.0;
+    QTest::newRow("wrap: (0.8,0.2)") << 0.8 << 0.2;
+    QTest::newRow("wrap: (0.6,0.4)") << 0.6 << 0.4;
+}
+
+void TestTheme::generateRandomPalettes(int N)
+{
+    QTest::addColumn<PaletteId>("id");
+    QTest::addColumn<Palette>("palette");
+
+    auto* rng = QRandomGenerator::global();
+    std::vector<Palette> palettes;
+
+    for (int i = 0; i < N; ++i) {
+        auto palette = Palette{};
+        palette.fill(QColor(0, 0, 0, 0));
+        for (int j = 0; j < PaletteIndexSize; ++j) {
+            const auto h = rng->bounded(1.0);
+            const auto s = rng->bounded(1.0);
+            const auto v = rng->bounded(1.0);
+            const auto a = rng->bounded(1.0);
+            const auto c = QColor::fromHsvF(h, s, v, a).rgba();
+            palette[j] = c;
+        }
+        palettes.push_back(palette);
+
+        /// ~ %33 duplicates
+        if (rng->bounded(0, 3) == false) {
+            palettes.push_back(palette);
+        }
+    }
+
+    std::ranges::shuffle(palettes, *QRandomGenerator::global());
+
+    for (int i = 0; const auto& palette : palettes) {
+        const auto id = ThemeManager::idFromPalette(palette);
+        QTest::newRow(QString::number(i++).toLatin1())
+            << id << palette;
     }
 }
 
