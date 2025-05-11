@@ -1,10 +1,12 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
-
-#include <QGraphicsScene>
-#include <QVBoxLayout>
 #include <QWidget>
 
+
+class QHBoxLayout;
 
 namespace core
 {
@@ -18,13 +20,13 @@ namespace gui
         class GraphicsView;
     }
 
-    class MainWindow : public QWidget
+    class MainWindow final : public QWidget
     {
     public:
-        MainWindow(core::FileSystemScene* scene, QWidget* parent = nullptr);
+        explicit MainWindow(core::FileSystemScene* scene, QWidget* parent = nullptr);
 
     private:
-        QVBoxLayout* _layout;
-        view::GraphicsView* _view;
+        QHBoxLayout* _layout{nullptr};
+        view::GraphicsView* _view{nullptr};
     };
 }
