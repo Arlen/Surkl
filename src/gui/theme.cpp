@@ -151,8 +151,10 @@ ThemeManager::ThemeManager(QObject* parent)
     : QObject(parent)
 {
     _model = new QStandardItemModel(0, ModelColumnCount, this);
-    _model->setHeaderData(NameColumn, Qt::Horizontal, "Name");
-    _model->setHeaderData(PreviewColumn, Qt::Horizontal, "Preview");
+    _model->setHeaderData(NameColumn,    Qt::Horizontal, tr("Name"));
+    _model->setHeaderData(PreviewColumn, Qt::Horizontal, tr("Preview"));
+    _model->setHeaderData(ApplyColumn,   Qt::Horizontal, tr("Yes"));
+    _model->setHeaderData(DiscardColum,  Qt::Horizontal, tr("No"));
 
     connect(_model, &QStandardItemModel::itemChanged, [this](const QStandardItem* item) {
         /// palette name changed, update raw data.
@@ -179,12 +181,7 @@ ThemeManager::ThemeManager(QObject* parent)
 
 void ThemeManager::keep(const Palette &palette)
 {
-    /// don't call setActive() b/c we don't want to emit themeChanged().
-    /// ThemeSettings already sets a palette to active by Apply or Generate,
-    /// so 'palette' must already be active.  This is to ensure that 'palette'
-    /// is active in cases (e.g., unit test) where keep() is called without
-    /// a prior call to setActivePalette().
-    _active = palette;
+    setActivePalette(palette);
 
     savePalettes(std::ranges::single_view{addPalette(palette)});
 }
