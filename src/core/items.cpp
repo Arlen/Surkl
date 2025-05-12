@@ -357,18 +357,6 @@ void EdgeLabel::updatePosCCW(qreal t, LabelFade fade)
     setGradient(p1Local, p2Local, fade, 1.0 - t);
 }
 
-void EdgeLabel::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
-{
-    if (const auto* tm = SessionManager::tm(); brush() != tm->edgeTextColor()) {
-        /// need to update the brush if there is a change in ThemeManager.
-        /// Not the best solution, but the most simple.  Other item types don't
-        /// have this problem because theme values are used directly in paint().
-        setBrush(tm->edgeTextColor());
-    }
-
-    QGraphicsSimpleTextItem::paint(p, option, widget);
-}
-
 void EdgeLabel::setGradient(const QPointF& a, const QPointF& b, LabelFade fade, qreal t01)
 {
     const auto* tm = SessionManager::tm();
