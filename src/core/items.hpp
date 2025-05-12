@@ -73,6 +73,7 @@ namespace  core
         void updatePos();
         void updatePosCW(qreal t, LabelFade fade);
         void updatePosCCW(qreal t, LabelFade fade);
+        void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
         [[nodiscard]] const QLineF& normal() const { return _normal; }
 

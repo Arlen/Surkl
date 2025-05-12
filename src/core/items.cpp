@@ -1,5 +1,7 @@
 #include "items.hpp"
 #include "FileSystemScene.hpp"
+#include "SessionManager.hpp"
+#include "theme.hpp"
 
 #include <QCursor>
 #include <QGraphicsScene>
@@ -42,12 +44,6 @@ namespace
 
     /// ---- These will need to go into theme.[hpp,cpp]
     QFont nodeFont() { return {"Adwaita Sans", 11}; }
-    QColor nodeColor() { return {41, 117, 156, 255}; }
-    QColor closedNodeColor() { return {110, 110, 110, 255}; }
-    QColor edgeColor() { return {8, 8, 8, 255}; }
-    QColor edgeTextColor() { return {220, 220, 220, 255}; }
-    QColor nodeOpenBorderColor() { return {220, 220, 220, 255}; }
-    QColor nodeClosedBorderColor() { return {8, 8, 8, 255}; }
     /// ----
 
     std::deque<QLineF> circle(QLineF line1, int sides, qreal startAngle = 0.0)
@@ -201,6 +197,8 @@ namespace
 
     void paintClosedFolder(QPainter* p, Node* node)
     {
+        const auto* tm = SessionManager::tm();
+
         const auto rec    = node->boundingRect();
         const auto center = rec.center();
         const auto shape  = node->shape();
@@ -212,11 +210,10 @@ namespace
                                         << shape.elementAt(2);
 
         const auto color = node->isSelected()
-            ? closedNodeColor().lighter()
-            : closedNodeColor();
+            ? tm->closedNodeColor().lighter()
+            : tm->closedNodeColor();
 
-        p->save();
-        p->setBrush(nodeClosedBorderColor());
+        p->setBrush(tm->closedNodeBorderColor());
         p->setPen(Qt::NoPen);
         p->drawPath(shape);
 
@@ -232,7 +229,9 @@ namespace
 
     void paintFile(QPainter* p, Node* node)
     {
-        p->setBrush(nodeClosedBorderColor());
+        const auto* tm = SessionManager::tm();
+
+        p->setBrush(tm->closedNodeBorderColor());
         p->setPen(Qt::NoPen);
         p->drawPath(node->shape());
     }
@@ -245,9 +244,11 @@ namespace
 EdgeLabel::EdgeLabel(QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent)
 {
+    const auto* tm = SessionManager::tm();
+
     setFont(nodeFont());
     setPen(Qt::NoPen);
-    setBrush(edgeTextColor());
+    setBrush(tm->edgeTextColor());
 }
 
 void EdgeLabel::alignToAxis(const QLineF& axis)
@@ -356,15 +357,28 @@ void EdgeLabel::updatePosCCW(qreal t, LabelFade fade)
     setGradient(p1Local, p2Local, fade, 1.0 - t);
 }
 
+void EdgeLabel::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    if (const auto* tm = SessionManager::tm(); brush() != tm->edgeTextColor()) {
+        /// need to update the brush if there is a change in ThemeManager.
+        /// Not the best solution, but the most simple.  Other item types don't
+        /// have this problem because theme values are used directly in paint().
+        setBrush(tm->edgeTextColor());
+    }
+
+    QGraphicsSimpleTextItem::paint(p, option, widget);
+}
+
 void EdgeLabel::setGradient(const QPointF& a, const QPointF& b, LabelFade fade, qreal t01)
 {
-    auto gradient = QLinearGradient(a, b);
+    const auto* tm = SessionManager::tm();
+    auto gradient  = QLinearGradient(a, b);
 
     if (fade == LabelFade::FadeOut) {
-        gradient.setColorAt(qBound(0.0, t01-0.05, 1.0), edgeTextColor());
+        gradient.setColorAt(qBound(0.0, t01-0.05, 1.0), tm->edgeTextColor());
         gradient.setColorAt(qBound(0.0, t01,      1.0), QColor(0, 0, 0, 0));
     } else {
-        gradient.setColorAt(qBound(0.0, t01+0.05, 1.0), edgeTextColor());
+        gradient.setColorAt(qBound(0.0, t01+0.05, 1.0), tm->edgeTextColor());
         gradient.setColorAt(qBound(0.0, t01,      1.0), QColor(0, 0, 0, 0));
     }
     setBrush(QBrush(gradient));
@@ -449,6 +463,8 @@ void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget *
 {
     Q_UNUSED(widget);
 
+    const auto* tm = SessionManager::tm();
+
     if (line().isNull()) {
         /// nodes are too close to draw any edges.
         return;
@@ -456,8 +472,8 @@ void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget *
 
     p->setRenderHint(QPainter::Antialiasing);
     p->setPen(QPen(option->state & QStyle::State_Selected
-            ? edgeColor().lighter(1600)
-            : edgeColor()
+            ? tm->edgeColor().lighter(1600)
+            : tm->edgeColor()
         , EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
     p->drawLine(line());
 
@@ -470,7 +486,7 @@ void Edge::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidget *
     const auto v2 = QPointF(uv.dx(), uv.dy()) * 3.0;
 
     p->setBrush(Qt::NoBrush);
-    p->setPen(QPen(nodeOpenBorderColor(), EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    p->setPen(QPen(tm->openNodeBorderColor(), EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
     p->drawLine(QLineF(p1, p1 + v2));
 }
 
@@ -543,9 +559,11 @@ QPainterPath Edge::shape() const
 RootNode::RootNode(QGraphicsItem* parent)
     : QGraphicsEllipseItem(parent)
 {
+    const auto* tm = SessionManager::tm();
+
     setRect(QRectF(-12, -12, 24, 24));
     setPen(Qt::NoPen);
-    setBrush(edgeColor());
+    setBrush(tm->edgeColor());
     setFlags(ItemIsSelectable | ItemIsMovable |  ItemSendsScenePositionChanges);
 }
 
@@ -594,9 +612,11 @@ QVariant RootNode::itemChange(GraphicsItemChange change, const QVariant& value)
 NewFolderNode::NewFolderNode(QGraphicsItem* parent)
     : QGraphicsEllipseItem(parent)
 {
+    const auto* tm = SessionManager::tm();
+
     setRect(QRectF(-12, -12, 24, 24));
     setPen(Qt::NoPen);
-    setBrush(edgeColor());
+    setBrush(tm->edgeColor());
     setFlags(ItemIsSelectable | ItemIsMovable | ItemSendsScenePositionChanges);
 }
 
@@ -935,24 +955,25 @@ void Node::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *w
     Q_UNUSED(option);
     Q_UNUSED(widget);
 
+    const auto* tm  = SessionManager::tm();
     const auto& rec = boundingRect();
     p->setRenderHint(QPainter::Antialiasing);
-    p->setBrush(isSelected() ? nodeColor().lighter() : nodeColor());
+    p->setBrush(isSelected() ? tm->openNodeColor().lighter() : tm->openNodeColor());
 
     qreal radius = 0;
     if (!fsScene()->isDir(_index)) {
         paintFile(p, this);
     } else if (_state == FolderState::Open) {
         radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
-        p->setPen(QPen(nodeOpenBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(tm->openNodeBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
     } else if (_state == FolderState::Closed) {
         paintClosedFolder(p, this);
     } else if (_state == FolderState::HalfClosed) {
         radius = rec.width() * 0.5 - NODE_HALF_CLOSED_PEN_WIDTH * 0.5;
-        p->setPen(QPen(nodeClosedBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(tm->closedNodeBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
-        p->setPen(QPen(nodeOpenBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(tm->openNodeBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->setBrush(Qt::NoBrush);
         /// draw a 20 degree arc indicator for every child edge that is visible.
         auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
