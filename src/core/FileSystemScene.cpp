@@ -21,7 +21,7 @@ using namespace core;
 
 namespace
 {
-    void drawCrosses(QPainter* p, const QRectF& rec)
+    void drawCrosshairs(QPainter* p, const QRectF& rec)
     {
         p->save();
         constexpr qreal grid = 512;
@@ -45,8 +45,7 @@ namespace
         constexpr auto dx0 = QPointF{-8, 0};
         constexpr auto dx1 = QPointF{ 8, 0};
 
-        const auto bgColor = SessionManager::tm()->bgColor();
-        const auto fgColor = invert(bgColor);
+        const auto fgColor = SessionManager::tm()->sceneFgColor();
 
         p->setPen(QPen(fgColor, 1));
         for (qreal x = x0; x < x1; x += grid) {
@@ -350,10 +349,8 @@ void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int en
 
 void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
 {
-    p->save();
-    const auto bgColor = SessionManager::tm()->bgColor();
-    p->fillRect(rec, bgColor);
-    drawCrosses(p, rec);
+    p->fillRect(rec, SessionManager::tm()->sceneBgColor());
+    drawCrosshairs(p, rec);
     drawBorder(p, rec, sceneRect());
     p->restore();
 }

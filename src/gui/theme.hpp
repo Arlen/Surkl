@@ -153,7 +153,7 @@ namespace gui
             Palette result;
 
             result[SCENE_BG_COLOR]           = {  67,  67,  67, 255 };
-            result[SCENE_FG_COLOR]           = {  67,  67,  67, 255 };
+            result[SCENE_FG_COLOR]           = { 134, 134, 134, 255 };
             result[NODE_OPEN_COLOR]          = { 148, 148, 148, 255 };
             result[NODE_OPEN_BORDER_COLOR]   = { 220, 220, 220, 255 };
             result[NODE_CLOSED_COLOR]        = { 164, 164, 164, 255 };
