@@ -21,17 +21,6 @@ using namespace core;
 
 namespace
 {
-    QColor invert(const QColor& color)
-    {
-        auto H = 1.0 - color.hueF();
-        if (std::abs(H) > 1.0) { H = 0.65; }
-
-        const auto S = 1.0 - color.saturationF();
-        const auto V = 1.0 - color.valueF();
-
-        return QColor::fromHsvF(H, S, V);
-    }
-
     void drawCrosses(QPainter* p, const QRectF& rec)
     {
         p->save();

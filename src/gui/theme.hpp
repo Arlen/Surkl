@@ -5,12 +5,74 @@
 
 #include <QColor>
 #include <QObject>
+#include <QRandomGenerator>
 
 #include <array>
 #include <unordered_map>
 
 
 class QStandardItemModel;
+
+namespace gui::lds
+{
+    struct GoldenLds
+    {
+        GoldenLds()
+        {
+            const auto seed = QRandomGenerator::global()->bounded(1.0);
+            _state = {seed, seed, seed};
+        }
+
+        std::array<qreal, 3> next()
+        {
+            const auto result = _state;
+            _state[0] += _as[0]; if (_state[0] >= 1.0) { _state[0] -= 1.0; }
+            _state[1] += _as[1]; if (_state[1] >= 1.0) { _state[1] -= 1.0; }
+            _state[2] += _as[2]; if (_state[2] >= 1.0) { _state[2] -= 1.0; }
+
+            return result;
+        }
+
+    private:
+        /// Source: Dr Martin Roberts website: https://extremelearning.com.au/
+        /// 3D LDS random number generator based on Golden Ratio.
+        ///  g    = compute_phi(3)
+        ///  a1   = 1.0/g
+        ///  a2   = 1.0/(g*g)
+        ///  a3   = 1.0/(g*g*g)
+        ///  x[n] = (c+a1*n)
+        ///  y[n] = (c+a2*n)
+        ///  z[n] = (c+a3*n)
+        ///  'c' is some starting constant in [0,1) range.
+        static constexpr qreal compute_phi(qreal d, int precision = 30)
+        {
+            constexpr auto one = qreal(1);
+            qreal x = 2;
+            for (int i = 0; i < precision; ++i) {
+                x = std::pow(one + x, one / (d + 1));
+            }
+
+            return x;
+        }
+
+        static constexpr std::array<qreal, 3> compute_a()
+        {
+            const auto g = compute_phi(3, 40);
+
+            constexpr auto one = qreal(1);
+            std::array<qreal, 3> result{};
+            result.fill(0);
+            for (int i = 0; i < 3; ++i) {
+                result[i] = one / std::pow(g, i+1);
+            }
+            return result;
+        }
+
+        std::array<qreal, 3> _state;
+        std::array<qreal, 3> _as{compute_a()};
+    };
+}
+
 
 namespace gui
 {
@@ -34,27 +96,6 @@ namespace gui
     using Palettes    = std::unordered_map<PaletteId, PaletteName>;
     using Colors      = std::unordered_map<PaletteId, Palette>;
 
-    struct GoldenLds
-    {
-        static constexpr auto phi_1 = std::numbers::phi - 1.0;
-        double _value{0};
-
-        GoldenLds(double value) : _value{value}
-        {
-            Q_ASSERT(value >= 0.0 && value <= 1.0);
-        }
-
-        double next()
-        {
-            const auto result = _value;
-            _value += phi_1;
-            if (_value >= 1.0) {
-                _value -= 1.0;
-            }
-            return result;
-        }
-    };
-
     struct HsvRange
     {
         struct HueRange
@@ -77,8 +118,6 @@ namespace gui
         SaturationRange sat;
         ValueRange val;
     };
-
-    Palette generatePalette(const HsvRange& range);
 
 
     class ThemeManager final : public QObject
@@ -129,6 +168,8 @@ namespace gui
 
         explicit ThemeManager(QObject *parent = nullptr);
 
+        Palette generatePalette(const HsvRange& range);
+
         void keep(const Palette &palette);
 
         static Palette paletteFromId(const PaletteId &id);
@@ -145,10 +186,10 @@ namespace gui
             { return _active[SCENE_FG_COLOR]; }
         const QColor& openNodeColor() const
             { return _active[NODE_OPEN_COLOR]; }
-        const QColor& closedNodeColor() const
-            { return _active[NODE_CLOSED_COLOR]; }
         const QColor& openNodeBorderColor() const
             { return _active[NODE_OPEN_BORDER_COLOR]; }
+        const QColor& closedNodeColor() const
+            { return _active[NODE_CLOSED_COLOR]; }
         const QColor& closedNodeBorderColor() const
             { return _active[NODE_CLOSED_BORDER_COLOR]; }
         const QColor& edgeColor() const
@@ -190,6 +231,7 @@ namespace gui
         static QString getActiveTheme();
 
 
+        lds::GoldenLds _golden;
         Palettes _palettes;
         Colors _colors;
         Palette _active;

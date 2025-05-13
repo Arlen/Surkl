@@ -155,7 +155,7 @@ void ThemeSettings::hideEvent(QHideEvent* event)
 
 void ThemeSettings::generatePalette()
 {
-    _generated = gui::generatePalette(_hsvRange);
+    _generated = core::SessionManager::tm()->generatePalette(_hsvRange);
 
     if (_applyGenerated->isChecked()) {
         emit generated(_generated);
