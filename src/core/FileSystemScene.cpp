@@ -314,6 +314,25 @@ void FileSystemScene::halfCloseSelectedNodes() const
     }
 }
 
+/// updates the items in the scene after a change in ThemeManager for changes to
+/// take effect.
+void FileSystemScene::refreshItems()
+{
+    const auto* tm = SessionManager::tm();
+
+    for (const auto xs = items(); auto* x : xs) {
+        if (auto* label = qgraphicsitem_cast<EdgeLabel*>(x); label) {
+            /// Need to set the brush for EdgeLabels directly. Other item types
+            /// don't have this problem because theme values are used directly
+            /// in paint(), and update() triggers a repaint.
+            label->setBrush(tm->edgeTextColor());
+        }
+    }
+
+    /// other item types.
+    update();
+}
+
 void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int end) const
 {
     for (const auto _items = items(); auto* node : _items | filterNodes) {
