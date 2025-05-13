@@ -32,7 +32,6 @@ namespace core
         void openSelectedNodes() const;
         void closeSelectedNodes() const;
         void halfCloseSelectedNodes() const;
-        void refreshItems();
 
     protected:
         void drawBackground(QPainter* p, const QRectF& rec) override;

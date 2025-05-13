@@ -72,7 +72,9 @@ void SessionManager::init()
 
     connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);
 
-    connect(_tm, &gui::ThemeManager::themeChanged, _sc, &FileSystemScene::refreshItems);
+    connect(_tm, &gui::ThemeManager::themeChanged, _sc, [this] {
+        _sc->update();
+    });
 }
 
 SessionManager* SessionManager::session()

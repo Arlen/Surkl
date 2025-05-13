@@ -10,6 +10,7 @@
 #include <QPainter>
 #include <QSequentialAnimationGroup>
 #include <QStyleOptionGraphicsItem>
+#include <QTextLayout>
 #include <QTimeLine>
 #include <QTimer>
 #include <QVariantAnimation>
@@ -244,11 +245,7 @@ namespace
 EdgeLabel::EdgeLabel(QGraphicsItem* parent)
     : QGraphicsSimpleTextItem(parent)
 {
-    const auto* tm = SessionManager::tm();
-
     setFont(nodeFont());
-    setPen(Qt::NoPen);
-    setBrush(tm->edgeTextColor());
 }
 
 void EdgeLabel::alignToAxis(const QLineF& axis)
@@ -355,6 +352,23 @@ void EdgeLabel::updatePosCCW(qreal t, LabelFade fade)
     setScale(left ? -1 : 1);
     setRotation(-_axis.angle());
     setGradient(p1Local, p2Local, fade, 1.0 - t);
+}
+
+void EdgeLabel::paint(QPainter *p, const QStyleOptionGraphicsItem *, QWidget *)
+{
+    const auto* tm = SessionManager::tm();
+
+    p->setFont(font());
+    p->setPen(tm->edgeTextColor());
+    p->setBrush(Qt::NoBrush);
+
+    QTextLayout layout(text(), font());
+    layout.setCacheEnabled(true);
+    layout.beginLayout();
+    layout.createLine();
+    layout.endLayout();
+
+    layout.draw(p, QPointF(0, 0));
 }
 
 void EdgeLabel::setGradient(const QPointF& a, const QPointF& b, LabelFade fade, qreal t01)
