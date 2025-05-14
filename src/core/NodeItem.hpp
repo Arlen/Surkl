@@ -82,6 +82,7 @@ namespace  core
         [[nodiscard]] QRectF boundingRect() const override;
         [[nodiscard]] QPainterPath shape() const override;
         [[nodiscard]] bool hasOpenOrHalfClosedChild() const;
+        [[nodiscard]] bool isDir() const;
 
         [[nodiscard]] bool isClosed() const         { return _state == FolderState::Closed; }
         [[nodiscard]] bool isOpen() const           { return _state == FolderState::Open; }

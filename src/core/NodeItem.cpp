@@ -48,12 +48,13 @@ namespace
     constexpr int NODE_CHILD_COUNT = 16;
 
 
-    std::deque<QLineF> circle(QLineF line1, int sides, qreal startAngle = 0.0)
+    std::deque<QLineF> circle(const QPointF& center, int sides, qreal startAngle = 0.0)
     {
         sides = std::max(1, sides);
 
         const auto anglePerSide = 360.0 / sides;
         auto angle = startAngle;
+        auto line1 = QLineF(center, center + QPointF(1, 0));
         auto line2 = line1;
 
         std::deque<QLineF> result;
@@ -589,6 +590,11 @@ bool NodeItem::hasOpenOrHalfClosedChild() const
     {
         return asNodeItem(item)->isOpen() || asNodeItem(item)->isHalfClosed();
     });
+}
+
+bool NodeItem::isDir() const
+{
+    return fsScene()->isDir(_index);
 }
 
 void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
@@ -1150,7 +1156,7 @@ void NodeItem::spread(QPointF dxy)
     const auto* grabber = scene()->mouseGrabberItem();
     const auto center   = mapToScene(boundingRect().center());
     const auto sides    = _childEdges.size() + (_parentEdge ? 1 : 0);
-    auto guides         = circle(QLineF(center, center + QPointF(1, 0)), sides);
+    auto guides         = circle(center, sides);
 
     auto intersectsWith = [](const QLineF& line)
     {
@@ -1161,26 +1167,33 @@ void NodeItem::spread(QPointF dxy)
     };
     auto isIncluded = [grabber](const NodeItem* node) -> bool
     {
-        return node->isClosed() && node != grabber;
+        return (!node->isDir() || node->isClosed()) && node != grabber;
     };
-    auto isExcluded = [grabber](const NodeItem* node) -> bool
+    auto isExcluded = [isIncluded](const NodeItem* node) -> bool
     {
-        return node->isOpen() || node->isHalfClosed() || node == grabber;
+        return !isIncluded(node);
     };
 
     if (_parentEdge) {
-        const auto* ps  = _parentEdge->source();
-        auto parentEdge = QLineF(center, ps->mapToScene(ps->boundingRect().center()));
-        auto removed    = std::ranges::remove_if(guides, intersectsWith(parentEdge));
-        guides.erase(removed.begin(), removed.end());
+        const auto* ps        = _parentEdge->source();
+        const auto parentEdge = QLineF(center, ps->mapToScene(ps->boundingRect().center()));
+        const auto ignored    = ranges::find_if(guides, intersectsWith(parentEdge));
+        if (ignored != guides.end()) {
+            /// only remove one guide edge per intersecting edge.  E.g., When
+            /// guides contains only two lines, parentEdge will most likely
+            /// intersect with two.
+            guides.erase(ignored);
+        }
     }
 
     auto excludedNodes = _childEdges | asTargetNodes | views::filter(isExcluded);
 
-    for (auto* node : excludedNodes) {
+    for (const auto* node : excludedNodes) {
         const auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
-        auto ignored = std::ranges::remove_if(guides, intersectsWith(nodeLine));
-        guides.erase(ignored.begin(), ignored.end());
+        const auto ignored  = std::ranges::find_if(guides, intersectsWith(nodeLine));
+        if (ignored != guides.end()) {
+            guides.erase(ignored);
+        }
     }
 
     auto includedNodes = _childEdges | asTargetNodes | views::filter(isIncluded);
