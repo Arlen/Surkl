@@ -232,6 +232,38 @@ namespace
         p->setPen(Qt::NoPen);
         p->drawPath(node->shape());
     }
+
+
+    auto asTargetNodes
+        = views::transform(&EdgeItem::target)
+        | views::transform(&asNodeItem)
+        ;
+
+    auto asClosedTargetNodes
+        = asTargetNodes
+        | views::filter(&NodeItem::isClosed)
+        ;
+
+    auto asNotClosedTargetNodes
+        = asTargetNodes
+        | views::filter(std::not_fn(&NodeItem::isClosed))
+        ;
+
+    auto asClosedEdges
+        = asClosedTargetNodes
+        | views::transform(&NodeItem::parentEdge)
+        ;
+
+    auto asIndex = views::transform(&NodeItem::index);
+    auto asIndexRow
+        = asIndex
+        | views::transform(&QPersistentModelIndex::row)
+        ;
+
+    auto asTargetNodeIndex
+        = asTargetNodes
+        | asIndex
+        ;
 }
 
 
@@ -409,10 +441,7 @@ void NodeItem::unload(int start, int end)
     Q_UNUSED(start);
     Q_UNUSED(end);
 
-    auto all = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        ;
+    auto all = _childEdges | asTargetNodes;
 
     /// 1. close all invalid nodes that are not closed.
     for (auto* node : all) {
@@ -455,19 +484,12 @@ void NodeItem::unload(int start, int end)
     }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter([](const NodeItem* node) -> bool { return !node->isClosed(); })
-        | views::transform(&NodeItem::index)
-        | views::transform(&QPersistentModelIndex::row)
+        | asNotClosedTargetNodes
+        | asIndexRow
         | ranges::to<std::unordered_set>()
         ;
 
-    auto closedNodes = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(&NodeItem::isClosed)
-        ;
+    auto closedNodes = _childEdges | asClosedTargetNodes;
 
     auto closedIndices = closedNodes | views::transform(&NodeItem::index);
     if (ranges::all_of(closedIndices, &QPersistentModelIndex::isValid)) {
@@ -561,9 +583,7 @@ QPainterPath NodeItem::shape() const
 
 bool NodeItem::hasOpenOrHalfClosedChild() const
 {
-    const auto children = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem);
+    const auto children = _childEdges | asTargetNodes;
 
     return ranges::any_of(children, [](auto* item) -> bool
     {
@@ -665,11 +685,7 @@ void NodeItem::open()
         skipTo(0);
         spread();
 
-        auto indices = _childEdges
-            | views::transform(&EdgeItem::target)
-            | views::transform(&asNodeItem)
-            | views::transform(&NodeItem::index)
-            ;
+        auto indices = _childEdges | asTargetNodeIndex;
         Q_ASSERT(std::ranges::all_of(indices, &QPersistentModelIndex::isValid));
 
     } else if (_state == FolderState::HalfClosed) {
@@ -696,12 +712,7 @@ void NodeItem::rotatePage(Rotation rot)
 {
     /// only closed nodes can rotate, so the size of the page is the number of
     /// closed nodes.
-    auto closedNodes = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(&NodeItem::isClosed)
-        ;
-
+    auto closedNodes    = _childEdges | asClosedTargetNodes;
     const auto pageSize = ranges::distance(closedNodes);
 
     if (pageSize == 0) {
@@ -918,9 +929,7 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
     auto closedIndices = _childEdges
         | views::filter([closedEdge](EdgeItem* edge) -> bool
             { return edge != closedEdge; })
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(&NodeItem::isClosed)
+        | asClosedTargetNodes
         | views::transform(&NodeItem::index)
         | ranges::to<std::deque>()
         ;
@@ -942,11 +951,8 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
     if (closedIndices.empty()) { return; }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter([](const NodeItem* node) -> bool { return !node->isClosed(); })
-        | views::transform(&NodeItem::index)
-        | views::transform(&QPersistentModelIndex::row)
+        | asNotClosedTargetNodes
+        | asIndexRow
         | ranges::to<std::unordered_set>()
         ;
 
@@ -987,11 +993,7 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
 
     RELAYOUT:
 
-    auto closedNodes = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(&NodeItem::isClosed)
-        ;
+    auto closedNodes = _childEdges | asClosedTargetNodes;
 
     Q_ASSERT(std::ranges::all_of(closedIndices, &QPersistentModelIndex::isValid));
     Q_ASSERT(ranges::distance(closedNodes) == closedIndices.size());
@@ -1014,19 +1016,14 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
 void NodeItem::doInternalRotation(Rotation rot)
 {
     auto closedNodes = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(&NodeItem::isClosed)
+        | asClosedTargetNodes
         | ranges::to<std::vector>();
 
     if (closedNodes.empty()) { return; }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter([](const NodeItem* node) -> bool { return !node->isClosed(); })
-        | views::transform(&NodeItem::index)
-        | views::transform(&QPersistentModelIndex::row)
+        | asNotClosedTargetNodes
+        | asIndexRow
         | ranges::to<std::unordered_set>();
 
     auto isIndexClosed = [&openOrHalfClosedRows](const QModelIndex& index) -> bool
@@ -1040,7 +1037,7 @@ void NodeItem::doInternalRotation(Rotation rot)
     auto sibling   = lastIndex;
 
     auto candidates = views::iota(1, NODE_CHILD_COUNT)
-        | std::views::transform(std::bind(std::multiplies{}, std::placeholders::_1, Inc))
+        | views::transform(std::bind(std::multiplies{}, std::placeholders::_1, Inc))
         | views::transform([lastIndex](int i) { return lastIndex.sibling(lastIndex.row() + i, 0); })
         | views::filter(&QModelIndex::isValid)
         | views::filter(isIndexClosed);
@@ -1086,11 +1083,7 @@ void NodeItem::doSkipTo(int row)
 
     Q_ASSERT(_childEdges.size() <= rowCount);
 
-    auto closedNodes = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(&NodeItem::isClosed)
-        ;
+    auto closedNodes = _childEdges | asClosedTargetNodes;
 
     if (closedNodes.empty()) {
         return;
@@ -1103,11 +1096,8 @@ void NodeItem::doSkipTo(int row)
     }
 
     const auto openOrHalfClosedRows = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter([](const NodeItem* node) -> bool { return !node->isClosed(); })
-        | views::transform(&NodeItem::index)
-        | views::transform(&QPersistentModelIndex::row)
+        | asNotClosedTargetNodes
+        | asIndexRow
         | ranges::to<std::unordered_set>()
         ;
 
@@ -1169,38 +1159,32 @@ void NodeItem::spread(QPointF dxy)
             return other.intersects(line) == QLineF::BoundedIntersection;
         };
     };
-    auto isIncluded = [grabber](NodeItem* node) -> bool
+    auto isIncluded = [grabber](const NodeItem* node) -> bool
     {
         return node->isClosed() && node != grabber;
     };
-    auto isExcluded = [grabber](NodeItem* node) -> bool
+    auto isExcluded = [grabber](const NodeItem* node) -> bool
     {
         return node->isOpen() || node->isHalfClosed() || node == grabber;
     };
 
     if (_parentEdge) {
-        auto* ps        = _parentEdge->source();
+        const auto* ps  = _parentEdge->source();
         auto parentEdge = QLineF(center, ps->mapToScene(ps->boundingRect().center()));
         auto removed    = std::ranges::remove_if(guides, intersectsWith(parentEdge));
         guides.erase(removed.begin(), removed.end());
     }
 
-    auto excludedNodes = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(isExcluded)
-        ;
+    auto excludedNodes = _childEdges | asTargetNodes | views::filter(isExcluded);
+
     for (auto* node : excludedNodes) {
         const auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
         auto ignored = std::ranges::remove_if(guides, intersectsWith(nodeLine));
         guides.erase(ignored.begin(), ignored.end());
     }
 
-    auto includedNodes = _childEdges
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(isIncluded)
-        ;
+    auto includedNodes = _childEdges | asTargetNodes | views::filter(isIncluded);
+
     for (auto* node : includedNodes) {
         if (guides.empty()) {
             break;
@@ -1258,21 +1242,15 @@ void core::adjustAllEdges(const NodeItem* node)
 
 void core::updateAllChildNodes(const NodeItem* node)
 {
-    for (auto* x : node->childEdges()  | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)) {
-        x->update();
+    for (auto* child : node->childEdges() | asTargetNodes) {
+        child->update();
     }
 }
 
 /// only used on closed nodes, but can be made more general if needed.
 void core::setAllEdgeState(const NodeItem* node, EdgeItem::State state)
 {
-    for (auto* edge : node->childEdges()
-        | views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        | views::filter(&NodeItem::isClosed)
-        | views::transform(&NodeItem::parentEdge))
-    {
+    for (auto* edge : node->childEdges() | asClosedEdges) {
         edge->setState(state);
     }
 }
