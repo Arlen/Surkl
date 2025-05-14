@@ -88,11 +88,12 @@ namespace
         std::vector<std::pair<QGraphicsItem*, QPointF>> result;
         auto* parent = node->parentEdge()->source();
 
+        /// (0,0) is always the center of the (boundingRect) node.
         while (!isRoot(parent)) {
-            result.emplace_back(parent, parent->mapToScene(parent->boundingRect().center()));
+            result.emplace_back(parent, parent->mapToScene(QPointF(0, 0)));
             parent = asNodeItem(parent)->parentEdge()->source();
         }
-        result.emplace_back(parent, parent->mapToScene(parent->boundingRect().center()));
+        result.emplace_back(parent, parent->mapToScene(QPointF(0, 0)));
         return result;
     }
 
@@ -1154,7 +1155,7 @@ void NodeItem::spread(QPointF dxy)
     if (_childEdges.empty()) { return; }
 
     const auto* grabber = scene()->mouseGrabberItem();
-    const auto center   = mapToScene(boundingRect().center());
+    const auto center   = mapToScene(QPointF(0, 0));
     const auto sides    = _childEdges.size() + (_parentEdge ? 1 : 0);
     auto guides         = circle(center, sides);
 
@@ -1176,7 +1177,7 @@ void NodeItem::spread(QPointF dxy)
 
     if (_parentEdge) {
         const auto* ps        = _parentEdge->source();
-        const auto parentEdge = QLineF(center, ps->mapToScene(ps->boundingRect().center()));
+        const auto parentEdge = QLineF(center, ps->mapToScene(QPointF(0, 0)));
         const auto ignored    = ranges::find_if(guides, intersectsWith(parentEdge));
         if (ignored != guides.end()) {
             /// only remove one guide edge per intersecting edge.  E.g., When
@@ -1189,7 +1190,7 @@ void NodeItem::spread(QPointF dxy)
     auto excludedNodes = _childEdges | asTargetNodes | views::filter(isExcluded);
 
     for (const auto* node : excludedNodes) {
-        const auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
+        const auto nodeLine = QLineF(center, node->mapToScene(QPointF(0, 0)));
         const auto ignored  = std::ranges::find_if(guides, intersectsWith(nodeLine));
         if (ignored != guides.end()) {
             guides.erase(ignored);
