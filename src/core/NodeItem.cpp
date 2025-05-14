@@ -916,6 +916,7 @@ void NodeItem::internalRotationAfterClose(EdgeItem* closedEdge)
 
     doInternalRotationAfterClose(closedEdge);
     updateAllChildNodes(this);
+    update();
 
    // animator->endAnimation(this);
 }
