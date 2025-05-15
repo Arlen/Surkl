@@ -324,6 +324,28 @@ QVariant RootItem::itemChange(GraphicsItemChange change, const QVariant& value)
 }
 
 
+////////////////
+/// KnotItem ///
+////////////////
+KnotItem::KnotItem(QGraphicsItem* parent)
+    : QGraphicsEllipseItem(parent)
+{
+    setRect(QRectF(-2, -2, 4, 4));
+}
+
+void KnotItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    Q_UNUSED(option)
+    Q_UNUSED(widget);
+
+    const auto* tm = SessionManager::tm();
+
+    p->setRenderHint(QPainter::Antialiasing);
+    p->setPen(Qt::NoPen);
+    p->setBrush(tm->openNodeColor());
+    p->drawEllipse(boundingRect());
+}
+
 
 ////////////
 /// Node ///
@@ -332,6 +354,10 @@ NodeItem::NodeItem(const QPersistentModelIndex& index)
 {
     setIndex(index);
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
+
+    _knot = new KnotItem(this);
+    _knot->setPos(QPointF(NODE_OPEN_RADIUS, 0));
+    _knot->hide();
 }
 
 NodeItem* NodeItem::createRootItem(FileSystemScene* scene)
@@ -607,7 +633,6 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
     const auto& rec = boundingRect();
     p->setRenderHint(QPainter::Antialiasing);
     p->setBrush(isSelected() ? tm->openNodeColor().lighter() : tm->openNodeColor());
-    p->setBrush(QColor(128, 128, 128, 128));
 
     qreal radius = 0;
     if (!fsScene()->isDir(_index)) {
@@ -666,6 +691,7 @@ void NodeItem::halfClose()
 
 void NodeItem::closeOrHalfClose(bool forceClose)
 {
+    _knot->hide();
     if (hasOpenOrHalfClosedChild()) {
         /// pick half closing as it is less destructive, unless the user is
         /// force closing.
@@ -685,6 +711,7 @@ void NodeItem::open()
 
     if (_state == FolderState::Closed) {
         Q_ASSERT(_childEdges.empty());
+        _knot->show();
 
         setState(FolderState::Open);
         extend(this);

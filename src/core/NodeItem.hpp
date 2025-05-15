@@ -60,6 +60,17 @@ namespace  core
     };
 
 
+    class KnotItem final : public QGraphicsEllipseItem
+    {
+    public:
+        enum { Type = UserType + 4 };
+
+        explicit KnotItem(QGraphicsItem* parent = nullptr);
+        void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+        [[nodiscard]] int type() const override { return Type; }
+    };
+
 
     using EdgeVector = std::vector<EdgeItem*>;
 
@@ -125,6 +136,7 @@ namespace  core
         QPersistentModelIndex _index;
         EdgeItem* _parentEdge{nullptr};
         EdgeVector _childEdges;
+        KnotItem* _knot{nullptr};
 
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
     };
