@@ -1081,15 +1081,15 @@ InternalRotation NodeItem::doInternalRotation(Rotation rot)
     const EdgeItem* toErase   = targetNodes.front()->parentEdge();
     const EdgeItem* insertPos = targetNodes.back()->parentEdge();
 
-    std::unordered_map<QGraphicsItem*, qreal> angularDisplacements;
-    std::unordered_map<QGraphicsItem*, qreal> angles;
+    QHash<QGraphicsItem*, qreal> angularDisplacements;
+    QHash<QGraphicsItem*, qreal> angles;
     for (int i = 1; i < targetNodes.size(); ++i) {
         auto* a = targetNodes[i-1];
         auto* b = targetNodes[i  ];
         const auto la = QLineF(scenePos(), a->scenePos());
         const auto lb = QLineF(scenePos(), b->scenePos());
-        angularDisplacements.emplace(b, la.angle() - lb.angle());
-        angles.emplace(b, lb.angle());
+        angularDisplacements.insert(b, la.angle() - lb.angle());
+        angles.insert(b, lb.angle());
     }
 
     Q_ASSERT(isFileOrClosed(_extra));
@@ -1376,7 +1376,7 @@ void Animator::addRotation(NodeItem* node, const Rotation& rot, QVariantAnimatio
 
         auto ok         = false;
         const auto t    = value.toReal(&ok); Q_ASSERT(ok);
-        const auto data = _varData[va];
+        const auto data = _varData[va].value<InternalRotation>();
 
         interpolate(t, data);
     });
@@ -1426,7 +1426,7 @@ void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va
     toGrow->show();
     toGrow->target()->show();
 
-    _varData.emplace(va, data);
+    _varData.emplace(va, QVariant::fromValue(data));
 }
 
 QSequentialAnimationGroup* Animator::getSeq(const NodeItem* node)
@@ -1503,14 +1503,21 @@ QVariantAnimation* Animator::createVariantAnimation(int duration)
 
 void Animator::interpolate(qreal t, const InternalRotation& data)
 {
-    const auto* node   = data.node;
-    const auto& deltas = data.angularDisplacement;
-    auto* toGrow       = data.toGrow;
-    auto* toShrink     = data.toShrink;
+    const auto* node  = data.node;
+    const auto deltas = data.angularDisplacement;
+    const auto angles = data.angles;
+    auto* toGrow      = data.toGrow;
+    auto* toShrink    = data.toShrink;
 
-    for (auto [child, ang] : data.angles) {
+    QHashIterator ca(angles);
+
+    while (ca.hasNext()) {
+        ca.next();
+
+        auto* child = ca.key();
+        auto ang    = ca.value();
         Q_ASSERT(deltas.contains(child));
-        const qreal dir = t * deltas.at(child);
+        const qreal dir = t * deltas.value(child, 0.0);
 
         auto line = QLineF(node->scenePos(), child->scenePos());
         line.setAngle(ang + dir);

@@ -72,8 +72,8 @@ namespace  core
         QGraphicsItem* node{nullptr};
         EdgeItem* toGrow{nullptr};
         EdgeItem* toShrink{nullptr};
-        std::unordered_map<QGraphicsItem*, qreal> angularDisplacement;
-        std::unordered_map<QGraphicsItem*, qreal> angles;
+        QHash<QGraphicsItem*, qreal> angularDisplacement;
+        QHash<QGraphicsItem*, qreal> angles;
     };
 
     class NodeItem final : public QGraphicsItem
@@ -130,7 +130,7 @@ namespace  core
 
         void internalRotationAfterClose(EdgeItem* closedEdge);
         void doInternalRotationAfterClose(EdgeItem* closedEdge);
-        void doInternalRotation(Rotation rot);
+        InternalRotation doInternalRotation(Rotation rot);
         void skipTo(int row);
         void doSkipTo(int row);
 
@@ -161,18 +161,20 @@ namespace  core
         void addTransition(NodeItem* node, const Mapping& mapping);
 
     private:
-        QVariantAnimation* createAnimation(const NodeItem *node, int duration);
         void startAnimation(const NodeItem* node);
         void addRotation(NodeItem* node, const Rotation& rot, QVariantAnimation*);
 
         void startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va);
+
+        QSequentialAnimationGroup* getSeq(const NodeItem* node);
         void clearSequence(const NodeItem* node);
+        void fastforward(QSequentialAnimationGroup* seq);
 
         QVariantAnimation* createVariantAnimation(int duration);
 
         static void interpolate(qreal t, const InternalRotation& data);
 
         std::unordered_map<const NodeItem*, QSequentialAnimationGroup*> _seqs;
-        std::unordered_map<const QVariantAnimation*, InternalRotation> _varData;
+        std::unordered_map<const QVariantAnimation*, QVariant> _varData;
     };
 }
