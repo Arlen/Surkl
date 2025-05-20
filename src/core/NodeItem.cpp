@@ -1311,58 +1311,36 @@ void core::setAllEdgeState(const NodeItem* node, EdgeItem::State state)
 ////////////////
 void Animator::animateRotation(NodeItem* node, Rotation rot)
 {
-    auto* va = createAnimation(node, 200);
-    addRotation(node, rot, va);
+    auto* seq  = getSeq(node);
+    auto* anim = createVariantAnimation(200);
+    addRotation(node, rot, anim);
+    seq->addAnimation(anim);
+    fastforward(seq);
     startAnimation(node);
 }
 
 void Animator::animatePageRotation(NodeItem* node, Rotation rot, int page)
 {
+    auto* seq = getSeq(node);
+
     for (int i = 0; i< page; ++i) {
-        auto* va = createAnimation(node, 25);
-        addRotation(node, rot, va);
+        auto* anim = createVariantAnimation(25);
+        addRotation(node, rot, anim);
+        seq->addAnimation(anim);
     }
+    fastforward(seq);
     startAnimation(node);
 }
 
 QVariantAnimation *Animator::createAnimation(const NodeItem *node, int duration)
 {
-    if (!_seqs.contains(node)) {
-        auto* seq = new QSequentialAnimationGroup(this);
-        _seqs[node] = seq;
-        connect(seq, &QAbstractAnimation::finished, [this, node] { clearSequence(node); });
-    }
 
-    auto* seq = _seqs[node];
-    auto* var = createVariantAnimation(duration);
-    seq->addAnimation(var);
-
-    /// (progressively) shortent the duration of animations as they get added
-    /// to the queue.  This can happen when rotation is repeatedly triggered,
-    /// and we don't want them to pile up.
-    if (const auto count = seq->animationCount(); count > 0) {
-        const auto head  = seq->indexOfAnimation(seq->currentAnimation()) + 1;
-        const auto len   = count - head;
-        const auto fast  = qMax(10, 125 / qMax(1, len));
-
-        for (int i = head; i < seq->animationCount(); ++i) {
-            if (auto* anim = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); anim) {
-                Q_ASSERT(anim->state() == QAbstractAnimation::Stopped);
-                anim->setDuration(fast);
-                if (i + 1 == count) {
-                    anim->setEasingCurve(QEasingCurve::OutSine);
-                } else {
-                    anim->setEasingCurve(QEasingCurve::Linear);
-                }
-            }
-        }
-    }
-
-    return var;
 }
 
 void Animator::startAnimation(const NodeItem* node)
 {
+    Q_ASSERT(_seqs.contains(node));
+
     if (const auto found = _seqs.find(node); found != _seqs.end()) {
         if (auto* seq = found->second; seq->state() == QAbstractAnimation::Stopped) {
             seq->start();
@@ -1374,8 +1352,6 @@ void Animator::addRotation(NodeItem* node, const Rotation& rot, QVariantAnimatio
 {
     Q_ASSERT(node);
     Q_ASSERT(va);
-    Q_ASSERT(_seqs.contains(node));
-    Q_ASSERT(_seqs[node]->indexOfAnimation(va) >= 0);
 
     connect(va, &QVariantAnimation::stateChanged,
     [this, node, rot, va](QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
@@ -1453,6 +1429,23 @@ void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va
     _varData.emplace(va, data);
 }
 
+QSequentialAnimationGroup* Animator::getSeq(const NodeItem* node)
+{
+    if (auto found = _seqs.find(node); found == _seqs.end()) {
+        auto* seq = new QSequentialAnimationGroup(this);
+
+        connect(seq, &QAbstractAnimation::finished,
+        [this, node]
+        {
+            clearSequence(node);
+        });
+
+        _seqs.emplace(node, seq);
+    }
+
+    return _seqs[node];
+}
+
 void Animator::clearSequence(const NodeItem* node)
 {
     Q_ASSERT(_seqs.contains(node));
@@ -1469,6 +1462,30 @@ void Animator::clearSequence(const NodeItem* node)
     }
 
     seq->clear();
+}
+
+/// (progressively) shortent the duration of animations as they get added
+/// to the queue.  This can happen when rotation is repeatedly triggered,
+/// and we don't want them to pile up.
+void Animator::fastforward(QSequentialAnimationGroup* seq)
+{
+    if (const auto count = seq->animationCount(); count > 0) {
+        const auto head  = seq->indexOfAnimation(seq->currentAnimation()) + 1;
+        const auto len   = count - head;
+        const auto fast  = qMax(10, 125 / qMax(1, len));
+
+        for (int i = head; i < seq->animationCount(); ++i) {
+            if (auto* va = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); va) {
+                Q_ASSERT(va->state() == QAbstractAnimation::Stopped);
+                va->setDuration(fast);
+                if (i + 1 == count) {
+                    va->setEasingCurve(QEasingCurve::OutSine);
+                } else {
+                    va->setEasingCurve(QEasingCurve::Linear);
+                }
+            }
+        }
+    }
 }
 
 QVariantAnimation* Animator::createVariantAnimation(int duration)
