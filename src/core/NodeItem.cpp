@@ -487,9 +487,9 @@ void NodeItem::unload(int start, int end)
                 Q_ASSERT(node->isClosed());
 
                 scene()->removeItem(node);
-                delete node;
                 scene()->removeItem(node->parentEdge());
                 delete node->parentEdge();
+                delete node;
             } else {
                 edges.push_back(node->parentEdge());
             }
