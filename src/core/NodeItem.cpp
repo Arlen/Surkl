@@ -1286,3 +1286,221 @@ void core::setAllEdgeState(const NodeItem* node, EdgeItem::State state)
         edge->setState(state);
     }
 }
+
+
+////////////////
+/// Animator ///
+////////////////
+void Animator::animateRotation(NodeItem* node, Rotation rot)
+{
+    auto* va = createAnimation(node, 200);
+    addRotation(node, rot, va);
+    startAnimation(node);
+}
+
+void Animator::animatePageRotation(NodeItem* node, Rotation rot, int page)
+{
+    for (int i = 0; i< page; ++i) {
+        auto* va = createAnimation(node, 25);
+        addRotation(node, rot, va);
+    }
+    startAnimation(node);
+}
+
+QVariantAnimation *Animator::createAnimation(const NodeItem *node, int duration)
+{
+    if (!_seqs.contains(node)) {
+        auto* seq = new QSequentialAnimationGroup(this);
+        _seqs[node] = seq;
+        connect(seq, &QAbstractAnimation::finished, [this, node] { clearSequence(node); });
+    }
+
+    auto* seq = _seqs[node];
+    auto* var = createVariantAnimation(duration);
+    seq->addAnimation(var);
+
+    /// (progressively) shortent the duration of animations as they get added
+    /// to the queue.  This can happen when rotation is repeatedly triggered,
+    /// and we don't want them to pile up.
+    if (const auto count = seq->animationCount(); count > 0) {
+        const auto head  = seq->indexOfAnimation(seq->currentAnimation()) + 1;
+        const auto len   = count - head;
+        const auto fast  = qMax(10, 125 / qMax(1, len));
+
+        for (int i = head; i < seq->animationCount(); ++i) {
+            if (auto* anim = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); anim) {
+                Q_ASSERT(anim->state() == QAbstractAnimation::Stopped);
+                anim->setDuration(fast);
+                if (i + 1 == count) {
+                    anim->setEasingCurve(QEasingCurve::OutSine);
+                } else {
+                    anim->setEasingCurve(QEasingCurve::Linear);
+                }
+            }
+        }
+    }
+
+    return var;
+}
+
+void Animator::startAnimation(const NodeItem* node)
+{
+    if (const auto found = _seqs.find(node); found != _seqs.end()) {
+        if (auto* seq = found->second; seq->state() == QAbstractAnimation::Stopped) {
+            seq->start();
+        }
+    }
+}
+
+void Animator::addRotation(NodeItem* node, const Rotation& rot, QVariantAnimation* va)
+{
+    Q_ASSERT(node);
+    Q_ASSERT(va);
+    Q_ASSERT(_seqs.contains(node));
+    Q_ASSERT(_seqs[node]->indexOfAnimation(va) >= 0);
+
+    connect(va, &QVariantAnimation::stateChanged,
+    [this, node, rot, va](QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
+    {
+        if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
+            /// startRotation must be called only once at the beginning; therefore,
+            /// disconnect to make sure that it never gets called again.  This
+            /// can happen when rapid rotation is triggered (e.g., rotation key
+            /// is pressed down), and causes all kinds of issues.
+            /// I'm not exactly sure what causes the state to go from Stopped to
+            /// Running a second time.
+            disconnect(va, &QVariantAnimation::stateChanged, nullptr, nullptr);
+            startRotation(node, rot, va);
+        }
+    });
+
+    connect(va, &QVariantAnimation::valueChanged,
+    [this, va] (const QVariant& value)
+    {
+        Q_ASSERT(va->state() == QAbstractAnimation::Running);
+        Q_ASSERT(_varData.contains(va));
+
+        auto ok         = false;
+        const auto t    = value.toReal(&ok); Q_ASSERT(ok);
+        const auto data = _varData[va];
+
+        interpolate(t, data);
+    });
+}
+
+template <class Mapping>
+void Animator::addTransition(NodeItem* node, const Mapping& mapping)
+{
+    // auto* va = _seqAnimations[node];
+    // Q_ASSERT(va);
+    //
+    // va->setStartValue(0.0);
+    // va->setEndValue(1.0);
+    //
+    // connect(va, &QVariantAnimation::valueChanged,
+    //     [mapping] (const QVariant& value)
+    //     {
+    //         auto ok = false;
+    //         const qreal t = value.toReal(&ok);
+    //         Q_ASSERT(ok);
+    //
+    //         for (auto [k,v] : mapping) {
+    //             const auto line = QLineF(v.before, v.after);
+    //             k->setPos(line.pointAt(t));
+    //         }
+    //     });
+}
+
+
+void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va)
+{
+    Q_ASSERT(!_varData.contains(va));
+
+    const auto data = node->doInternalRotation(rot);
+
+    if (data.node == nullptr) {
+        disconnect(va, &QVariantAnimation::valueChanged, nullptr, nullptr);
+        va->stop();
+
+        return;
+    }
+
+    auto* toGrow = data.toGrow;
+
+    toGrow->setOpacity(0.0);
+    toGrow->target()->setOpacity(0.0);
+    toGrow->show();
+    toGrow->target()->show();
+
+    _varData.emplace(va, data);
+}
+
+void Animator::clearSequence(const NodeItem* node)
+{
+    Q_ASSERT(_seqs.contains(node));
+
+    auto* seq = _seqs[node];
+
+    for (int i = 0; i < seq->animationCount(); ++i) {
+        if (const auto* anim = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); anim) {
+            /// _varData may not contain 'anim' because it was never added in startRotation.
+            if (auto found = _varData.find(anim); found != _varData.end()) {
+                _varData.erase(found);
+            }
+        }
+    }
+
+    seq->clear();
+}
+
+QVariantAnimation* Animator::createVariantAnimation(int duration)
+{
+    auto* va = new QVariantAnimation(this);
+
+    va->setLoopCount(1);
+    va->setDuration(duration);
+    va->setStartValue(0.0);
+    va->setEndValue(1.0);
+    va->setEasingCurve(QEasingCurve::OutSine);
+
+    return va;
+}
+
+void Animator::interpolate(qreal t, const InternalRotation& data)
+{
+    const auto* node   = data.node;
+    const auto& deltas = data.angularDisplacement;
+    auto* toGrow       = data.toGrow;
+    auto* toShrink     = data.toShrink;
+
+    for (auto [child, ang] : data.angles) {
+        Q_ASSERT(deltas.contains(child));
+        const qreal dir = t * deltas.at(child);
+
+        auto line = QLineF(node->scenePos(), child->scenePos());
+        line.setAngle(ang + dir);
+        child->setPos(line.p2());
+    }
+
+    auto line = QLineF(node->scenePos(), toGrow->target()->scenePos());
+    line.setLength(t * 144);
+    toGrow->target()->setPos(line.p2());
+    if (t >= 0.4) {
+        toGrow->setOpacity(t);
+        toGrow->target()->setOpacity(t);
+    }
+
+    if (toShrink->isVisible() && t >= 0.6) {
+        toShrink->hide();
+        toShrink->target()->hide();
+        toShrink->setOpacity(1.0);
+        toShrink->target()->setOpacity(1.0);
+    } else {
+        const auto t1 = 1.0 - t;
+        line = QLineF(node->scenePos(), toShrink->target()->scenePos());
+        line.setLength(t1 * 144);
+        toShrink->target()->setPos(line.p2());
+        toShrink->setOpacity(t1);
+        toShrink->target()->setOpacity(t1);
+    }
+}

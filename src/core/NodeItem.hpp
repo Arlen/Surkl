@@ -66,6 +66,15 @@ namespace  core
 
     using EdgeDeque = std::deque<EdgeItem*>;
 
+    struct InternalRotation
+    {
+        Rotation rot;
+        QGraphicsItem* node{nullptr};
+        EdgeItem* toGrow{nullptr};
+        EdgeItem* toShrink{nullptr};
+        std::unordered_map<QGraphicsItem*, qreal> angularDisplacement;
+        std::unordered_map<QGraphicsItem*, qreal> angles;
+    };
 
     class NodeItem final : public QGraphicsItem
     {
@@ -143,4 +152,27 @@ namespace  core
     void adjustAllEdges(const NodeItem* node);
     void updateAllChildNodes(const NodeItem* node);
     void setAllEdgeState(const NodeItem* node, EdgeItem::State state);
+    class Animator final : public QObject
+    {
+    public:
+        void animateRotation(NodeItem* node, Rotation rot);
+        void animatePageRotation(NodeItem* node, Rotation rot, int page);
+        template <class Mapping>
+        void addTransition(NodeItem* node, const Mapping& mapping);
+
+    private:
+        QVariantAnimation* createAnimation(const NodeItem *node, int duration);
+        void startAnimation(const NodeItem* node);
+        void addRotation(NodeItem* node, const Rotation& rot, QVariantAnimation*);
+
+        void startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va);
+        void clearSequence(const NodeItem* node);
+
+        QVariantAnimation* createVariantAnimation(int duration);
+
+        static void interpolate(qreal t, const InternalRotation& data);
+
+        std::unordered_map<const NodeItem*, QSequentialAnimationGroup*> _seqs;
+        std::unordered_map<const QVariantAnimation*, InternalRotation> _varData;
+    };
 }
