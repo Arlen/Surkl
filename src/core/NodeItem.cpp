@@ -6,25 +6,17 @@
 #include "SessionManager.hpp"
 #include "theme.hpp"
 
-#include <QCursor>
-#include <QFileSystemModel>
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
 #include <QSequentialAnimationGroup>
-#include <QSortFilterProxyModel>
-#include <QStyleOptionGraphicsItem>
-#include <QTextLayout>
-#include <QTimeLine>
-#include <QTimer>
 #include <QVariantAnimation>
 
 #include <numbers>
 #include <ranges>
 #include <stack>
 #include <unordered_set>
-
 
 
 using namespace core;

@@ -6,17 +6,15 @@
 #include "EdgeItem.hpp"
 
 #include <QGraphicsItem>
-#include <QGraphicsLineItem>
-#include <QGraphicsSimpleTextItem>
 #include <QPersistentModelIndex>
 
+#include <deque>
 #include <unordered_map>
 #include <vector>
 
 
 class QVariantAnimation;
 class QSequentialAnimationGroup;
-class QTimeLine;
 
 namespace  core
 {
@@ -36,12 +34,6 @@ namespace  core
         HalfClosed
     };
 
-    enum class Order
-    {
-        Increasing, Decreasing
-    };
-
-
 
     /// RootItem is just for visualizes so that the parent InodeEdge of the
     /// actual root Inode does not hang by itself.
@@ -53,7 +45,7 @@ namespace  core
         explicit RootItem(QGraphicsItem* parent = nullptr);
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
-        [[nodiscard]] int type() const override     { return Type; }
+        [[nodiscard]] int type() const override { return Type; }
 
     protected:
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
@@ -73,6 +65,8 @@ namespace  core
 
 
     using EdgeVector = std::vector<EdgeItem*>;
+    using EdgeVector = std::deque<EdgeItem*>;
+
 
     class NodeItem final : public QGraphicsItem
     {
