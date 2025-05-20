@@ -64,7 +64,7 @@ namespace  core
     };
 
 
-    using EdgeVector = std::deque<EdgeItem*>;
+    using EdgeDeque = std::deque<EdgeItem*>;
 
 
     class NodeItem final : public QGraphicsItem
@@ -97,7 +97,7 @@ namespace  core
         [[nodiscard]] KnotItem* knot() const        { return _knot; }
 
         [[nodiscard]] const QPersistentModelIndex& index() const { return _index; }
-        [[nodiscard]] const EdgeVector& childEdges() const       { return _childEdges; }
+        [[nodiscard]] const EdgeDeque& childEdges() const        { return _childEdges; }
 
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
         void close();
@@ -130,7 +130,7 @@ namespace  core
         FolderState _state{FolderState::Closed};
         QPersistentModelIndex _index;
         EdgeItem* _parentEdge{nullptr};
-        EdgeVector _childEdges;
+        EdgeDeque _childEdges;
         KnotItem* _knot{nullptr};
 
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;

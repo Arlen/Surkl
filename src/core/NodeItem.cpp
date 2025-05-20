@@ -398,7 +398,6 @@ void NodeItem::init()
 
     const auto count = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
-    _childEdges.reserve(count);
     for (auto _ : std::views::iota(0, count)) {
         _childEdges.emplace_back(createNode(scene(), this)->parentEdge());
     }
@@ -477,8 +476,7 @@ void NodeItem::unload(int start, int end)
                             _index.model()->rowCount(_index);
 
     /// 2. destroy excessive nodes.
-    if (EdgeVector edges; ghostNodes > 0) {
-        edges.reserve(_childEdges.size());
+    if (EdgeDeque edges; ghostNodes > 0) {
         for (int deletedNodes = 0; auto* node : all) {
             if (deletedNodes >= ghostNodes) {
                 edges.push_back(node->parentEdge());
