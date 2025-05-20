@@ -64,7 +64,6 @@ namespace  core
     };
 
 
-    using EdgeVector = std::vector<EdgeItem*>;
     using EdgeVector = std::deque<EdgeItem*>;
 
 
@@ -93,10 +92,12 @@ namespace  core
         [[nodiscard]] bool isOpen() const           { return _state == FolderState::Open; }
         [[nodiscard]] bool isHalfClosed() const     { return _state == FolderState::HalfClosed; }
         [[nodiscard]] bool hasChildren() const      { return !_childEdges.empty(); }
-        [[nodiscard]] EdgeVector childEdges() const { return _childEdges; }
         [[nodiscard]] int type() const override     { return Type; }
         [[nodiscard]] EdgeItem* parentEdge() const  { return _parentEdge; }
+        [[nodiscard]] KnotItem* knot() const        { return _knot; }
+
         [[nodiscard]] const QPersistentModelIndex& index() const { return _index; }
+        [[nodiscard]] const EdgeVector& childEdges() const       { return _childEdges; }
 
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
         void close();
