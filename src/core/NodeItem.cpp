@@ -1036,61 +1036,79 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
 }
 
 /// performs CCW or CW rotation.
-/// CCW means going forward (i.e., the new node index is greater than the
+/// CW means going forward (i.e., the new node index is greater than the
 /// previous).
-void NodeItem::doInternalRotation(Rotation rot)
+InternalRotation NodeItem::doInternalRotation(Rotation rot)
 {
-    auto closedNodes = _childEdges
-        | asClosedTargetNodes
-        | ranges::to<std::vector>();
+    auto targetNodes = _childEdges
+        | asFilesOrClosedTargetNodes
+        | ranges::to<std::deque>();
 
-    if (closedNodes.empty()) { return; }
+    if (targetNodes.empty()) { return {}; }
 
     const auto openOrHalfClosedRows = _childEdges
         | asNotClosedTargetNodes
         | asIndexRow
         | ranges::to<std::unordered_set>();
 
-    auto isIndexClosed = [&openOrHalfClosedRows](const QModelIndex& index) -> bool
+    auto isAvailable = [&openOrHalfClosedRows](const QModelIndex& index) -> bool
     {
         return !openOrHalfClosedRows.contains(index.row());
     };
 
-    if (rot == Rotation::CW) { std::ranges::reverse(closedNodes); }
-    const auto Inc = rot == Rotation::CCW ? 1 : -1;
-    auto lastIndex = closedNodes.back()->index();
-    auto sibling   = lastIndex;
+    if (rot == Rotation::CCW) { std::ranges::reverse(targetNodes); }
+
+    const auto Inc       = rot == Rotation::CW ? 1 : -1;
+    const auto lastIndex = targetNodes.back()->index();
 
     auto candidates = views::iota(1, NODE_CHILD_COUNT)
-        | views::transform(std::bind(std::multiplies{}, std::placeholders::_1, Inc))
-        | views::transform([lastIndex](int i) { return lastIndex.sibling(lastIndex.row() + i, 0); })
+        | views::transform([Inc](int x) -> int { return x * Inc; })
+        | views::transform([lastIndex](int i) -> QModelIndex
+            { return lastIndex.sibling(lastIndex.row() + i, 0); })
         | views::filter(&QModelIndex::isValid)
-        | views::filter(isIndexClosed);
+        | views::filter(isAvailable)
+        ;
 
-    if (candidates.empty()) {
-        /// TODO: animator add animation for this??
-            // rot == Rotation::CCW
-            // ? InternalRotationStatus::EndReachedCCW
-            // : InternalRotationStatus::EndReachedCW;
-        return;
+    if (candidates.empty()) { return {}; }
+
+    auto sibling = candidates.front();
+    asNodeItem(_extra->target())->setIndex(sibling);
+    _extra->setText(asNodeItem(_extra->target())->name());
+
+    EdgeItem* toGrow   = nullptr;
+    EdgeItem* toShrink = nullptr;
+
+    const EdgeItem* toErase   = targetNodes.front()->parentEdge();
+    const EdgeItem* insertPos = targetNodes.back()->parentEdge();
+
+    std::unordered_map<QGraphicsItem*, qreal> angularDisplacements;
+    std::unordered_map<QGraphicsItem*, qreal> angles;
+    for (int i = 1; i < targetNodes.size(); ++i) {
+        auto* a = targetNodes[i-1];
+        auto* b = targetNodes[i  ];
+        const auto la = QLineF(scenePos(), a->scenePos());
+        const auto lb = QLineF(scenePos(), b->scenePos());
+        angularDisplacements.emplace(b, la.angle() - lb.angle());
+        angles.emplace(b, lb.angle());
     }
 
-    sibling = candidates.front();
+    Q_ASSERT(isFileOrClosed(_extra));
+    if (auto found = ranges::find(_childEdges, insertPos); found != _childEdges.end()) {
+        /// insert after if going CW, or insert before if going CCW.
+        _childEdges.insert(rot==Rotation::CW ? std::next(found) : found, _extra);
+        toGrow = _extra;
+        toGrow->target()->setPos((*found)->target()->scenePos());
+    } else { Q_ASSERT(false); }
 
-    NodeItem* prev = nullptr;
-    for (auto* node : closedNodes) {
-        if (prev) {
-            Q_ASSERT(prev->isClosed());
-            Q_ASSERT(prev->index() != node->index());
-            prev->setIndex(node->index());
-            //animator->addRotation(prev->parentEdge(), rot, prev->name());
-        }
-        prev = node;
-    }
-    if (prev) {
-        prev->setIndex(sibling);
-        //animator->addRotation(prev->parentEdge(), rot, prev->name());
-    }
+    if (auto found = ranges::find(_childEdges, toErase); found != _childEdges.end()) {
+        _extra = *found;
+        _childEdges.erase(found);
+        asNodeItem(_extra->target())->setIndex(QModelIndex());
+        toShrink = _extra;
+    } else { Q_ASSERT(false); }
+    Q_ASSERT(isFileOrClosed(_extra));
+
+    return { rot, this, toGrow, toShrink, angularDisplacements, angles };
 }
 
 void NodeItem::skipTo(int row)
