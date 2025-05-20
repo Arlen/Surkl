@@ -40,13 +40,13 @@ namespace
     constexpr int NODE_CHILD_COUNT = 16;
 
 
-    std::deque<QLineF> circle(const QPointF& center, int sides, qreal startAngle = 0.0)
+    std::deque<QLineF> circle(int sides, qreal startAngle = 0.0)
     {
         sides = std::max(1, sides);
 
         const auto anglePerSide = 360.0 / sides;
-        auto angle = startAngle;
-        auto line1 = QLineF(center, center + QPointF(1, 0));
+        auto angle = startAngle - anglePerSide * 0.5;
+        auto line1 = QLineF(QPointF(0, 0), QPointF(1, 0));
         auto line2 = line1;
 
         std::deque<QLineF> result;
