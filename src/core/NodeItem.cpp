@@ -1094,10 +1094,11 @@ InternalRotation NodeItem::doInternalRotation(Rotation rot)
 
     Q_ASSERT(isFileOrClosed(_extra));
     if (auto found = ranges::find(_childEdges, insertPos); found != _childEdges.end()) {
-        /// insert after if going CW, or insert before if going CCW.
-        _childEdges.insert(rot==Rotation::CW ? std::next(found) : found, _extra);
+        _extra->target()->setPos((*found)->target()->scenePos());
         toGrow = _extra;
-        toGrow->target()->setPos((*found)->target()->scenePos());
+
+        /// insert after if going CW, or insert before if going CCW.
+        _childEdges.insert(rot==Rotation::CW ? std::next(found) : found, toGrow);
     } else { Q_ASSERT(false); }
 
     if (auto found = ranges::find(_childEdges, toErase); found != _childEdges.end()) {
