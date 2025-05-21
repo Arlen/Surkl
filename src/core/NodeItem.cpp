@@ -722,40 +722,19 @@ void NodeItem::open()
 
 void NodeItem::rotate(Rotation rot)
 {
-    if (!_childEdges.empty()) {
-        //animator->beginAnimation(this, 250);
+    auto targetNodes = _childEdges | asFilesOrClosedTargetNodes;
 
-        doInternalRotation(rot);
-        updateAllChildNodes(this);
-
-        //animator->endAnimation(this);
+    if (ranges::distance(targetNodes) > 0) {
+        animator->animateRotation(this, rot);
     }
 }
 
 void NodeItem::rotatePage(Rotation rot)
 {
-    /// only closed nodes can rotate, so the size of the page is the number of
-    /// closed nodes.
-    auto closedNodes    = _childEdges | asClosedTargetNodes;
-    const auto pageSize = ranges::distance(closedNodes);
+    auto targetNodes    = _childEdges | asFilesOrClosedTargetNodes;
+    const auto pageSize = ranges::distance(targetNodes);
 
-    if (pageSize == 0) {
-        return;
-    }
-    Q_ASSERT(!_childEdges.empty());
-
-    const auto durPerRot = 200.0 / pageSize;
-    const auto totalDur  = static_cast<int>(qBound(5.0, 200.0 + durPerRot, 250.0));
-
-    auto advance = [durPerRot, rot, this]
-    {
-        //animator->beginAnimation(this, durPerRot);
-        doInternalRotation(rot);
-        updateAllChildNodes(this);
-        //animator->endAnimation(this);
-    };
-
-    //animator->addPageRotation(this, totalDur, pageSize, advance);
+    animator->animatePageRotation(this, rot, pageSize);
 }
 
 QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
