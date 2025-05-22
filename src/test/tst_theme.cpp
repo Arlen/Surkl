@@ -170,7 +170,7 @@ void TestTheme::generateRangedPalette()
 
     for (int i = 0; i < count; ++i) {
         HsvRange range {{p1*360, p2*360}, {p1, p2}, {p1, p2}};
-        const auto palette = generatePalette(range);
+        const auto palette = SessionManager::tm()->generatePalette(range);
         const auto ifp = ThemeManager::idFromPalette(palette);
         const auto pfi = ThemeManager::paletteFromId(ifp);
 
