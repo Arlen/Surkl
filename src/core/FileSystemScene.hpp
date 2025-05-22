@@ -1,3 +1,6 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
 #include <QGraphicsScene>
@@ -6,14 +9,14 @@
 class QFileSystemModel;
 class QSortFilterProxyModel;
 
-
 namespace core
 {
+    class NodeItem;
+
     namespace nodes
     {
         class SceneBookmarkItem;
     }
-    class Node;
 
     class FileSystemScene final : public QGraphicsScene
     {
@@ -25,7 +28,7 @@ namespace core
         explicit FileSystemScene(QObject* parent = nullptr);
         ~FileSystemScene() override;
         void addSceneBookmark(const QPoint& pos, const QString& name);
-        QPersistentModelIndex rootIndex() const;
+        [[nodiscard]] QPersistentModelIndex rootIndex() const;
         bool isDir(const QModelIndex& index) const;
 
     public slots:

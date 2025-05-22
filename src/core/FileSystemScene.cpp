@@ -1,10 +1,14 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "EdgeItem.hpp"
 #include "FileSystemScene.hpp"
 #include "GraphicsView.hpp"
+#include "NodeItem.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
 #include "db.hpp"
 #include "gui/theme.hpp"
-#include "items.hpp"
 #include "nodes.hpp"
 
 #include <QDesktopServices>
@@ -201,13 +205,13 @@ namespace
     {
         return item != nullptr;
     };
-    auto toNode = [](QGraphicsItem* item) -> Node*
+    auto toNode = [](QGraphicsItem* item) -> NodeItem*
     {
-        return qgraphicsitem_cast<Node*>(item);
+        return qgraphicsitem_cast<NodeItem*>(item);
     };
-    auto toEdge = [](QGraphicsItem* item) -> Edge*
+    auto toEdge = [](QGraphicsItem* item) -> EdgeItem*
     {
-        return qgraphicsitem_cast<Edge*>(item);
+        return qgraphicsitem_cast<EdgeItem*>(item);
     };
 
     auto filterNodes = std::views::transform(toNode) | std::views::filter(notNull);
@@ -309,7 +313,7 @@ void FileSystemScene::refreshItems()
     const auto* tm = SessionManager::tm();
 
     for (const auto xs = items(); auto* x : xs) {
-        if (auto* label = qgraphicsitem_cast<EdgeLabel*>(x); label) {
+        if (auto* label = qgraphicsitem_cast<EdgeLabelItem*>(x); label) {
             /// Need to set the brush for EdgeLabels directly. Other item types
             /// don't have this problem because theme values are used directly
             /// in paint(), and update() triggers a repaint.
@@ -332,7 +336,7 @@ void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int e
 
 void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int end) const
 {
-    std::vector<Node*> toBeUnloaded;
+    std::vector<NodeItem*> toBeUnloaded;
 
     /// can't call Node::unload() while traversing items() because Node::unload()
     /// deletes child nodes and subtrees of items still in items().
@@ -361,7 +365,7 @@ void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e)
 
     for (const auto vs = views(); auto* v : vs | filter(&QWidget::hasFocus)) {
         const auto pos = v->mapFromScene(e->scenePos());
-        if (auto* node = qgraphicsitem_cast<Node*>(v->itemAt(pos)); node && openFile(node)) {
+        if (auto* node = qgraphicsitem_cast<NodeItem*>(v->itemAt(pos)); node && openFile(node)) {
             return;
         }
     }
@@ -394,7 +398,7 @@ void FileSystemScene::onSelectionChange()
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
 }
 
-bool FileSystemScene::openFile(const Node* node) const
+bool FileSystemScene::openFile(const NodeItem* node) const
 {
     bool success = false;
     if (const auto& index = node->index(); !isDir(index)) {
