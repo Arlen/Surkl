@@ -1040,7 +1040,7 @@ InternalRotation NodeItem::doInternalRotation(Rotation rot)
     const auto Inc       = rot == Rotation::CW ? 1 : -1;
     const auto lastIndex = targetNodes.back()->index();
 
-    auto candidates = views::iota(1, NODE_CHILD_COUNT)
+    auto candidates = views::iota(1, NODE_CHILD_COUNT+1)
         | views::transform([Inc](int x) -> int { return x * Inc; })
         | views::transform([lastIndex](int i) -> QModelIndex
             { return lastIndex.sibling(lastIndex.row() + i, 0); })
