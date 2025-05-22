@@ -30,6 +30,7 @@ namespace core
         void addSceneBookmark(const QPoint& pos, const QString& name);
         [[nodiscard]] QPersistentModelIndex rootIndex() const;
         bool isDir(const QModelIndex& index) const;
+        void setRootPath(const QString& newPath) const;
 
     public slots:
         void openSelectedNodes() const;

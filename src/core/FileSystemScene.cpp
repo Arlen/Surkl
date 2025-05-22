@@ -233,7 +233,7 @@ FileSystemScene::FileSystemScene(QObject* parent)
     setSceneRect(QRect(-1024 * 32, -1024 * 32, 1024 * 64, 1024 * 64));
 
     _model = new QFileSystemModel(this);
-    _model->setRootPath("/");
+    _model->setRootPath(QDir::rootPath());
 
     _proxyModel = new QSortFilterProxyModel(this);
     _proxyModel->setSourceModel(_model);
@@ -271,7 +271,7 @@ void FileSystemScene::addSceneBookmark(const QPoint& pos, const QString& name)
 
 QPersistentModelIndex FileSystemScene::rootIndex() const
 {
-    auto index = _model->index(QDir::rootPath());
+    auto index = _model->index(_model->rootPath());
 
     return _proxyModel->mapFromSource(index);
 }
@@ -279,6 +279,11 @@ QPersistentModelIndex FileSystemScene::rootIndex() const
 bool FileSystemScene::isDir(const QModelIndex& index) const
 {
     return _model->isDir(_proxyModel->mapToSource(index));
+}
+
+void FileSystemScene::setRootPath(const QString& newPath) const
+{
+    _model->setRootPath(newPath);
 }
 
 void FileSystemScene::openSelectedNodes() const
