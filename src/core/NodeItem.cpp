@@ -418,6 +418,10 @@ void NodeItem::init()
     for (auto _ : std::views::iota(0, count)) {
         _childEdges.emplace_back(createNode(scene(), this)->parentEdge());
     }
+
+    _extra = createNode(scene(), this)->parentEdge();
+    _extra->hide();
+    _extra->target()->hide();
 }
 
 void NodeItem::reload(int start, int end)

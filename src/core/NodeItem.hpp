@@ -155,6 +155,7 @@ namespace  core
         EdgeItem* _parentEdge{nullptr};
         EdgeDeque _childEdges;
         KnotItem* _knot{nullptr};
+        EdgeItem* _extra{nullptr};
 
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
 
