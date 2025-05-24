@@ -73,5 +73,5 @@ foreach(ts ${TEST_SOURCES})
     target_include_directories(${test_name} PUBLIC "src/gui")
     target_include_directories(${test_name} PUBLIC "src/gui/view")
 
-    target_compile_definitions(${test_name} PRIVATE TEST_FAST_ANIMATIONS=1)
+    target_compile_definitions(${test_name} PRIVATE TEST_ANIMATIONS=1)
 endforeach(ts)

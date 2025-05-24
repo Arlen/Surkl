@@ -22,6 +22,11 @@ namespace core
     {
         Q_OBJECT
 
+#ifdef TEST_ANIMATIONS
+    signals:
+        void sequenceFinished();
+#endif
+
     public:
         static void configure(FileSystemScene* scene);
 
@@ -48,7 +53,7 @@ namespace core
         void onRowsRemoved(const QModelIndex& parent, int start, int end) const;
 
     private:
-        bool openFile(const Node* node) const;
+        bool openFile(const NodeItem* node) const;
 
         QFileSystemModel* _model{nullptr};
         QSortFilterProxyModel* _proxyModel{nullptr};

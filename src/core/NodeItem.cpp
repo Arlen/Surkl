@@ -1445,7 +1445,7 @@ QSequentialAnimationGroup* Animator::getSeq(const NodeItem* node)
         {
             clearSequence(node);
 
-#ifdef TEST_FAST_ANIMATIONS
+#ifdef TEST_ANIMATIONS
             emit node->fsScene()->sequenceFinished();
 #endif
         });
@@ -1478,7 +1478,7 @@ QVariantAnimation* Animator::createVariantAnimation(int duration)
 {
     auto* va = new QVariantAnimation(this);
 
-#ifdef TEST_FAST_ANIMATIONS
+#ifdef TEST_ANIMATIONS
     duration = 1;
 #endif
 
@@ -1500,7 +1500,7 @@ void Animator::fastforward(const QSequentialAnimationGroup* seq)
         const auto head  = seq->indexOfAnimation(seq->currentAnimation()) + 1;
         const auto len   = count - head;
 
-#ifdef TEST_FAST_ANIMATIONS
+#ifdef TEST_ANIMATIONS
         const auto fast  = 1;
 #else
         const auto fast  = qMax(10, 125 / qMax(1, len));
