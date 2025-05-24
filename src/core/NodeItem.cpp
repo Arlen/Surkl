@@ -740,19 +740,29 @@ void NodeItem::open()
 
 void NodeItem::rotate(Rotation rot)
 {
-    auto targetNodes = _childEdges | asFilesOrClosedTargetNodes;
+    if (!isOpen()) {
+        return;
+    }
 
-    if (ranges::distance(targetNodes) > 0) {
+    auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
+
+    if (ranges::distance(availableNodes) > 0) {
         animator->animateRotation(this, rot);
     }
 }
 
 void NodeItem::rotatePage(Rotation rot)
 {
-    auto targetNodes    = _childEdges | asFilesOrClosedTargetNodes;
-    const auto pageSize = ranges::distance(targetNodes);
+    if (!isOpen()) {
+        return;
+    }
 
-    animator->animatePageRotation(this, rot, pageSize);
+    auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
+    const auto pageSize = ranges::distance(availableNodes);
+
+    if (pageSize > 0) {
+        animator->animatePageRotation(this, rot, pageSize);
+    }
 }
 
 QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
