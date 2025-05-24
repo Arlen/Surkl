@@ -468,24 +468,23 @@ void NodeItem::unload(int start, int end)
         | ranges::to<std::unordered_set>()
         ;
 
-    auto closedNodes = _childEdges | asClosedTargetNodes;
-
-    auto closedIndices = closedNodes | views::transform(&NodeItem::index);
-    if (ranges::all_of(closedIndices, &QPersistentModelIndex::isValid)) {
+    auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
+    auto availableIndices = availableNodes | asIndex;
+    if (ranges::all_of(availableIndices, &QPersistentModelIndex::isValid)) {
         return;
     }
 
-    if (const auto count = ranges::distance(closedIndices); count > 0) {
+    if (const auto count = ranges::distance(availableIndices); count > 0) {
         auto startIndex = _index.model()->sibling(0, 0, _index);
-        if (auto betterStart = ranges::find_if(closedIndices, &QPersistentModelIndex::isValid);
-            betterStart != closedIndices.end()) {
+        if (auto betterStart = ranges::find_if(availableIndices, &QPersistentModelIndex::isValid);
+            betterStart != availableIndices.end()) {
             startIndex = *betterStart;
         }
         auto rebuilt = gatherIndices(startIndex, count, openOrHalfClosedRows);
 
-        for (auto* node : closedNodes) {
+        for (auto* node : availableNodes) {
             if (rebuilt.empty()) { break; }
-            /// set index even if node has valid index, b/c the oder might
+            /// set index even if node has valid index, b/c the order might
             /// have changed.
             node->setIndex(rebuilt.front());
             node->parentEdge()->setText(node->name());
