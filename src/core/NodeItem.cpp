@@ -1162,10 +1162,11 @@ void NodeItem::spread(QPointF dxy)
 {
     if (_childEdges.empty()) { return; }
 
-    const auto* grabber = scene()->mouseGrabberItem();
-    const auto center   = mapToScene(QPointF(0, 0));
-    const auto sides    = _childEdges.size() + (_parentEdge ? 1 : 0);
-    auto guides         = circle(center, sides);
+    auto edgeOf = [this](const QGraphicsItem* item) {
+        return QLineF(QPointF(0, 0), mapFromItem(item, QPointF(0, 0)));
+    };
+    const auto sides = _childEdges.size() + (_parentEdge ? 1 : 0) + 1;
+    auto guides      = circle(static_cast<int>(sides), edgeOf(_knot).angle());
 
     auto intersectsWith = [](const QLineF& line)
     {
@@ -1174,38 +1175,31 @@ void NodeItem::spread(QPointF dxy)
             return other.intersects(line) == QLineF::BoundedIntersection;
         };
     };
-    auto isIncluded = [grabber](const NodeItem* node) -> bool
-    {
-        return (!node->isDir() || node->isClosed()) && node != grabber;
-    };
-    auto isExcluded = [isIncluded](const NodeItem* node) -> bool
-    {
-        return !isIncluded(node);
-    };
 
-    if (_parentEdge) {
-        const auto* ps        = _parentEdge->source();
-        const auto parentEdge = QLineF(center, ps->mapToScene(QPointF(0, 0)));
-        const auto ignored    = ranges::find_if(guides, intersectsWith(parentEdge));
-        if (ignored != guides.end()) {
-            /// only remove one guide edge per intersecting edge.  E.g., When
-            /// guides contains only two lines, parentEdge will most likely
-            /// intersect with two.
-            guides.erase(ignored);
-        }
-    }
-
-    auto excludedNodes = _childEdges | asTargetNodes | views::filter(isExcluded);
-
-    for (const auto* node : excludedNodes) {
-        const auto nodeLine = QLineF(center, node->mapToScene(QPointF(0, 0)));
-        const auto ignored  = std::ranges::find_if(guides, intersectsWith(nodeLine));
+    auto removeIfIntersects = [&guides, edgeOf, intersectsWith](const QGraphicsItem* item) {
+        /// using find_if b/c only one guide edge per intersecting edge should
+        /// be removed. e.g., when 'guides' contains only two lines, parentEdge
+        /// will most likely intersect with two.
+        const auto ignored = ranges::find_if(guides, intersectsWith(edgeOf(item)));
         if (ignored != guides.end()) {
             guides.erase(ignored);
         }
+    };
+
+    if (_parentEdge) { removeIfIntersects(_parentEdge->source()); }
+    if (_knot) { removeIfIntersects(_knot); }
+
+    const auto* grabber = scene()->mouseGrabberItem();
+    if (grabber) { removeIfIntersects(grabber); }
+
+    for (const auto* node : _childEdges | asNotClosedTargetNodes) {
+        removeIfIntersects(node);
     }
 
-    auto includedNodes = _childEdges | asTargetNodes | views::filter(isIncluded);
+    auto includedNodes = _childEdges | asFilesOrClosedTargetNodes
+        | views::filter([grabber](const NodeItem* node)
+            { return node != grabber; })
+        ;
 
     for (auto* node : includedNodes) {
         if (guides.empty()) {
