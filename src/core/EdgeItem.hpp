@@ -26,7 +26,7 @@ namespace  core
     class EdgeItem final : public QGraphicsLineItem
     {
     public:
-        enum { Type = UserType + 10 };
+        enum { Type = UserType + 1 };
         enum State { ActiveState, CollapsedState/*, InactiveState*/ };
 
         explicit EdgeItem(QGraphicsItem* source = nullptr, QGraphicsItem* target = nullptr);
