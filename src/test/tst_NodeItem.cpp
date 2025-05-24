@@ -1,0 +1,330 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "tst_NodeItem.hpp"
+#include "core/FileSystemScene.hpp"
+#include "core/NodeItem.hpp"
+#include "core/SessionManager.hpp"
+
+#include <QFileSystemModel>
+#include <QRandomGenerator>
+#include <QSignalSpy>
+
+#include <algorithm>
+#include <random>
+#include <unordered_set>
+#include <vector>
+
+
+using namespace std;
+
+
+namespace
+{
+    auto fileOrClosedDirAreSorted = [](const core::NodeItem* parent)
+    {
+        auto rows = parent->childEdges()
+            | core::asFilesOrClosedTargetNodes
+            | core::asIndexRow
+            ;
+
+        return ranges::is_sorted(ranges::begin(rows), ranges::end(rows));
+    };
+
+    auto allSorted = [](const core::NodeItem* parent)
+    {
+        auto rows = parent->childEdges()
+            | core::asTargetNodes
+            | core::asIndexRow
+            ;
+
+        return ranges::is_sorted(ranges::begin(rows), ranges::end(rows));
+    };
+
+    auto hasUniqueChildren = [](const core::NodeItem* parent)
+    {
+        const auto rows = parent->childEdges()
+            | core::asTargetNodes | core::asIndexRow
+            ;
+
+        return (rows | std::ranges::to<std::vector>()).size() ==
+               (rows | std::ranges::to<std::unordered_set>()).size();
+    };
+}
+
+//#define TEST_TRACK_STEPS
+
+#define SHOW_STEPS()
+#ifdef TEST_TRACK_STEPS
+do { qDebug() << _steps; } while (false)
+#endif
+
+void TestNodeItem::initTestCase()
+{
+
+}
+
+void TestNodeItem::initTestCase_data()
+{
+    QDir dir;
+    QVERIFY(dir.mkpath(ROOT_PATH));
+    dir.cd(ROOT_PATH);
+
+    for (int i = 0; i < 50; ++i) {
+        auto name = QString("A%1")
+            .arg(i, 2, 10, QChar('0'));
+        QVERIFY(dir.mkpath(name));
+    }
+    QTest::addColumn<QDir>("testDir");
+    QTest::newRow("one-level") << dir;
+}
+
+void TestNodeItem::cleanupTestCase()
+{
+    auto dir = QDir(ROOT_PATH);
+    QVERIFY(dir.removeRecursively());
+}
+
+void TestNodeItem::init()
+{
+}
+
+void TestNodeItem::cleanup()
+{
+    _steps.clear();
+}
+
+void TestNodeItem::rotation_data()
+{
+    QTest::addColumn<QPair<qreal,qreal>>("rotWeights");
+    QTest::newRow("50/50") << QPair{50.0, 50.0};
+    QTest::newRow("60/40") << QPair{60.0, 40.0};
+    QTest::newRow("40/60") << QPair{40.0, 60.0};
+    QTest::newRow("90/10") << QPair{90.0, 10.0};
+    QTest::newRow("10/90") << QPair{10.0, 90.0};
+    QTest::newRow("100/0") << QPair{100.0, 0.0};
+    QTest::newRow("0/100") << QPair{0.0, 100.0};
+}
+
+void TestNodeItem::rotation()
+{
+    QFETCH_GLOBAL(QDir, testDir);
+    QFETCH(WeightPair, rotWeights);
+
+    auto* scene = new core::FileSystemScene();
+    scene->setRootPath(testDir.absolutePath());
+    auto* node = core::NodeItem::createRootItem(scene);
+
+    /// wait for filesystem data to be fetched
+    QTest::qWait(25);
+
+    node->open();
+    QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+    QVERIFY(fileOrClosedDirAreSorted(node));
+    QVERIFY(hasUniqueChildren(node));
+    verifyNames(node, testDir);
+
+    constexpr auto MAX_ITER = core::NodeItem::NODE_CHILD_COUNT;
+    QSignalSpy spy1(scene, &core::FileSystemScene::sequenceFinished);
+
+    for (int k = 1; k <= MAX_ITER; ++k) {
+        for (int i = 1; i <= MAX_ITER; ++i) {
+            doRandomRotations(node, rotWeights, i*k);
+            QVERIFY(spy1.wait(50));
+            QVERIFY(fileOrClosedDirAreSorted(node));
+            QVERIFY(hasUniqueChildren(node));
+            verifyNames(node, testDir);
+        }
+        node->close();
+        node->open();
+        QVERIFY(fileOrClosedDirAreSorted(node));
+        QVERIFY(hasUniqueChildren(node));
+        verifyNames(node, testDir);
+    }
+
+    /// wait for any animations to finish.
+    QTest::qWait(100);
+    scene->clear();
+    scene->deleteLater();
+}
+
+void TestNodeItem::rotationOpenCloseSubdir_data()
+{
+    QTest::addColumn<QPair<qreal,qreal>>("rotWeights");
+    QTest::newRow("50/50") << QPair{50.0, 50.0};
+    QTest::newRow("60/40") << QPair{60.0, 40.0};
+    QTest::newRow("40/60") << QPair{40.0, 60.0};
+    QTest::newRow("90/10") << QPair{90.0, 10.0};
+    QTest::newRow("10/90") << QPair{10.0, 90.0};
+    QTest::newRow("100/0") << QPair{100.0, 0.0};
+    QTest::newRow("0/100") << QPair{0.0, 100.0};
+}
+
+void TestNodeItem::rotationOpenCloseSubdir()
+{
+    QFETCH_GLOBAL(QDir, testDir);
+    QFETCH(WeightPair, rotWeights);
+
+    auto* scene = new core::FileSystemScene();
+    scene->setRootPath(testDir.absolutePath());
+    auto* node = core::NodeItem::createRootItem(scene);
+
+    /// wait for filesystem data to be fetched
+    QTest::qWait(25);
+
+    node->open();
+    QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+    QVERIFY(fileOrClosedDirAreSorted(node));
+    QVERIFY(hasUniqueChildren(node));
+    verifyIndices(node);
+    verifyNames(node, testDir);
+
+    constexpr auto MAX_ITER = core::NodeItem::NODE_CHILD_COUNT;
+    QSignalSpy animSpy(scene, &core::FileSystemScene::sequenceFinished);
+
+    for (int k = 1; k <= MAX_ITER; ++k) {
+        for (int i = 1; i <= MAX_ITER; ++i) {
+            doRandomRotations(node, rotWeights, i*k);
+            QVERIFY(animSpy.wait(50));
+            QVERIFY(hasUniqueChildren(node));
+            QVERIFY(fileOrClosedDirAreSorted(node));
+            verifyIndices(node);
+            verifyNames(node, testDir);
+
+            randomOpen(node, i);
+            doRandomRotations(node, rotWeights, i);
+            QVERIFY(fileOrClosedDirAreSorted(node));
+            QVERIFY(hasUniqueChildren(node));
+            verifyIndices(node);
+            verifyNames(node, testDir);
+
+            randomClose(node, i);
+            SHOW_STEPS();
+            QVERIFY(animSpy.wait(50));
+            QVERIFY(fileOrClosedDirAreSorted(node));
+            QVERIFY(hasUniqueChildren(node));
+            verifyIndices(node);
+            verifyNames(node, testDir);
+
+            doRandomRotations(node, rotWeights, i);
+            QVERIFY(animSpy.wait(50));
+            QVERIFY(fileOrClosedDirAreSorted(node));
+            QVERIFY(hasUniqueChildren(node));
+            verifyIndices(node);
+            verifyNames(node, testDir);
+        }
+#ifdef TEST_TRACK_STEPS
+        _steps.clear();
+#endif
+        node->close();
+        node->open();
+        QVERIFY(fileOrClosedDirAreSorted(node));
+        QVERIFY(hasUniqueChildren(node));
+        verifyIndices(node);
+        verifyNames(node, testDir);
+    }
+    closeAll(node);
+    QVERIFY(allSorted(node));
+    QVERIFY(hasUniqueChildren(node));
+    verifyIndices(node);
+    verifyNames(node, testDir);
+
+    /// wait for any animations to finish.
+    QTest::qWait(100);
+    scene->clear();
+    scene->deleteLater();
+}
+
+void TestNodeItem::verifyNames(core::NodeItem* node, const QDir& dir)
+{
+    QCOMPARE(node->childEdges().empty(), dir.isEmpty());
+
+    for (const auto* child : node->childEdges() | core::asTargetNodes) {
+        QVERIFY(dir.exists(child->name()));
+        QCOMPARE(child->index().data().toString(), child->name());
+        QCOMPARE(child->parentEdge()->label()->text(), child->name());
+    }
+}
+
+void TestNodeItem::verifyIndices(const core::NodeItem* node)
+{
+    const auto indices = node->childEdges()
+        | core::asTargetNodes
+        | core::asIndexRow
+        | std::ranges::to<std::unordered_set>()
+        ;
+
+    QCOMPARE(indices.size(), node->childEdges().size());
+}
+
+void TestNodeItem::doRandomRotations(core::NodeItem* node, const QPair<qreal, qreal>& weights, int count)
+{
+    std::discrete_distribution<> dd({weights.first, weights.second});
+    for (int i = 0; i < count; ++i) {
+        const auto randomPick = dd(*QRandomGenerator::global());
+        QVERIFY(randomPick == 0 || randomPick == 1);
+        const auto rot = randomPick == 0 ? core::Rotation::CCW : core::Rotation::CW;
+        node->rotate(rot);
+
+#ifdef TEST_TRACK_STEPS
+        _steps += QString("%1(%2),")
+            .arg(rot == core::Rotation::CCW ? "CCW" : "CW")
+            .arg(QString::number(count));
+#endif
+    }
+}
+
+void TestNodeItem::randomOpen(const core::NodeItem* node, int count)
+{
+    auto candidates = node->childEdges()
+        | core::asTargetNodes
+        | views::filter(&core::NodeItem::isDir)
+        | views::filter(std::not_fn(&core::NodeItem::isOpen))
+        | ranges::to<std::vector>()
+        ;
+    std::ranges::shuffle(candidates, *QRandomGenerator::global());
+
+    for (auto* child : candidates | std::views::take(count)) {
+        QVERIFY(!child->isOpen());
+        child->open();
+
+#ifdef TEST_TRACK_STEPS
+        _steps += QString("O(%1),").arg(child->name());
+#endif
+    }
+}
+
+void TestNodeItem::randomClose(const core::NodeItem* node, int count)
+{
+    auto candidates = node->childEdges()
+        | core::asTargetNodes
+        | views::filter(&core::NodeItem::isDir)
+        | views::filter(std::not_fn(&core::NodeItem::isClosed))
+        | ranges::to<std::vector>()
+        ;
+    std::ranges::shuffle(candidates, *QRandomGenerator::global());
+
+    for (auto* child : candidates | std::views::take(count)) {
+        QVERIFY(!child->isClosed());
+        child->close();
+
+#ifdef TEST_TRACK_STEPS
+        _steps += QString("C(%1),").arg(child->name());
+#endif
+    }
+}
+
+void TestNodeItem::closeAll(core::NodeItem* node)
+{
+    auto notClosed = node->childEdges()
+        | core::asTargetNodes
+        | views::filter(&core::NodeItem::isDir)
+        | views::filter(std::not_fn(&core::NodeItem::isClosed));
+
+    for (auto* child : notClosed) {
+        child->close();
+    }
+}
+
+
+QTEST_MAIN(TestNodeItem)
