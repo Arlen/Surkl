@@ -1267,9 +1267,18 @@ void Animator::animatePageRotation(NodeItem* node, Rotation rot, int page)
     startAnimation(node);
 }
 
-QVariantAnimation *Animator::createAnimation(const NodeItem *node, int duration)
+void Animator::animateRelayout(NodeItem* node, EdgeItem* closedEdge)
 {
+    auto* seq  = getSeq(node);
+    auto* anim = createVariantAnimation(200);
+    addRelayout(node, closedEdge, anim);
 
+    if (const auto* current = seq->currentAnimation(); current) {
+        seq->insertAnimation(seq->indexOfAnimation(seq->currentAnimation()) + 1, anim);
+    } else {
+        seq->insertAnimation(0, anim);
+    }
+    startAnimation(node);
 }
 
 void Animator::startAnimation(const NodeItem* node)
@@ -1317,29 +1326,37 @@ void Animator::addRotation(NodeItem* node, const Rotation& rot, QVariantAnimatio
     });
 }
 
-template <class Mapping>
-void Animator::addTransition(NodeItem* node, const Mapping& mapping)
+void Animator::addRelayout(NodeItem* node, EdgeItem* closedEdge, QVariantAnimation* va)
 {
-    // auto* va = _seqAnimations[node];
-    // Q_ASSERT(va);
-    //
-    // va->setStartValue(0.0);
-    // va->setEndValue(1.0);
-    //
-    // connect(va, &QVariantAnimation::valueChanged,
-    //     [mapping] (const QVariant& value)
-    //     {
-    //         auto ok = false;
-    //         const qreal t = value.toReal(&ok);
-    //         Q_ASSERT(ok);
-    //
-    //         for (auto [k,v] : mapping) {
-    //             const auto line = QLineF(v.before, v.after);
-    //             k->setPos(line.pointAt(t));
-    //         }
-    //     });
-}
+    Q_ASSERT(node);
+    Q_ASSERT(va);
 
+    connect(va, &QVariantAnimation::stateChanged,
+    [this, node, closedEdge, va](QAbstractAnimation::State newState, QAbstractAnimation::State oldState)
+    {
+        if (oldState == QAbstractAnimation::Stopped && newState == QAbstractAnimation::Running) {
+            disconnect(va, &QVariantAnimation::stateChanged, nullptr, nullptr);
+            startRelayout(node, closedEdge, va);
+        }
+    });
+
+    connect(va, &QVariantAnimation::valueChanged,
+    [this, va] (const QVariant& value)
+    {
+        Q_ASSERT(va->state() == QAbstractAnimation::Running);
+        Q_ASSERT(_varData.contains(va));
+
+        auto ok         = false;
+        const auto t    = value.toReal(&ok); Q_ASSERT(ok);
+        const auto data = _varData[va].value<SpreadAnimationData>();
+
+        for (QHashIterator it(data.movement); it.hasNext(); ) {
+            it.next();
+            const auto line = QLineF(it.value().oldPos, it.value().newPos);
+            it.key()->setPos(line.pointAt(t));
+        }
+    });
+}
 
 void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va)
 {
@@ -1355,6 +1372,7 @@ void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va
     }
 
     auto* toGrow = data.toGrow;
+    Q_ASSERT(toGrow != nullptr);
 
     toGrow->setOpacity(0.0);
     toGrow->target()->setOpacity(0.0);
@@ -1364,15 +1382,37 @@ void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va
     _varData.emplace(va, QVariant::fromValue(data));
 }
 
+void Animator::startRelayout(NodeItem *node, EdgeItem *closedEdge, QVariantAnimation *va)
+{
+    Q_ASSERT(!_varData.contains(va));
+
+    node->doInternalRotationAfterClose(closedEdge);
+    const auto data = spreadWithData(node);
+
+    if (data.movement.empty()) {
+        disconnect(va, &QVariantAnimation::valueChanged, nullptr, nullptr);
+        va->stop();
+
+        return;
+    }
+
+    _varData.emplace(va, QVariant::fromValue(data));
+}
+
+
 QSequentialAnimationGroup* Animator::getSeq(const NodeItem* node)
 {
-    if (auto found = _seqs.find(node); found == _seqs.end()) {
+    if (const auto found = _seqs.find(node); found == _seqs.end()) {
         auto* seq = new QSequentialAnimationGroup(this);
 
         connect(seq, &QAbstractAnimation::finished,
         [this, node]
         {
             clearSequence(node);
+
+#ifdef TEST_FAST_ANIMATIONS
+            emit node->fsScene()->sequenceFinished();
+#endif
         });
 
         _seqs.emplace(node, seq);
@@ -1399,15 +1439,37 @@ void Animator::clearSequence(const NodeItem* node)
     seq->clear();
 }
 
+QVariantAnimation* Animator::createVariantAnimation(int duration)
+{
+    auto* va = new QVariantAnimation(this);
+
+#ifdef TEST_FAST_ANIMATIONS
+    duration = 1;
+#endif
+
+    va->setLoopCount(1);
+    va->setDuration(duration);
+    va->setStartValue(0.0);
+    va->setEndValue(1.0);
+    va->setEasingCurve(QEasingCurve::OutSine);
+
+    return va;
+}
+
 /// (progressively) shortent the duration of animations as they get added
 /// to the queue.  This can happen when rotation is repeatedly triggered,
 /// and we don't want them to pile up.
-void Animator::fastforward(QSequentialAnimationGroup* seq)
+void Animator::fastforward(const QSequentialAnimationGroup* seq)
 {
     if (const auto count = seq->animationCount(); count > 0) {
         const auto head  = seq->indexOfAnimation(seq->currentAnimation()) + 1;
         const auto len   = count - head;
+
+#ifdef TEST_FAST_ANIMATIONS
+        const auto fast  = 1;
+#else
         const auto fast  = qMax(10, 125 / qMax(1, len));
+#endif
 
         for (int i = head; i < seq->animationCount(); ++i) {
             if (auto* va = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); va) {
@@ -1421,19 +1483,6 @@ void Animator::fastforward(QSequentialAnimationGroup* seq)
             }
         }
     }
-}
-
-QVariantAnimation* Animator::createVariantAnimation(int duration)
-{
-    auto* va = new QVariantAnimation(this);
-
-    va->setLoopCount(1);
-    va->setDuration(duration);
-    va->setStartValue(0.0);
-    va->setEndValue(1.0);
-    va->setEasingCurve(QEasingCurve::OutSine);
-
-    return va;
 }
 
 void Animator::interpolate(qreal t, const InternalRotation& data)
@@ -1450,12 +1499,14 @@ void Animator::interpolate(qreal t, const InternalRotation& data)
         ca.next();
 
         auto* child = ca.key();
-        auto ang    = ca.value();
+        const auto angle  = ca.value();
         Q_ASSERT(deltas.contains(child));
-        const qreal dir = t * deltas.value(child, 0.0);
 
+        const qreal displacement = t * deltas.value(child, 0.0);
+        const auto newAngle = angle + displacement;
         auto line = QLineF(node->scenePos(), child->scenePos());
-        line.setAngle(ang + dir);
+
+        line.setAngle(newAngle);
         child->setPos(line.p2());
     }
 

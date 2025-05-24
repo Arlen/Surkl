@@ -158,21 +158,21 @@ namespace  core
     public:
         void animateRotation(NodeItem* node, Rotation rot);
         void animatePageRotation(NodeItem* node, Rotation rot, int page);
-        template <class Mapping>
-        void addTransition(NodeItem* node, const Mapping& mapping);
+        void animateRelayout(NodeItem* node, EdgeItem* closedEdge);
 
     private:
         void startAnimation(const NodeItem* node);
-        void addRotation(NodeItem* node, const Rotation& rot, QVariantAnimation*);
+        void addRotation(NodeItem* node, const Rotation& rot, QVariantAnimation* va);
+        void addRelayout(NodeItem* node, EdgeItem* closedEdge, QVariantAnimation* va);
 
         void startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va);
+        void startRelayout(NodeItem* node, EdgeItem* closedEdge, QVariantAnimation* va);
 
         QSequentialAnimationGroup* getSeq(const NodeItem* node);
         void clearSequence(const NodeItem* node);
-        void fastforward(QSequentialAnimationGroup* seq);
-
         QVariantAnimation* createVariantAnimation(int duration);
 
+        static void fastforward(const QSequentialAnimationGroup* seq);
         static void interpolate(qreal t, const InternalRotation& data);
 
         std::unordered_map<const NodeItem*, QSequentialAnimationGroup*> _seqs;
