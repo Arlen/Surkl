@@ -9,6 +9,7 @@
 #include <QPersistentModelIndex>
 
 #include <deque>
+#include <ranges>
 #include <unordered_map>
 #include <vector>
 
@@ -177,4 +178,52 @@ namespace  core
         std::unordered_map<const NodeItem*, QSequentialAnimationGroup*> _seqs;
         std::unordered_map<const QVariantAnimation*, QVariant> _varData;
     };
+
+
+    inline NodeItem* asNodeItem(QGraphicsItem* item)
+    {
+        Q_ASSERT(item != nullptr);
+
+        return qgraphicsitem_cast<NodeItem*>(item);
+    }
+
+    inline auto isFileOrClosed = [](const EdgeItem* item) -> bool
+    {
+        const auto* node = asNodeItem(item->target());
+
+        return !node->isDir() || node->isClosed();
+    };
+
+    inline auto asTargetNodes
+        = std::views::transform(&EdgeItem::target)
+        | std::views::transform(&asNodeItem)
+        ;
+
+    inline auto asFilesOrClosedTargetNodes
+        = asTargetNodes
+        | std::views::filter([](const NodeItem* node)
+            { return !node->isDir() || node->isClosed(); })
+        ;
+
+    inline auto asNotClosedTargetNodes
+        = asTargetNodes
+        | std::views::filter(&NodeItem::isDir)
+        | std::views::filter(std::not_fn(&NodeItem::isClosed))
+        ;
+
+    inline auto asFilesOrClosedEdges
+        = asFilesOrClosedTargetNodes
+        | std::views::transform(&NodeItem::parentEdge)
+        ;
+
+    inline auto asIndex = std::views::transform(&NodeItem::index);
+    inline auto asIndexRow
+        = asIndex
+        | std::views::transform(&QPersistentModelIndex::row)
+        ;
+
+    inline auto asTargetNodeIndex
+        = asTargetNodes
+        | asIndex
+        ;
 }

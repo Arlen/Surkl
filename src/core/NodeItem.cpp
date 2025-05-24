@@ -59,13 +59,6 @@ namespace
         return result;
     }
 
-    NodeItem* asNodeItem(QGraphicsItem* item)
-    {
-        Q_ASSERT(item != nullptr);
-
-        return qgraphicsitem_cast<NodeItem*>(item);
-    }
-
     bool isRoot(const QGraphicsItem* node)
     {
         return qgraphicsitem_cast<const RootItem*>(node) != nullptr;
@@ -226,38 +219,6 @@ namespace
         p->setPen(Qt::NoPen);
         p->drawPath(node->shape());
     }
-
-
-    auto asTargetNodes
-        = views::transform(&EdgeItem::target)
-        | views::transform(&asNodeItem)
-        ;
-
-    auto asClosedTargetNodes
-        = asTargetNodes
-        | views::filter(&NodeItem::isClosed)
-        ;
-
-    auto asNotClosedTargetNodes
-        = asTargetNodes
-        | views::filter(std::not_fn(&NodeItem::isClosed))
-        ;
-
-    auto asClosedEdges
-        = asClosedTargetNodes
-        | views::transform(&NodeItem::parentEdge)
-        ;
-
-    auto asIndex = views::transform(&NodeItem::index);
-    auto asIndexRow
-        = asIndex
-        | views::transform(&QPersistentModelIndex::row)
-        ;
-
-    auto asTargetNodeIndex
-        = asTargetNodes
-        | asIndex
-        ;
 }
 
 
