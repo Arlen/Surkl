@@ -455,9 +455,7 @@ void NodeItem::reload(int start, int end)
                 setAllEdgeState(this, EdgeItem::ActiveState);
                 //adjustAllEdges(this);
 
-                //animator->disable();
                 skipTo(start);
-                //animator->enable();
 
                 setAllEdgeState(this, EdgeItem::CollapsedState);
                 //setState(FolderState::HalfClosed);
@@ -1098,22 +1096,13 @@ InternalRotation NodeItem::doInternalRotation(Rotation rot)
 
 void NodeItem::skipTo(int row)
 {
-    //animator->beginAnimation(this, 250);
-
-    doSkipTo(row);
-
-    //animator->endAnimation(this);
-}
-
-void NodeItem::doSkipTo(int row)
-{
     const auto rowCount = _index.model()->rowCount(_index);
 
     Q_ASSERT(_childEdges.size() <= rowCount);
 
-    auto closedNodes = _childEdges | asClosedTargetNodes;
+    auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
 
-    if (closedNodes.empty()) {
+    if (availableNodes.empty()) {
         return;
     }
 
@@ -1129,7 +1118,7 @@ void NodeItem::doSkipTo(int row)
         | ranges::to<std::unordered_set>()
         ;
 
-    const auto rows = ranges::distance(closedNodes);
+    const auto rows = ranges::distance(availableNodes);
 
     std::deque<QPersistentModelIndex> newIndices;
 
@@ -1144,6 +1133,7 @@ void NodeItem::doSkipTo(int row)
     } while (newIndices.size() < rows);
 
     target = _index.model()->index(row - 1, 0, _index);
+
     while (newIndices.size() < rows) {
         if (!target.isValid()) { break; }
         if (openOrHalfClosedRows.contains(target.row())) {
@@ -1156,12 +1146,9 @@ void NodeItem::doSkipTo(int row)
 
     Q_ASSERT(newIndices.size() == rows);
 
-    for (auto* node : closedNodes) {
+    for (auto* node : availableNodes) {
         if (auto newIndex = newIndices.front(); node->index() != newIndex) {
-            const auto rot = node->index().row() < newIndex.row()
-                ? Rotation::CCW : Rotation::CW;
             node->setIndex(newIndex);
-           // animator->addRotation(node->parentEdge(), rot, node->name());
             node->parentEdge()->setText(node->name());
         }
         newIndices.pop_front();
@@ -1285,7 +1272,7 @@ void core::updateAllChildNodes(const NodeItem* node)
 /// only used on closed nodes, but can be made more general if needed.
 void core::setAllEdgeState(const NodeItem* node, EdgeItem::State state)
 {
-    for (auto* edge : node->childEdges() | asClosedEdges) {
+    for (auto* edge : node->childEdges() | asFilesOrClosedEdges) {
         edge->setState(state);
     }
 }

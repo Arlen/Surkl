@@ -147,7 +147,6 @@ namespace  core
         void doInternalRotationAfterClose(EdgeItem* closedEdge);
         InternalRotation doInternalRotation(Rotation rot);
         void skipTo(int row);
-        void doSkipTo(int row);
 
         void spread(QPointF dxy = QPointF(0,0));
 
