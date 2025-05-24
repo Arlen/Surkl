@@ -890,11 +890,11 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
     Q_ASSERT(asNodeItem(closedEdge->target())->isClosed());
     Q_ASSERT(asNodeItem(closedEdge->target())->index().isValid());
 
-    auto closedIndices = _childEdges
+    const auto fileOrClosedIndices = _childEdges
         | views::filter([closedEdge](EdgeItem* edge) -> bool
             { return edge != closedEdge; })
-        | asClosedTargetNodes
-        | views::transform(&NodeItem::index)
+        | asFilesOrClosedTargetNodes
+        | asIndex
         | ranges::to<std::deque>()
         ;
 
@@ -904,7 +904,7 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
         /// need to call both adjustAllEdges() and spread(). closedEdge is about
         /// to go into collapsed state, and without adjustAllEdges(), parts of
         /// it will remain un-collapsed.  spread() will indirectly trigger a
-        /// call to adjustAllEdges(), but only if causes a change in position.
+        /// call to adjustAllEdges(), but only if it causes a change in position.
         /// a call to spread() is needed for when closedEdge doesn't line up
         /// with reset of the collapsed edges.
         spread();
@@ -912,66 +912,61 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
         /// these two lines are also used in ::reload() in very similar use case.
         adjustAllEdges(this);
     }
-    if (closedIndices.empty()) { return; }
+    if (fileOrClosedIndices.empty()) { return; }
 
-    const auto openOrHalfClosedRows = _childEdges
-        | asNotClosedTargetNodes
-        | asIndexRow
-        | ranges::to<std::unordered_set>()
-        ;
+    const auto usedRows = _childEdges | asTargetNodes | asIndexRow
+        | ranges::to<std::unordered_set>();
 
     auto isGap = [](const QPersistentModelIndex& lhs, const QPersistentModelIndex& rhs)
         { return lhs.row() + 1 < rhs.row(); };
-    const auto first = closedIndices.begin();
-    const auto last  = closedIndices.end() - 1;
+    const auto first = fileOrClosedIndices.begin();
+    const auto last  = fileOrClosedIndices.end() - 1;
 
-    for (auto gap = ranges::adjacent_find(closedIndices, isGap); gap != closedIndices.end(); ) {
+    auto assignIndex = [](EdgeItem* edge, const QPersistentModelIndex& index) {
+        asNodeItem(edge->target())->setIndex(index);
+        edge->setText(asNodeItem(edge->target())->name());
+    };
+
+    auto sortByRows = [](EdgeDeque& edges) {
+        std::ranges::sort(edges, [](const EdgeItem* a, const EdgeItem* b) {
+            return asNodeItem(a->target())->index().row() <
+                asNodeItem(b->target())->index().row();
+        });
+    };
+
+    for (auto gap = ranges::adjacent_find(fileOrClosedIndices, isGap); gap != fileOrClosedIndices.end(); ) {
         /// if there is one or more gaps, then there might be a suitable index,
         /// but the gap(s) could be wide and partially or completely be filled
         /// with open/half-closed nodes: try to find a suitable index.
-        const auto end = (gap+1)->row();
+
+        Q_ASSERT(std::next(gap) != fileOrClosedIndices.end());
+        const auto end = std::next(gap)->row();
         Q_ASSERT(gap->row() + 1 < end);
         for (auto start = gap->row() + 1; start != end; ++start) {
-            if (const auto sibling = gap->sibling(start, 0); sibling.isValid() && !openOrHalfClosedRows.contains(sibling.row())) {
-                closedIndices.insert(gap + 1, sibling);
-                goto RELAYOUT;
+            if (const auto sibling = gap->sibling(start, 0);
+                sibling.isValid() && !usedRows.contains(sibling.row())) {
+                assignIndex(closedEdge, sibling);
+                return sortByRows(_childEdges);
             }
         }
-        gap = std::ranges::adjacent_find(gap + 1, closedIndices.end(), isGap);
+        gap = std::ranges::adjacent_find(std::next(gap), fileOrClosedIndices.end(), isGap);
     }
 
     for (int k = 0, i = -1; k < NODE_CHILD_COUNT; ++k, --i) {
         if (auto before = first->sibling(first->row() + i, 0);
-            before.isValid() && !openOrHalfClosedRows.contains(before.row())) {
-            closedIndices.push_front(before);
-            goto RELAYOUT;
+            before.isValid() && !usedRows.contains(before.row())) {
+            assignIndex(closedEdge, before);
+            return sortByRows(_childEdges);
         }
     }
     for (int k = 0, i = 1; k < NODE_CHILD_COUNT; ++k, ++i) {
         if (auto after = last->sibling(last->row() + i, 0);
-            after.isValid() && !openOrHalfClosedRows.contains(after.row())) {
-            closedIndices.push_back(after);
-            goto RELAYOUT;
+            after.isValid() && !usedRows.contains(after.row())) {
+            assignIndex(closedEdge, after);
+            return sortByRows(_childEdges);
         }
     }
-
-    RELAYOUT:
-
-    auto closedNodes = _childEdges | asClosedTargetNodes;
-
-    Q_ASSERT(std::ranges::all_of(closedIndices, &QPersistentModelIndex::isValid));
-    Q_ASSERT(ranges::distance(closedNodes) == closedIndices.size());
-
-    for (int k = 0; auto* node : closedNodes) {
-        auto newIndex = closedIndices[k++];
-        Q_ASSERT(newIndex.isValid());
-        auto oldIndex = node->index();
-        if (newIndex == oldIndex) { continue; }
-        node->setIndex(newIndex);
-        // animator->addRotation(node->parentEdge()
-        //     , newIndex.row() > oldIndex.row() ? Rotation::CCW : Rotation::CW
-        //     , node->name());
-    }
+    Q_ASSERT(false);
 }
 
 /// performs CCW or CW rotation.
