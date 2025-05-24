@@ -77,9 +77,23 @@ namespace  core
         QHash<QGraphicsItem*, qreal> angles;
     };
 
+    struct SpreadAnimationData
+    {
+        struct Movement
+        {
+            QPointF oldPos;
+            QPointF newPos;
+        };
+
+        QHash<QGraphicsItem*, Movement> movement;
+    };
+
     class NodeItem final : public QGraphicsItem
     {
     public:
+        /// fixed for now.
+        static constexpr int NODE_CHILD_COUNT = 6;
+
         enum { Type = UserType + 2 };
 
         explicit NodeItem(const QPersistentModelIndex& index);
@@ -144,6 +158,8 @@ namespace  core
         KnotItem* _knot{nullptr};
 
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
+
+        friend class Animator;
     };
 
     using NodeVector = std::vector<NodeItem*>;
@@ -153,6 +169,9 @@ namespace  core
     void adjustAllEdges(const NodeItem* node);
     void updateAllChildNodes(const NodeItem* node);
     void setAllEdgeState(const NodeItem* node, EdgeItem::State state);
+    auto spreadWithAnimation(const NodeItem* node);
+
+
     class Animator final : public QObject
     {
     public:

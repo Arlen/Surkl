@@ -36,9 +36,6 @@ namespace
     constexpr qreal NODE_CLOSED_PEN_WIDTH      = EDGE_WIDTH * GOLDEN;
     constexpr qreal NODE_HALF_CLOSED_PEN_WIDTH = NODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
 
-    /// fixed for now.
-    constexpr int NODE_CHILD_COUNT = 16;
-
 
     std::deque<QLineF> circle(int sides, qreal startAngle = 0.0)
     {
@@ -221,9 +218,68 @@ namespace
     }
 }
 
+/// TODO: this is very similar to NodeItem::spread().
+auto core::spreadWithAnimation(const NodeItem* node)
+{
+    auto edgeOf = [node](const QGraphicsItem* item) {
+        return QLineF(QPointF(0, 0), node->mapFromItem(item, QPointF(0, 0)));
+    };
+    const auto sides = node->childEdges().size() + (node->parentEdge() ? 1 : 0) + 1;
+    auto guides      = circle(static_cast<int>(sides), edgeOf(node->knot()).angle());
 
+    auto intersectsWith = [](const QLineF& line)
+    {
+        return [line](const QLineF& other) -> bool
+        {
+            return other.intersects(line) == QLineF::BoundedIntersection;
+        };
+    };
+    auto removeIfIntersects = [&guides, edgeOf, intersectsWith](const QGraphicsItem* item) {
+        /// using find_if b/c only one guide edge per intersecting edge should
+        /// be removed. e.g., when 'guides' contains only two lines, parentEdge
+        /// will most likely intersect with two.
+        const auto ignored = ranges::find_if(guides, intersectsWith(edgeOf(item)));
+        if (ignored != guides.end()) {
+            guides.erase(ignored);
+        }
+    };
 
+    if (node->parentEdge()) { removeIfIntersects(node->parentEdge()->source()); }
+    if (node->knot()) { removeIfIntersects(node->knot()); }
 
+    for (const auto* child : node->childEdges() | asNotClosedTargetNodes) {
+        removeIfIntersects(child);
+    }
+
+    auto includedNodes = node->childEdges() | asFilesOrClosedTargetNodes;
+
+    SpreadAnimationData result;
+
+    for (auto* child : includedNodes) {
+        if (guides.empty()) {
+            break;
+        }
+        const auto oldPos = child->scenePos();
+        const auto guide  = guides.front();
+        const auto norm   = guide.normalVector();
+
+        /// TODO: node lengths are unique to each File/Folder, and have default
+        /// value of 144 for now.  If the edge length is changed by the user, it
+        /// is saved in the Model and then in the DB.
+        auto childLine = QLineF(node->pos(), node->pos() + QPointF(1, 1));
+        childLine.setLength(144);
+        childLine.setAngle(norm.angle());
+
+        if (const auto newPos = childLine.p2(); oldPos != newPos) {
+            result.movement.insert(child, {oldPos, newPos});
+        }
+        guides.pop_front();
+    }
+
+    return result;
+}
+
+Q_GLOBAL_STATIC(core::Animator, animator)
 
 ////////////////
 /// RootItem ///
@@ -868,13 +924,7 @@ void NodeItem::destroyChildren()
 
 void NodeItem::internalRotationAfterClose(EdgeItem* closedEdge)
 {
-    //animator->beginAnimation(this, 250);
-
-    doInternalRotationAfterClose(closedEdge);
-    updateAllChildNodes(this);
-    update();
-
-   // animator->endAnimation(this);
+    animator->animateRelayout(this, closedEdge);
 }
 
 /// This is basically a sorting of all closed edges.
@@ -1387,7 +1437,7 @@ void Animator::startRelayout(NodeItem *node, EdgeItem *closedEdge, QVariantAnima
     Q_ASSERT(!_varData.contains(va));
 
     node->doInternalRotationAfterClose(closedEdge);
-    const auto data = spreadWithData(node);
+    const auto data = spreadWithAnimation(node);
 
     if (data.movement.empty()) {
         disconnect(va, &QVariantAnimation::valueChanged, nullptr, nullptr);
