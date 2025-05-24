@@ -126,7 +126,6 @@ EdgeItem::EdgeItem(QGraphicsItem* source, QGraphicsItem* target)
 
 void EdgeItem::setText(const QString& text) const
 {
-    Q_ASSERT(_label->isVisible());
     _label->alignToAxis(lineWithMargin(), text);
 }
 
