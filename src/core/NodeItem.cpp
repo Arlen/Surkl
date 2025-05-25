@@ -952,9 +952,11 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
     Q_ASSERT(asNodeItem(closedEdge->target())->isClosed());
     Q_ASSERT(asNodeItem(closedEdge->target())->index().isValid());
 
-    const auto fileOrClosedIndices = _childEdges
+    auto allButClosedEdge = _childEdges
         | views::filter([closedEdge](EdgeItem* edge) -> bool
-            { return edge != closedEdge; })
+            { return edge != closedEdge; });
+
+    const auto fileOrClosedIndices = allButClosedEdge
         | asFilesOrClosedTargetNodes
         | asIndex
         | ranges::to<std::deque>()
@@ -976,7 +978,8 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
     }
     if (fileOrClosedIndices.empty()) { return; }
 
-    const auto usedRows = _childEdges | asTargetNodes | asIndexRow
+    const auto usedRows = allButClosedEdge
+        | asTargetNodes | asIndexRow
         | ranges::to<std::unordered_set>();
 
     auto isGap = [](const QPersistentModelIndex& lhs, const QPersistentModelIndex& rhs)
