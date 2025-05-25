@@ -178,6 +178,7 @@ namespace  core
         void animateRotation(NodeItem* node, Rotation rot);
         void animatePageRotation(NodeItem* node, Rotation rot, int page);
         void animateRelayout(NodeItem* node, EdgeItem* closedEdge);
+        void clearAnimations(NodeItem* node);
 
     private:
         void startAnimation(const NodeItem* node);

@@ -678,6 +678,10 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 
 void NodeItem::close()
 {
+    Q_ASSERT(isDir() && (isOpen() || isHalfClosed()));
+
+    animator->clearAnimations(this);
+
     destroyChildren();
     setState(FolderState::Closed);
 
@@ -699,6 +703,8 @@ void NodeItem::halfClose()
 
 void NodeItem::closeOrHalfClose(bool forceClose)
 {
+    Q_ASSERT(isDir() && (isOpen() || isHalfClosed()));
+
     _knot->hide();
     if (hasOpenOrHalfClosedChild()) {
         /// pick half closing as it is less destructive, unless the user is
@@ -1335,6 +1341,26 @@ void Animator::animateRelayout(NodeItem* node, EdgeItem* closedEdge)
         seq->insertAnimation(0, anim);
     }
     startAnimation(node);
+}
+
+void Animator::clearAnimations(NodeItem* node)
+{
+    if (auto foundSeq = _seqs.find(node); foundSeq != _seqs.end()) {
+        auto* seq = foundSeq->second;
+        seq->stop();
+        for (int i = 0; i < seq->animationCount(); ++i) {
+            if (const auto* anim = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); anim) {
+                /// _varData may not contain 'anim' because it was never added in start#().
+                if (auto foundData = _varData.find(anim); foundData != _varData.end()) {
+                    _varData.erase(foundData);
+                }
+            }
+        }
+
+        seq->clear();
+        _seqs.erase(node);
+        delete seq;
+    }
 }
 
 void Animator::startAnimation(const NodeItem* node)
