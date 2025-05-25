@@ -196,7 +196,7 @@ namespace  core
         static void interpolate(qreal t, const InternalRotation& data);
 
         std::unordered_map<const NodeItem*, QSequentialAnimationGroup*> _seqs;
-        std::unordered_map<const QVariantAnimation*, QVariant> _varData;
+        std::unordered_map<const QVariantAnimation*, QVariant> _animData;
     };
 
 

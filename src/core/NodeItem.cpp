@@ -1351,8 +1351,8 @@ void Animator::clearAnimations(NodeItem* node)
         for (int i = 0; i < seq->animationCount(); ++i) {
             if (const auto* anim = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); anim) {
                 /// _varData may not contain 'anim' because it was never added in start#().
-                if (auto foundData = _varData.find(anim); foundData != _varData.end()) {
-                    _varData.erase(foundData);
+                if (auto foundData = _animData.find(anim); foundData != _animData.end()) {
+                    _animData.erase(foundData);
                 }
             }
         }
@@ -1398,11 +1398,11 @@ void Animator::addRotation(NodeItem* node, const Rotation& rot, QVariantAnimatio
     [this, va] (const QVariant& value)
     {
         Q_ASSERT(va->state() == QAbstractAnimation::Running);
-        Q_ASSERT(_varData.contains(va));
+        Q_ASSERT(_animData.contains(va));
 
         auto ok         = false;
         const auto t    = value.toReal(&ok); Q_ASSERT(ok);
-        const auto data = _varData[va].value<InternalRotation>();
+        const auto data = _animData[va].value<InternalRotation>();
 
         interpolate(t, data);
     });
@@ -1426,11 +1426,11 @@ void Animator::addRelayout(NodeItem* node, EdgeItem* closedEdge, QVariantAnimati
     [this, va] (const QVariant& value)
     {
         Q_ASSERT(va->state() == QAbstractAnimation::Running);
-        Q_ASSERT(_varData.contains(va));
+        Q_ASSERT(_animData.contains(va));
 
         auto ok         = false;
         const auto t    = value.toReal(&ok); Q_ASSERT(ok);
-        const auto data = _varData[va].value<SpreadAnimationData>();
+        const auto data = _animData[va].value<SpreadAnimationData>();
 
         for (QHashIterator it(data.movement); it.hasNext(); ) {
             it.next();
@@ -1442,7 +1442,7 @@ void Animator::addRelayout(NodeItem* node, EdgeItem* closedEdge, QVariantAnimati
 
 void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va)
 {
-    Q_ASSERT(!_varData.contains(va));
+    Q_ASSERT(!_animData.contains(va));
 
     const auto data = node->doInternalRotation(rot);
 
@@ -1461,12 +1461,12 @@ void Animator::startRotation(NodeItem* node, Rotation rot, QVariantAnimation* va
     toGrow->show();
     toGrow->target()->show();
 
-    _varData.emplace(va, QVariant::fromValue(data));
+    _animData.emplace(va, QVariant::fromValue(data));
 }
 
 void Animator::startRelayout(NodeItem *node, EdgeItem *closedEdge, QVariantAnimation *va)
 {
-    Q_ASSERT(!_varData.contains(va));
+    Q_ASSERT(!_animData.contains(va));
 
     node->doInternalRotationAfterClose(closedEdge);
     const auto data = spreadWithAnimation(node);
@@ -1478,7 +1478,7 @@ void Animator::startRelayout(NodeItem *node, EdgeItem *closedEdge, QVariantAnima
         return;
     }
 
-    _varData.emplace(va, QVariant::fromValue(data));
+    _animData.emplace(va, QVariant::fromValue(data));
 }
 
 
@@ -1511,9 +1511,9 @@ void Animator::clearSequence(const NodeItem* node)
 
     for (int i = 0; i < seq->animationCount(); ++i) {
         if (const auto* anim = qobject_cast<QVariantAnimation*>(seq->animationAt(i)); anim) {
-            /// _varData may not contain 'anim' because it was never added in startRotation.
-            if (auto found = _varData.find(anim); found != _varData.end()) {
-                _varData.erase(found);
+            /// _varData may not contain 'anim' because it was never added in start#().
+            if (auto found = _animData.find(anim); found != _animData.end()) {
+                _animData.erase(found);
             }
         }
     }
