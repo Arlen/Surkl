@@ -932,6 +932,10 @@ void NodeItem::destroyChildren()
     }
 
     _childEdges.clear();
+
+    Q_ASSERT(scene()->items().contains(_extra));
+    scene()->removeItem(_extra);
+    delete _extra;
 }
 
 void NodeItem::internalRotationAfterClose(EdgeItem* closedEdge)
