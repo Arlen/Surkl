@@ -720,10 +720,11 @@ void NodeItem::open()
     if (_state == FolderState::Closed) {
         Q_ASSERT(_childEdges.empty());
         _knot->show();
-
         setState(FolderState::Open);
         extend(this);
+        Q_ASSERT(_extra == nullptr);
         init();
+        Q_ASSERT(_extra != nullptr);
         skipTo(0);
         spread();
 
@@ -899,6 +900,18 @@ void NodeItem::destroyChildren()
     /// "it is more efficient to remove the item from the QGraphicsScene
     /// before destroying the item." -- Qt docs
 
+    auto destroyEdge = [this](EdgeItem* edge) {
+        auto* node = edge->target();
+
+        Q_ASSERT(scene()->items().contains(node));
+        scene()->removeItem(node);
+        delete node;
+
+        Q_ASSERT(scene()->items().contains(edge));
+        scene()->removeItem(edge);
+        delete edge;
+    };
+
     std::stack stack(_childEdges.begin(), _childEdges.end());
 
     while (!stack.empty()) {
@@ -912,30 +925,21 @@ void NodeItem::destroyChildren()
             if (childNode->isOpen() || childNode->isHalfClosed()) {
                 stack.emplace(childEdge);
             } else {
-                Q_ASSERT(scene()->items().contains(childNode));
-                scene()->removeItem(childNode);
-                delete childNode;
-                Q_ASSERT(scene()->items().contains(childEdge));
-                scene()->removeItem(childEdge);
-                delete childEdge;
+                destroyEdge(childEdge);
             }
         }
         node->_childEdges.clear();
 
-        Q_ASSERT(scene()->items().contains(node));
-        scene()->removeItem(node);
-        delete node;
-
-        Q_ASSERT(scene()->items().contains(edge));
-        scene()->removeItem(edge);
-        delete edge;
+        if (node->_extra) {
+            destroyEdge(_extra);
+        }
+        destroyEdge(edge);
     }
 
     _childEdges.clear();
 
-    Q_ASSERT(scene()->items().contains(_extra));
-    scene()->removeItem(_extra);
-    delete _extra;
+    destroyEdge(_extra);
+    _extra = nullptr;
 }
 
 void NodeItem::internalRotationAfterClose(EdgeItem* closedEdge)
