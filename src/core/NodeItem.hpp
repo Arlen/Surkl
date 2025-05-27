@@ -26,13 +26,14 @@ namespace  core
         CCW, CW ///, NoRotation
     };
 
-    enum class FolderState
+    enum class NodeType
     {
-        Open,
-        Closed,
+        OpenNode = 0,
+        ClosedNode,
         /// half-closed b/c half opening doesn't make sense.
         /// Closing a folder closes the entire subtree.
-        HalfClosed
+        HalfClosedNode,
+        FileNode,
     };
 
 
@@ -110,11 +111,13 @@ namespace  core
         [[nodiscard]] QRectF boundingRect() const override;
         [[nodiscard]] QPainterPath shape() const override;
         [[nodiscard]] bool hasOpenOrHalfClosedChild() const;
-        [[nodiscard]] bool isDir() const;
 
-        [[nodiscard]] bool isClosed() const         { return _state == FolderState::Closed; }
-        [[nodiscard]] bool isOpen() const           { return _state == FolderState::Open; }
-        [[nodiscard]] bool isHalfClosed() const     { return _state == FolderState::HalfClosed; }
+        [[nodiscard]] bool isDir() const            { return _nodeType != NodeType::FileNode; }
+        [[nodiscard]] bool isFile() const           { return _nodeType == NodeType::FileNode; }
+        [[nodiscard]] bool isClosed() const         { return _nodeType == NodeType::ClosedNode; }
+        [[nodiscard]] bool isOpen() const           { return _nodeType == NodeType::OpenNode; }
+        [[nodiscard]] bool isHalfClosed() const     { return _nodeType == NodeType::HalfClosedNode; }
+        [[nodiscard]] NodeType nodeType() const     { return _nodeType; }
         [[nodiscard]] bool hasChildren() const      { return !_childEdges.empty(); }
         [[nodiscard]] int type() const override     { return Type; }
         [[nodiscard]] EdgeItem* parentEdge() const  { return _parentEdge; }
@@ -138,7 +141,7 @@ namespace  core
         void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
         void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
         void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-        void setState(FolderState state);
+        void setNodeType(NodeType type);
 
     private:
         FileSystemScene* fsScene() const;
@@ -150,7 +153,7 @@ namespace  core
 
         void spread(QPointF dxy = QPointF(0,0));
 
-        FolderState _state{FolderState::Closed};
+        NodeType _nodeType{NodeType::ClosedNode};
         QPersistentModelIndex _index;
         EdgeItem* _parentEdge{nullptr};
         EdgeDeque _childEdges;

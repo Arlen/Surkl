@@ -361,7 +361,7 @@ void KnotItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 ////////////
 NodeItem::NodeItem(const QPersistentModelIndex& index)
 {
-    setIndex(index);
+    _index = index;
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
 
     _knot = new KnotItem(this);
@@ -426,7 +426,7 @@ void NodeItem::init()
 
 void NodeItem::reload(int start, int end)
 {
-    if (_state == FolderState::Closed) {
+    if (_nodeType == NodeType::ClosedNode) {
        return;
     }
 
@@ -443,10 +443,10 @@ void NodeItem::reload(int start, int end)
 
         const auto sizeAfter = _childEdges.size();
         if (sizeBefore != sizeAfter) {
-            if (_state == FolderState::Open) {
+            if (_nodeType == NodeType::OpenNode) {
                 spread();
             }
-            else if (_state == FolderState::HalfClosed) {
+            else if (_nodeType == NodeType::HalfClosedNode) {
                 for (auto* n : nodes) {
                     n->parentEdge()->setState(EdgeItem::CollapsedState);
                 }
@@ -462,14 +462,14 @@ void NodeItem::reload(int start, int end)
                 skipTo(start);
 
                 setAllEdgeState(this, EdgeItem::CollapsedState);
-                //setState(FolderState::HalfClosed);
+                //setNodeType(NodeType::HalfClosed);
                 spread();
                 adjustAllEdges(this);
             }
         }
     }
 
-    if (_state == FolderState::Open) {
+    if (_nodeType == NodeType::OpenNode) {
         skipTo(start);
     }
 }
@@ -486,7 +486,7 @@ void NodeItem::unload(int start, int end)
         if (!node->index().isValid() && !node->isClosed()) {
             /// This is close() without the internalRotationAfterClose();
             node->destroyChildren();
-            node->setState(FolderState::Closed);
+            node->setNodeType(NodeType::ClosedNode);
             shrink(node);
         }
     }
@@ -554,6 +554,12 @@ void NodeItem::unload(int start, int end)
 void NodeItem::setIndex(const QPersistentModelIndex& index)
 {
     _index = index;
+
+    if (fsScene()->isDir(index)) {
+        _nodeType = NodeType::ClosedNode;
+    } else {
+        _nodeType = NodeType::FileNode;
+    }
 }
 
 QString NodeItem::name() const
@@ -570,20 +576,19 @@ QRectF NodeItem::boundingRect() const
 {
     qreal side = 1.0;
 
-    if (!fsScene()->isDir(_index)) {
+    switch (_nodeType) {
+    case NodeType::FileNode:
         side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
-    } else {
-        switch (_state) {
-        case FolderState::Open:
-            side = NODE_OPEN_DIAMETER + NODE_OPEN_PEN_WIDTH;
-            break;
-        case FolderState::Closed:
-            side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
-            break;
-        case FolderState::HalfClosed:
-            side = NODE_HALF_CLOSED_DIAMETER + NODE_HALF_CLOSED_PEN_WIDTH;
-            break;
-        }
+        break;
+    case NodeType::OpenNode:
+        side = NODE_OPEN_DIAMETER + NODE_OPEN_PEN_WIDTH;
+        break;
+    case NodeType::ClosedNode:
+        side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
+        break;
+    case NodeType::HalfClosedNode:
+        side = NODE_HALF_CLOSED_DIAMETER + NODE_HALF_CLOSED_PEN_WIDTH;
+        break;
     }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
@@ -598,20 +603,19 @@ QPainterPath NodeItem::shape() const
 {
     QPainterPath path;
 
-    if (!fsScene()->isDir(_index)) {
+    switch (_nodeType) {
+    case NodeType::FileNode:
         path = fileNodeShape(this, boundingRect());
-    } else {
-        switch (_state) {
-        case FolderState::Open:
-            path.addEllipse(boundingRect());
-            break;
-        case FolderState::Closed:
-            path = closedNodeShape(this, boundingRect());
-            break;
-        case FolderState::HalfClosed:
-            path.addEllipse(boundingRect());
-            break;
-        }
+        break;
+    case NodeType::OpenNode:
+        path.addEllipse(boundingRect());
+        break;
+    case NodeType::ClosedNode:
+        path = closedNodeShape(this, boundingRect());
+        break;
+    case NodeType::HalfClosedNode:
+        path.addEllipse(boundingRect());
+        break;
     }
 
     return path;
@@ -627,11 +631,6 @@ bool NodeItem::hasOpenOrHalfClosedChild() const
     });
 }
 
-bool NodeItem::isDir() const
-{
-    return fsScene()->isDir(_index);
-}
-
 void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
     Q_UNUSED(option);
@@ -643,15 +642,15 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
     p->setBrush(isSelected() ? tm->openNodeColor().lighter() : tm->openNodeColor());
 
     qreal radius = 0;
-    if (!fsScene()->isDir(_index)) {
+    if (_nodeType == NodeType::FileNode) {
         paintFile(p, this);
-    } else if (_state == FolderState::Open) {
+    } else if (_nodeType == NodeType::OpenNode) {
         radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
         p->setPen(QPen(tm->openNodeBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
-    } else if (_state == FolderState::Closed) {
+    } else if (_nodeType == NodeType::ClosedNode) {
         paintClosedFolder(p, this);
-    } else if (_state == FolderState::HalfClosed) {
+    } else if (_nodeType == NodeType::HalfClosedNode) {
         radius = rec.width() * 0.5 - NODE_HALF_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(tm->closedNodeBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
@@ -668,7 +667,7 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
             }
         }
     }
-    if (auto *pr = asNodeItem(parentEdge()->source()); pr && pr->_state == FolderState::HalfClosed) {
+    if (auto *pr = asNodeItem(parentEdge()->source()); pr && pr->_nodeType == NodeType::HalfClosedNode) {
         /// need to update the half-closed parent to avoid tearing of the
         /// 20-degree arc. A node can be Open, Closed, or Half-Closed and have
         /// a parent that's HalfClosed, so this update is needed for all.
@@ -683,7 +682,7 @@ void NodeItem::close()
     animator->clearAnimations(this);
 
     destroyChildren();
-    setState(FolderState::Closed);
+    setNodeType(NodeType::ClosedNode);
 
     shrink(this);
 
@@ -697,7 +696,7 @@ void NodeItem::halfClose()
     Q_ASSERT(hasOpenOrHalfClosedChild());
 
     setAllEdgeState(this, EdgeItem::CollapsedState);
-    setState(FolderState::HalfClosed);
+    setNodeType(NodeType::HalfClosedNode);
     adjustAllEdges(this);
 }
 
@@ -723,10 +722,10 @@ void NodeItem::open()
 {
     Q_ASSERT(fsScene()->isDir(_index));
 
-    if (_state == FolderState::Closed) {
+    if (_nodeType == NodeType::ClosedNode) {
         Q_ASSERT(_childEdges.empty());
         _knot->show();
-        setState(FolderState::Open);
+        setNodeType(NodeType::OpenNode);
         extend(this);
         Q_ASSERT(_extra == nullptr);
         init();
@@ -737,8 +736,8 @@ void NodeItem::open()
         auto indices = _childEdges | asTargetNodeIndex;
         Q_ASSERT(std::ranges::all_of(indices, &QPersistentModelIndex::isValid));
 
-    } else if (_state == FolderState::HalfClosed) {
-        setState(FolderState::Open);
+    } else if (_nodeType == NodeType::HalfClosedNode) {
+        setNodeType(NodeType::OpenNode);
         spread();
         setAllEdgeState(this, EdgeItem::ActiveState);
         adjustAllEdges(this);
@@ -809,14 +808,14 @@ void NodeItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
     Q_UNUSED(event);
     Q_ASSERT(fsScene()->isDir(_index));
 
-    switch (_state) {
-    case FolderState::Open:
+    switch (_nodeType) {
+    case NodeType::OpenNode:
         closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
         break;
-    case FolderState::Closed:
+    case NodeType::ClosedNode:
         open();
         break;
-    case FolderState::HalfClosed:
+    case NodeType::HalfClosedNode:
         open();
         break;
     }
@@ -887,11 +886,11 @@ void NodeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsItem::mouseMoveEvent(event);
 }
 
-void NodeItem::setState(FolderState state)
+void NodeItem::setNodeType(NodeType type)
 {
-    if (_state != state) {
+    if (_nodeType != type) {
         prepareGeometryChange();
-        _state = state;
+        _nodeType = type;
     }
 }
 
@@ -971,7 +970,7 @@ void NodeItem::repositionAfterClose(EdgeItem* closed)
         | ranges::to<std::deque>()
         ;
 
-    if (_state == FolderState::HalfClosed) {
+    if (_nodeType == NodeType::HalfClosedNode) {
         Q_ASSERT(closed->state() == EdgeItem::ActiveState);
         closed->setState(EdgeItem::CollapsedState);
         /// need to call both adjustAllEdges() and spread(). closedEdge is about
