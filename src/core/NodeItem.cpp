@@ -943,7 +943,7 @@ void NodeItem::destroyChildren()
         node->_childEdges.clear();
 
         if (node->_extra) {
-            destroyEdge(_extra);
+            destroyEdge(node->_extra);
         }
         destroyEdge(edge);
     }
