@@ -144,8 +144,7 @@ namespace  core
         FileSystemScene* fsScene() const;
         void destroyChildren();
 
-        void internalRotationAfterClose(EdgeItem* closedEdge);
-        void doInternalRotationAfterClose(EdgeItem* closedEdge);
+        void repositionAfterClose(EdgeItem* closed);
         InternalRotation doInternalRotation(Rotation rot);
         void skipTo(int row);
 

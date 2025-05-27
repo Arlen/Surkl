@@ -688,7 +688,7 @@ void NodeItem::close()
     shrink(this);
 
     if (auto* pr = asNodeItem(_parentEdge->source())) {
-        pr->internalRotationAfterClose(_parentEdge);
+        animator->animateRelayout(pr, _parentEdge);
     }
 }
 
@@ -953,27 +953,17 @@ void NodeItem::destroyChildren()
     _extra = nullptr;
 }
 
-void NodeItem::internalRotationAfterClose(EdgeItem* closedEdge)
+/// repositions a closed node.
+/// If possible, any existing gaps are filled first; otherwise, the closed node
+/// is placed either in the beginning or end of the list of child nodes.
+void NodeItem::repositionAfterClose(EdgeItem* closed)
 {
-    animator->animateRelayout(this, closedEdge);
-}
-
-/// This is basically a sorting of all closed edges.
-/// NOTE: after a few open/close and rotations, there will be gaps in between
-/// edges, b/c we don't perform any kind of compacting, and that's okay.  The
-/// user may not want the edge they just closed to change and point to a
-/// different "folder".  Instead, we can offer the user an option to perform
-/// the compacting whenever they want.
-/// Node::rotate partially solves the problem by continuing to rotate until
-/// there is no gap between two edges.
-void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
-{
-    Q_ASSERT(asNodeItem(closedEdge->target())->isClosed());
-    Q_ASSERT(asNodeItem(closedEdge->target())->index().isValid());
+    Q_ASSERT(asNodeItem(closed->target())->isClosed());
+    Q_ASSERT(asNodeItem(closed->target())->index().isValid());
 
     auto allButClosedEdge = _childEdges
-        | views::filter([closedEdge](EdgeItem* edge) -> bool
-            { return edge != closedEdge; });
+        | views::filter([closed](EdgeItem* edge) -> bool
+            { return edge != closed; });
 
     const auto fileOrClosedIndices = allButClosedEdge
         | asFilesOrClosedTargetNodes
@@ -982,8 +972,8 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
         ;
 
     if (_state == FolderState::HalfClosed) {
-        Q_ASSERT(closedEdge->state() == EdgeItem::ActiveState);
-        closedEdge->setState(EdgeItem::CollapsedState);
+        Q_ASSERT(closed->state() == EdgeItem::ActiveState);
+        closed->setState(EdgeItem::CollapsedState);
         /// need to call both adjustAllEdges() and spread(). closedEdge is about
         /// to go into collapsed state, and without adjustAllEdges(), parts of
         /// it will remain un-collapsed.  spread() will indirectly trigger a
@@ -1029,7 +1019,7 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
         for (auto start = gap->row() + 1; start != end; ++start) {
             if (const auto sibling = gap->sibling(start, 0);
                 sibling.isValid() && !usedRows.contains(sibling.row())) {
-                assignIndex(closedEdge, sibling);
+                assignIndex(closed, sibling);
                 return sortByRows(_childEdges);
             }
         }
@@ -1039,14 +1029,14 @@ void NodeItem::doInternalRotationAfterClose(EdgeItem* closedEdge)
     for (int k = 0, i = -1; k < NODE_CHILD_COUNT; ++k, --i) {
         if (auto before = first->sibling(first->row() + i, 0);
             before.isValid() && !usedRows.contains(before.row())) {
-            assignIndex(closedEdge, before);
+            assignIndex(closed, before);
             return sortByRows(_childEdges);
         }
     }
     for (int k = 0, i = 1; k < NODE_CHILD_COUNT; ++k, ++i) {
         if (auto after = last->sibling(last->row() + i, 0);
             after.isValid() && !usedRows.contains(after.row())) {
-            assignIndex(closedEdge, after);
+            assignIndex(closed, after);
             return sortByRows(_childEdges);
         }
     }
@@ -1473,7 +1463,7 @@ void Animator::startRelayout(NodeItem *node, EdgeItem *closedEdge, QVariantAnima
 {
     Q_ASSERT(!_animData.contains(va));
 
-    node->doInternalRotationAfterClose(closedEdge);
+    node->repositionAfterClose(closedEdge);
     const auto data = spreadWithAnimation(node);
 
     if (data.movement.empty()) {
