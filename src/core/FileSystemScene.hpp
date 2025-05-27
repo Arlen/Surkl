@@ -36,6 +36,7 @@ namespace core
         [[nodiscard]] QPersistentModelIndex rootIndex() const;
         bool isDir(const QModelIndex& index) const;
         void setRootPath(const QString& newPath) const;
+        bool openFile(const NodeItem* node) const;
 
     public slots:
         void openSelectedNodes() const;
@@ -53,7 +54,6 @@ namespace core
         void onRowsRemoved(const QModelIndex& parent, int start, int end) const;
 
     private:
-        bool openFile(const NodeItem* node) const;
 
         QFileSystemModel* _model{nullptr};
         QSortFilterProxyModel* _proxyModel{nullptr};

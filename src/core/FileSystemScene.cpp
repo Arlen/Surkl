@@ -286,6 +286,17 @@ void FileSystemScene::setRootPath(const QString& newPath) const
     _model->setRootPath(newPath);
 }
 
+bool FileSystemScene::openFile(const NodeItem* node) const
+{
+    bool success = false;
+    if (const auto& index = node->index(); index.isValid()) {
+        Q_ASSERT(!isDir(index));
+        const auto info = _model->filePath(_proxyModel->mapToSource(index));
+        success = QDesktopServices::openUrl(QUrl::fromLocalFile(info));
+    }
+    return success;
+}
+
 void FileSystemScene::openSelectedNodes() const
 {
     for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {
@@ -361,20 +372,10 @@ void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
     p->fillRect(rec, SessionManager::tm()->sceneBgColor());
     drawCrosshairs(p, rec);
     drawBorder(p, rec, sceneRect());
-    p->restore();
 }
 
 void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e)
 {
-    using std::views::filter;
-
-    for (const auto vs = views(); auto* v : vs | filter(&QWidget::hasFocus)) {
-        const auto pos = v->mapFromScene(e->scenePos());
-        if (auto* node = qgraphicsitem_cast<NodeItem*>(v->itemAt(pos)); node && openFile(node)) {
-            return;
-        }
-    }
-
     return QGraphicsScene::mouseDoubleClickEvent(e);
 }
 
@@ -401,14 +402,4 @@ void FileSystemScene::onSelectionChange()
     }
 
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
-}
-
-bool FileSystemScene::openFile(const NodeItem* node) const
-{
-    bool success = false;
-    if (const auto& index = node->index(); !isDir(index)) {
-        const auto info = _model->filePath(_proxyModel->mapToSource(index));
-        success = QDesktopServices::openUrl(QUrl::fromLocalFile(info));
-    }
-    return success;
 }

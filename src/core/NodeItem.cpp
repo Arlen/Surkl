@@ -806,9 +806,11 @@ void NodeItem::keyPressEvent(QKeyEvent *event)
 void NodeItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
     Q_UNUSED(event);
-    Q_ASSERT(fsScene()->isDir(_index));
 
     switch (_nodeType) {
+    case NodeType::FileNode:
+        fsScene()->openFile(this);
+        break;
     case NodeType::OpenNode:
         closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
         break;
