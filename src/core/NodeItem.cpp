@@ -822,6 +822,11 @@ void NodeItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
     }
 }
 
+void NodeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
+{
+    QGraphicsItem::mousePressEvent(event);
+}
+
 void NodeItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
     if (scene()->mouseGrabberItem() == this) {
