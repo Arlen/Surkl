@@ -3,6 +3,7 @@
 
 #include "SessionManager.hpp"
 #include "FileSystemScene.hpp"
+#include "SceneStorage.hpp"
 #include "bookmark.hpp"
 #include "db.hpp"
 #include "gui/MainWindow.hpp"
@@ -30,6 +31,11 @@ SessionManager::~SessionManager()
     delete _mw;
 }
 
+SceneStorage* SessionManager::ss()
+{
+    return session()->_ss;
+}
+
 FileSystemScene* SessionManager::scene()
 {
     return session()->_sc;
@@ -53,6 +59,9 @@ gui::MainWindow* SessionManager::mw()
 void SessionManager::cleanup() const
 {
     BookmarkManager::saveToDatabase(_bm);
+
+    /// TODO: interactive save is too slow.  For now, we save onec before exit.
+    SceneStorage::saveScene(_sc);
 }
 
 void SessionManager::init()
@@ -64,6 +73,9 @@ void SessionManager::init()
 
     _bm = new BookmarkManager(this);
     BookmarkManager::configure(_bm);
+
+    _ss = new SceneStorage(this);
+    SceneStorage::configure(_ss);
 
     _sc = new FileSystemScene(this);
     FileSystemScene::configure(_sc);
@@ -77,7 +89,7 @@ void SessionManager::init()
 
 SessionManager* SessionManager::session()
 {
-    assert(qApp != nullptr);
+    Q_ASSERT(qApp != nullptr);
 
     SessionManager* sm{nullptr};
 

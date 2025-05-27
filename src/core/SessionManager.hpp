@@ -15,6 +15,7 @@ namespace gui
 
 namespace core
 {
+    class SceneStorage;
     class FileSystemScene;
     class BookmarkManager;
 
@@ -24,7 +25,8 @@ namespace core
 
     public:
         explicit SessionManager(QObject* parent = nullptr);
-        ~SessionManager();
+        ~SessionManager() override;
+        static SceneStorage* ss();
         static FileSystemScene* scene();
         static BookmarkManager* bm();
         static gui::ThemeManager* tm();
@@ -37,6 +39,7 @@ namespace core
         void init();
         static SessionManager* session();
 
+        SceneStorage*      _ss{nullptr};
         FileSystemScene*   _sc{nullptr};
         BookmarkManager*   _bm{nullptr};
         gui::ThemeManager* _tm{nullptr};
