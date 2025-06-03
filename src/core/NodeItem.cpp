@@ -5,6 +5,7 @@
 #include "FileSystemScene.hpp"
 #include "SessionManager.hpp"
 #include "theme.hpp"
+#include "layout.hpp"
 
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
@@ -35,26 +36,6 @@ namespace
     constexpr qreal NODE_OPEN_PEN_WIDTH        = 4.0;
     constexpr qreal NODE_CLOSED_PEN_WIDTH      = EDGE_WIDTH * GOLDEN;
     constexpr qreal NODE_HALF_CLOSED_PEN_WIDTH = NODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
-
-
-    std::deque<QLineF> circle(int sides, qreal startAngle = 0.0)
-    {
-        sides = std::max(1, sides);
-
-        const auto anglePerSide = 360.0 / sides;
-        auto angle = startAngle - anglePerSide * 0.5;
-        auto line1 = QLineF(QPointF(0, 0), QPointF(1, 0));
-        auto line2 = line1;
-
-        std::deque<QLineF> result;
-        for (int i = 0; i < sides; ++i, angle += anglePerSide) {
-            line1.setAngle(angle);
-            line2.setAngle(angle + anglePerSide);
-            result.emplace_back(line2.p2(), line1.p2());
-        }
-
-        return result;
-    }
 
     bool isRoot(const QGraphicsItem* node)
     {
@@ -1189,61 +1170,28 @@ void NodeItem::spread(QPointF dxy)
 {
     if (_childEdges.empty()) { return; }
 
-    auto edgeOf = [this](const QGraphicsItem* item) {
-        return QLineF(QPointF(0, 0), mapFromItem(item, QPointF(0, 0)));
-    };
-    const auto sides = _childEdges.size() + (_parentEdge ? 1 : 0) + 1;
-    auto guides      = circle(static_cast<int>(sides), edgeOf(_knot).angle());
-
-    auto intersectsWith = [](const QLineF& line)
-    {
-        return [line](const QLineF& other) -> bool
-        {
-            return other.intersects(line) == QLineF::BoundedIntersection;
-        };
-    };
-
-    auto removeIfIntersects = [&guides, edgeOf, intersectsWith](const QGraphicsItem* item) {
-        /// using find_if b/c only one guide edge per intersecting edge should
-        /// be removed. e.g., when 'guides' contains only two lines, parentEdge
-        /// will most likely intersect with two.
-        const auto ignored = ranges::find_if(guides, intersectsWith(edgeOf(item)));
-        if (ignored != guides.end()) {
-            guides.erase(ignored);
-        }
-    };
-
-    if (_parentEdge) { removeIfIntersects(_parentEdge->source()); }
-    if (_knot) { removeIfIntersects(_knot); }
-
     const auto* grabber = scene()->mouseGrabberItem();
-    if (grabber) { removeIfIntersects(grabber); }
-
-    for (const auto* node : _childEdges | asNotClosedTargetNodes) {
-        removeIfIntersects(node);
-    }
 
     auto includedNodes = _childEdges | asFilesOrClosedTargetNodes
         | views::filter([grabber](const NodeItem* node)
             { return node != grabber; })
         ;
 
-    for (auto* node : includedNodes) {
-        if (guides.empty()) {
+    for (auto gl = guideLines(this); auto* node : includedNodes) {
+        if (gl.empty()) {
             break;
         }
-        const auto guide = guides.front();
-        const auto norm  = guide.normalVector();
+
+        const auto norm = gl.front().normalVector();
 
         /// TODO: node lengths are unique to each File/Folder, and have default
         /// value of 144 for now.  If the edge length is changed by the user, it
         /// is saved in the Model and then in the DB.
         auto nodeLine = QLineF(pos(), pos() + QPointF(1, 1));
         nodeLine.setLength(144);
-
         nodeLine.setAngle(norm.angle());
         node->setPos(nodeLine.p2() + dxy);
-        guides.pop_front();
+        gl.pop_front();
     }
 }
 
