@@ -425,45 +425,57 @@ void NodeItem::reload(int start, int end)
 
     const auto rowCount = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
-    /// room to grow
-    if (_childEdges.size() < rowCount) {
-        const auto sizeBefore = _childEdges.size();
-        NodeVector nodes; nodes.reserve(rowCount - _childEdges.size());
-        while (_childEdges.size() < rowCount) {
-            nodes.push_back(createNode(scene(), this));
-            _childEdges.push_back(nodes.back()->parentEdge());
+    if (const int growth = rowCount - _childEdges.size(); growth > 0) {
+        NodeVector nodes;
+        nodes.reserve(growth);
+        for (auto [[maybe_unused]] i : std::views::iota(0, growth)) {
+            auto* edge = createNode(QModelIndex(), this);
+            scene()->addItem(edge->target());
+            scene()->addItem(edge);
+            nodes.push_back(asNodeItem(edge->target()));
+            _childEdges.push_back(edge);
         }
 
-        const auto sizeAfter = _childEdges.size();
-        if (sizeBefore != sizeAfter) {
-            if (_nodeType == NodeType::OpenNode) {
-                spread();
+        if (_nodeType == NodeType::OpenNode) {
+            spread();
+        }
+        else if (_nodeType == NodeType::HalfClosedNode) {
+            for (const auto* n : nodes) {
+                n->parentEdge()->setState(EdgeItem::CollapsedState);
             }
-            else if (_nodeType == NodeType::HalfClosedNode) {
-                for (auto* n : nodes) {
-                    n->parentEdge()->setState(EdgeItem::CollapsedState);
-                }
-                /// open(), then skiptTo(start), and then halfClose() to
-                /// update the index of each newly created node in nodes.
-                /// Don't need the all the details of those functions mentioned,
-                /// so those parts are commented out to show what is used.
-                ///
-                //spread();
-                setAllEdgeState(this, EdgeItem::ActiveState);
-                //adjustAllEdges(this);
+            /// open(), then skiptTo(start), and then halfClose() to
+            /// update the index of each newly created node in nodes.
+            /// Don't need the all the details of those functions mentioned,
+            /// so those parts are commented out to show what is used.
+            ///
+            //spread();
+            setAllEdgeState(this, EdgeItem::ActiveState);
+            //adjustAllEdges(this);
 
-                skipTo(start);
+            skipTo(start);
 
-                setAllEdgeState(this, EdgeItem::CollapsedState);
-                //setNodeType(NodeType::HalfClosed);
-                spread();
-                adjustAllEdges(this);
-            }
+            setAllEdgeState(this, EdgeItem::CollapsedState);
+            //setNodeType(NodeType::HalfClosed);
+            spread();
+            adjustAllEdges(this);
         }
     }
 
     if (_nodeType == NodeType::OpenNode) {
-        skipTo(start);
+        auto rows = _childEdges
+            | asFilesOrClosedTargetNodes
+            | asIndexRow
+            ;
+        const auto lowest  = *std::ranges::min_element(rows);
+        const auto highest = *std::ranges::max_element(rows);
+
+        /// only skipt to if the new rows are within range of existing rows; it's
+        /// less annonying, and it prevents a reload() from quickly overwriting
+        /// SceneStorage::loadScene.
+        if (start >= lowest && start <= highest) {
+            skipTo(start);
+            adjustAllEdges(this);
+        }
     }
 }
 
