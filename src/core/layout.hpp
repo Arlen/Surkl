@@ -24,4 +24,6 @@ namespace core
     constexpr std::vector<QLineF> linesOf(const QGraphicsItem* a, const std::vector<const QGraphicsItem*>& items);
 
     Ngon guideLines(const NodeItem* node);
+
+    Ngon guideLines(const NodeItem* node, int sides, const std::vector<const QGraphicsItem*>& excluded);
 }

@@ -54,6 +54,27 @@ Ngon core::guideLines(const NodeItem* node)
 {
     using namespace std;
 
+    auto excludedItems = node->childEdges()
+        | asNotClosedTargetNodes
+        | ranges::to<std::vector<const QGraphicsItem*>>()
+        ;
+
+    if (const auto* mg = node->scene()->mouseGrabberItem(); mg)
+        { excludedItems.push_back(mg); }
+    excludedItems.push_back(node->parentEdge()->source());
+    excludedItems.push_back(node->knot());
+
+    const auto sides = node->childEdges().size()
+        + 1  // for node->parentEdge()
+        + 1; // for node->knot()
+
+    return guideLines(node, sides, excludedItems);
+}
+
+Ngon core::guideLines(const NodeItem* node, int sides, const std::vector<const QGraphicsItem*>& excluded)
+{
+    using namespace std;
+
     auto intersectsWith = [](const QLineF& line)
     {
         return [line](const QLineF& other) -> bool
@@ -72,25 +93,11 @@ Ngon core::guideLines(const NodeItem* node)
         }
     };
 
-    const auto sides = node->childEdges().size()
-        + (node->parentEdge() ? 1 : 0)
-        + (node->knot() ? 1 : 0);
+    auto result = makeNgon(sides, lineOf(node, node->knot()).angle());
 
-    auto excludedItems = node->childEdges()
-        | asNotClosedTargetNodes
-        | ranges::to<std::vector<const QGraphicsItem*>>()
-        ;
-
-    if (const auto* mg = node->scene()->mouseGrabberItem(); mg)
-        { excludedItems.push_back(mg); }
-    excludedItems.push_back(node->parentEdge()->source());
-    excludedItems.push_back(node->knot());
-
-    auto guideLines = makeNgon(sides, lineOf(node, node->knot()).angle());
-
-    for (const auto& line : linesOf(node, excludedItems)) {
-        removeIfIntersects(guideLines, line);
+    for (const auto& line : linesOf(node, excluded)) {
+        removeIfIntersects(result, line);
     }
 
-    return guideLines;
+    return result;
 }
