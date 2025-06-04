@@ -297,6 +297,11 @@ bool FileSystemScene::openFile(const NodeItem* node) const
     return success;
 }
 
+void FileSystemScene::fetchMore(const QPersistentModelIndex& index) const
+{
+    _proxyModel->fetchMore(index);
+}
+
 void FileSystemScene::openSelectedNodes() const
 {
     for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {

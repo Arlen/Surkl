@@ -37,6 +37,7 @@ namespace core
         bool isDir(const QModelIndex& index) const;
         void setRootPath(const QString& newPath) const;
         bool openFile(const NodeItem* node) const;
+        void fetchMore(const QPersistentModelIndex& index) const;
 
     public slots:
         void openSelectedNodes() const;
