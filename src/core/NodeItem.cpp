@@ -199,50 +199,25 @@ namespace
     }
 }
 
-/// TODO: this is very similar to NodeItem::spread().
-auto core::spreadWithAnimation(const NodeItem* node)
+SpreadAnimationData core::spreadWithAnimation(const NodeItem* node)
 {
-    auto edgeOf = [node](const QGraphicsItem* item) {
-        return QLineF(QPointF(0, 0), node->mapFromItem(item, QPointF(0, 0)));
-    };
-    const auto sides = node->childEdges().size() + (node->parentEdge() ? 1 : 0) + 1;
-    auto guides      = circle(static_cast<int>(sides), edgeOf(node->knot()).angle());
-
-    auto intersectsWith = [](const QLineF& line)
-    {
-        return [line](const QLineF& other) -> bool
-        {
-            return other.intersects(line) == QLineF::BoundedIntersection;
-        };
-    };
-    auto removeIfIntersects = [&guides, edgeOf, intersectsWith](const QGraphicsItem* item) {
-        /// using find_if b/c only one guide edge per intersecting edge should
-        /// be removed. e.g., when 'guides' contains only two lines, parentEdge
-        /// will most likely intersect with two.
-        const auto ignored = ranges::find_if(guides, intersectsWith(edgeOf(item)));
-        if (ignored != guides.end()) {
-            guides.erase(ignored);
-        }
-    };
-
-    if (node->parentEdge()) { removeIfIntersects(node->parentEdge()->source()); }
-    if (node->knot()) { removeIfIntersects(node->knot()); }
-
-    for (const auto* child : node->childEdges() | asNotClosedTargetNodes) {
-        removeIfIntersects(child);
-    }
-
-    auto includedNodes = node->childEdges() | asFilesOrClosedTargetNodes;
+    Q_ASSERT(node->parentEdge());
+    Q_ASSERT(node->knot());
 
     SpreadAnimationData result;
 
-    for (auto* child : includedNodes) {
-        if (guides.empty()) {
+    const auto sides = node->childEdges().size()
+        + 1  // for node->parentEdge()
+        + 1; // for node->knot()
+
+    auto includedNodes = node->childEdges() | asFilesOrClosedTargetNodes;
+
+    for (auto gl = guideLines(node, sides, true); auto* child : includedNodes) {
+        if (gl.empty()) {
             break;
         }
         const auto oldPos = child->scenePos();
-        const auto guide  = guides.front();
-        const auto norm   = guide.normalVector();
+        const auto norm   = gl.front().normalVector();
 
         /// TODO: node lengths are unique to each File/Folder, and have default
         /// value of 144 for now.  If the edge length is changed by the user, it
@@ -254,7 +229,7 @@ auto core::spreadWithAnimation(const NodeItem* node)
         if (const auto newPos = childLine.p2(); oldPos != newPos) {
             result.movement.insert(child, {oldPos, newPos});
         }
-        guides.pop_front();
+        gl.pop_front();
     }
 
     return result;
@@ -1212,7 +1187,8 @@ void NodeItem::spread(QPointF dxy)
 
     const auto* grabber = scene()->mouseGrabberItem();
 
-    auto includedNodes = _childEdges | asFilesOrClosedTargetNodes
+    auto includedNodes = _childEdges
+        | asFilesOrClosedTargetNodes
         | views::filter([grabber](const NodeItem* node)
             { return node != grabber; })
         ;

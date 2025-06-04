@@ -178,7 +178,7 @@ namespace  core
     void adjustAllEdges(const NodeItem* node);
     void updateAllChildNodes(const NodeItem* node);
     void setAllEdgeState(const NodeItem* node, EdgeItem::State state);
-    auto spreadWithAnimation(const NodeItem* node);
+    SpreadAnimationData spreadWithAnimation(const NodeItem* node);
 
 
     class Animator final : public QObject
