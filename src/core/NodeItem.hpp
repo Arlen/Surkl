@@ -44,13 +44,17 @@ namespace  core
     public:
         enum { Type = UserType + 3 };
 
-        explicit RootItem(QGraphicsItem* parent = nullptr);
+        explicit RootItem();
+        void setChildEdge(EdgeItem* edge);
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
         [[nodiscard]] int type() const override { return Type; }
 
     protected:
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
+
+    private:
+        EdgeItem* _childEdge{nullptr};
     };
 
 
@@ -98,11 +102,12 @@ namespace  core
         enum { Type = UserType + 2 };
 
         explicit NodeItem(const QPersistentModelIndex& index);
-        [[nodiscard]] static NodeItem* createRootItem(core::FileSystemScene* scene);
-        [[nodiscard]] static NodeItem* createNode(QGraphicsScene* scene, QGraphicsItem* parent);
+        [[nodiscard]] static EdgeItem* createNode(const QPersistentModelIndex& targetIndex, QGraphicsItem* source);
+        [[nodiscard]] static EdgeItem* createRootNode(const QPersistentModelIndex& index);
 
         ~NodeItem() override;
         void init();
+        void init(QList<NodeData>& data);
         void reload(int start, int end);
         void unload(int start, int end);
 

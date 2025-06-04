@@ -265,8 +265,7 @@ Q_GLOBAL_STATIC(core::Animator, animator)
 ////////////////
 /// RootItem ///
 ////////////////
-RootItem::RootItem(QGraphicsItem* parent)
-    : QGraphicsEllipseItem(parent)
+RootItem::RootItem()
 {
     const auto* tm = SessionManager::tm();
 
@@ -274,6 +273,13 @@ RootItem::RootItem(QGraphicsItem* parent)
     setPen(Qt::NoPen);
     setBrush(tm->edgeColor());
     setFlags(ItemIsSelectable | ItemIsMovable |  ItemSendsScenePositionChanges);
+}
+
+void RootItem::setChildEdge(EdgeItem* edge)
+{
+    Q_ASSERT(_childEdge == nullptr);
+
+    _childEdge = edge;
 }
 
 void RootItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget)
@@ -301,9 +307,7 @@ QVariant RootItem::itemChange(GraphicsItemChange change, const QVariant& value)
 {
     switch (change) {
     case ItemScenePositionHasChanged:
-        if (auto* pe = qgraphicsitem_cast<EdgeItem*>(parentItem())) {
-            pe->adjust();
-        }
+        _childEdge->adjust();
         break;
 
     default:
@@ -342,45 +346,36 @@ void KnotItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 ////////////
 NodeItem::NodeItem(const QPersistentModelIndex& index)
 {
-    _index = index;
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
 
-    _knot = new KnotItem(this);
+    _index = index;
+    _knot  = new KnotItem(this);
     _knot->setPos(QPointF(NODE_OPEN_RADIUS, 0));
     _knot->hide();
 }
 
-NodeItem* NodeItem::createRootItem(FileSystemScene* scene)
+EdgeItem* NodeItem::createNode(const QPersistentModelIndex& targetIndex, QGraphicsItem* source)
 {
-    Q_ASSERT(scene);
+    Q_ASSERT(source);
 
-    auto* root = new RootItem();
-    scene->addItem(root);
+    auto* target        = new NodeItem(targetIndex);
+    target->_parentEdge = new EdgeItem(source, target);
 
-    auto* node = createNode(scene, root);
-    node->setIndex(scene->rootIndex());
-    node->parentEdge()->setText(node->name());
-    root->setParentItem(node->parentEdge());
-    root->setPos(-128, 0);
+    if (targetIndex.isValid()) {
+        target->_parentEdge->setText(target->name());
+    }
 
-    return node;
+    return target->_parentEdge;
 }
 
-NodeItem* NodeItem::createNode(QGraphicsScene* scene, QGraphicsItem* parent)
+EdgeItem* NodeItem::createRootNode(const QPersistentModelIndex& index)
 {
-    Q_ASSERT(scene);
-    Q_ASSERT(parent);
-    Q_ASSERT(scene == parent->scene());
+    auto* root = new RootItem();
+    auto* edge = createNode(index, root);
+    root->setChildEdge(edge);
+    root->setPos(-128, 0);
 
-    auto* node = new NodeItem(QModelIndex());
-    auto* edge = new EdgeItem(parent, node);
-
-    scene->addItem(node);
-    scene->addItem(edge);
-
-    node->_parentEdge = edge;
-
-    return node;
+    return edge;
 }
 
 NodeItem::~NodeItem()
@@ -390,19 +385,64 @@ NodeItem::~NodeItem()
 
 void NodeItem::init()
 {
+    Q_ASSERT(parentEdge());
+    Q_ASSERT(knot());
+
+    const auto* model = _index.model();
+    const auto count  = std::min(NODE_CHILD_COUNT, model->rowCount(_index));
+
+    const auto sides = count
+        + 1  // for parentEdge()
+        + 1; // for knot()
+
+    std::vector<const QGraphicsItem*> excludedItems;
+    excludedItems.push_back(parentEdge());
+    excludedItems.push_back(knot());
+    auto gl = guideLines(this, sides, excludedItems);
+
+    QList<NodeData> data;
+
+    for (auto i : std::views::iota(0, count)) {
+        const auto index = model->index(i, 0, _index);
+        const auto norm  = gl.front().normalVector();
+
+        auto nodeLine = QLineF(pos(), pos() + QPointF(1, 1));
+        nodeLine.setLength(144);
+        nodeLine.setAngle(norm.angle());
+
+        data.push_back({index, NodeType::ClosedNode, nodeLine.p2(), 0});
+        gl.pop_front();
+    }
+
+    init(data);
+}
+
+void NodeItem::init(QList<NodeData>& data)
+{
     Q_ASSERT(scene());
     Q_ASSERT(_childEdges.empty());
     Q_ASSERT(_index.isValid());
+    Q_ASSERT(_extra == nullptr);
+
+    _knot->show();
+    setNodeType(NodeType::OpenNode);
 
     const auto count = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
-    for (auto _ : std::views::iota(0, count)) {
-        _childEdges.emplace_back(createNode(scene(), this)->parentEdge());
+    for (auto& d : data | views::take(count)) {
+        d.edge = createNode(d.index, this);
+        scene()->addItem(d.edge->target());
+        scene()->addItem(d.edge);
+        d.edge->target()->setPos(d.pos);
+        d.edge->adjust();
+        _childEdges.emplace_back(d.edge);
     }
 
-    _extra = createNode(scene(), this)->parentEdge();
-    _extra->hide();
+    _extra = createNode(QModelIndex(), this);
+    scene()->addItem(_extra->target());
+    scene()->addItem(_extra);
     _extra->target()->hide();
+    _extra->hide();
 }
 
 void NodeItem::reload(int start, int end)
