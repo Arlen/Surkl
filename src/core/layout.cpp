@@ -52,6 +52,15 @@ constexpr std::vector<QLineF> core::linesOf(const QGraphicsItem* a, const std::v
 
 Ngon core::guideLines(const NodeItem* node)
 {
+    const auto sides = node->childEdges().size()
+        + 1  // for node->parentEdge()
+        + 1; // for node->knot()
+
+    return guideLines(node, sides);
+}
+
+Ngon core::guideLines(const NodeItem* node, int sides, bool ignoreGrabber)
+{
     using namespace std;
 
     auto excludedItems = node->childEdges()
@@ -59,14 +68,12 @@ Ngon core::guideLines(const NodeItem* node)
         | ranges::to<std::vector<const QGraphicsItem*>>()
         ;
 
-    if (const auto* mg = node->scene()->mouseGrabberItem(); mg)
+    if (!ignoreGrabber) {
+        if (const auto* mg = node->scene()->mouseGrabberItem(); mg)
         { excludedItems.push_back(mg); }
+    }
     excludedItems.push_back(node->parentEdge()->source());
     excludedItems.push_back(node->knot());
-
-    const auto sides = node->childEdges().size()
-        + 1  // for node->parentEdge()
-        + 1; // for node->knot()
 
     return guideLines(node, sides, excludedItems);
 }
