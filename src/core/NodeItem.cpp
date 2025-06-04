@@ -370,10 +370,7 @@ void NodeItem::createChildNodes()
         + 1  // for parentEdge()
         + 1; // for knot()
 
-    std::vector<const QGraphicsItem*> excludedItems;
-    excludedItems.push_back(parentEdge());
-    excludedItems.push_back(knot());
-    auto gl = guideLines(this, sides, excludedItems);
+    auto gl = guideLines(this, sides, true);
 
     QList<NodeData> data;
 
