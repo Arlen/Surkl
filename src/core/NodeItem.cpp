@@ -684,6 +684,7 @@ void NodeItem::close()
 {
     Q_ASSERT(isDir() && (isOpen() || isHalfClosed()));
 
+    _knot->hide();
     animator->clearAnimations(this);
 
     destroyChildren();
@@ -700,6 +701,7 @@ void NodeItem::halfClose()
 {
     Q_ASSERT(hasOpenOrHalfClosedChild());
 
+    _knot->hide();
     setAllEdgeState(this, EdgeItem::CollapsedState);
     setNodeType(NodeType::HalfClosedNode);
     adjustAllEdges(this);
@@ -709,7 +711,6 @@ void NodeItem::closeOrHalfClose(bool forceClose)
 {
     Q_ASSERT(isDir() && (isOpen() || isHalfClosed()));
 
-    _knot->hide();
     if (hasOpenOrHalfClosedChild()) {
         /// pick half closing as it is less destructive, unless the user is
         /// force closing.
@@ -729,17 +730,13 @@ void NodeItem::open()
 
     if (_nodeType == NodeType::ClosedNode) {
         Q_ASSERT(_childEdges.empty());
-        _knot->show();
-        setNodeType(NodeType::OpenNode);
         extend(this);
-        Q_ASSERT(_extra == nullptr);
-        init();
-        Q_ASSERT(_extra != nullptr);
-        skipTo(0);
-        spread();
+        createChildNodes();
+        adjustAllEdges(this);
+        fsScene()->fetchMore(_index);
 
-        auto indices = _childEdges | asTargetNodeIndex;
-        Q_ASSERT(std::ranges::all_of(indices, &QPersistentModelIndex::isValid));
+        Q_ASSERT(std::ranges::all_of(_childEdges | asTargetNodeIndex,
+            &QPersistentModelIndex::isValid));
 
     } else if (_nodeType == NodeType::HalfClosedNode) {
         setNodeType(NodeType::OpenNode);

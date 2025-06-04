@@ -392,9 +392,6 @@ void FileSystemScene::onSelectionChange()
         for (auto* edge : edges) {
             edge->setSelected(false);
         }
-        for (const auto* node : nodes) {
-            _proxyModel->fetchMore(node->index());
-        }
     } else {
         for (auto* node : nodes) {
             node->setSelected(false);
