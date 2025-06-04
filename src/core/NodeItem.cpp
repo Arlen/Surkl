@@ -354,6 +354,11 @@ NodeItem::NodeItem(const QPersistentModelIndex& index)
     _knot->hide();
 }
 
+NodeItem::~NodeItem()
+{
+
+}
+
 EdgeItem* NodeItem::createNode(const QPersistentModelIndex& targetIndex, QGraphicsItem* source)
 {
     Q_ASSERT(source);
@@ -378,12 +383,7 @@ EdgeItem* NodeItem::createRootNode(const QPersistentModelIndex& index)
     return edge;
 }
 
-NodeItem::~NodeItem()
-{
-
-}
-
-void NodeItem::init()
+void NodeItem::createChildNodes()
 {
     Q_ASSERT(parentEdge());
     Q_ASSERT(knot());
@@ -414,10 +414,10 @@ void NodeItem::init()
         gl.pop_front();
     }
 
-    init(data);
+    createChildNodes(data);
 }
 
-void NodeItem::init(QList<NodeData>& data)
+void NodeItem::createChildNodes(QList<NodeData>& data)
 {
     Q_ASSERT(scene());
     Q_ASSERT(_childEdges.empty());

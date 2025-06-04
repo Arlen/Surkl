@@ -102,12 +102,13 @@ namespace  core
         enum { Type = UserType + 2 };
 
         explicit NodeItem(const QPersistentModelIndex& index);
+        ~NodeItem() override;
+
         [[nodiscard]] static EdgeItem* createNode(const QPersistentModelIndex& targetIndex, QGraphicsItem* source);
         [[nodiscard]] static EdgeItem* createRootNode(const QPersistentModelIndex& index);
+        void createChildNodes();
+        void createChildNodes(QList<NodeData>& data);
 
-        ~NodeItem() override;
-        void init();
-        void init(QList<NodeData>& data);
         void reload(int start, int end);
         void unload(int start, int end);
 
