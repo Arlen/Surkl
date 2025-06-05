@@ -72,7 +72,7 @@ namespace  core
 
     using EdgeDeque = std::deque<EdgeItem*>;
 
-    struct InternalRotation
+    struct InternalRotationAnimationData
     {
         Rotation rot;
         QGraphicsItem* node{nullptr};
@@ -154,7 +154,7 @@ namespace  core
         void destroyChildren();
 
         void repositionAfterClose(EdgeItem* closed);
-        InternalRotation doInternalRotation(Rotation rot);
+        InternalRotationAnimationData doInternalRotation(Rotation rot);
         void skipTo(int row);
 
         void spread(QPointF dxy = QPointF(0,0));
@@ -202,7 +202,7 @@ namespace  core
         QVariantAnimation* createVariantAnimation(int duration);
 
         static void fastforward(const QSequentialAnimationGroup* seq);
-        static void interpolate(qreal t, const InternalRotation& data);
+        static void interpolate(qreal t, const InternalRotationAnimationData& data);
 
         std::unordered_map<const NodeItem*, QSequentialAnimationGroup*> _seqs;
         std::unordered_map<const QVariantAnimation*, QVariant> _animData;

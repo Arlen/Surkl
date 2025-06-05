@@ -1049,7 +1049,7 @@ void NodeItem::repositionAfterClose(EdgeItem* closed)
 /// performs CCW or CW rotation.
 /// CW means going forward (i.e., the new node index is greater than the
 /// previous).
-InternalRotation NodeItem::doInternalRotation(Rotation rot)
+InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
 {
     auto targetNodes = _childEdges
         | asFilesOrClosedTargetNodes
@@ -1368,7 +1368,7 @@ void Animator::addRotation(NodeItem* node, const Rotation& rot, QVariantAnimatio
 
         auto ok         = false;
         const auto t    = value.toReal(&ok); Q_ASSERT(ok);
-        const auto data = _animData[va].value<InternalRotation>();
+        const auto data = _animData[va].value<InternalRotationAnimationData>();
 
         interpolate(t, data);
     });
@@ -1533,7 +1533,7 @@ void Animator::fastforward(const QSequentialAnimationGroup* seq)
     }
 }
 
-void Animator::interpolate(qreal t, const InternalRotation& data)
+void Animator::interpolate(qreal t, const InternalRotationAnimationData& data)
 {
     const auto* node  = data.node;
     const auto deltas = data.angularDisplacement;
