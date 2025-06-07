@@ -70,7 +70,6 @@ void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
             }
         }
 
-void SceneStorage::saveScene(const QGraphicsScene* scene)
         if (!db.commit()) {
             qWarning() << q.lastError();
         }
@@ -87,9 +86,77 @@ void SceneStorage::saveScene() const
     saveNodes(toBeSaved);
 }
 
+void SceneStorage::loadScene(FileSystemScene* scene)
 {
-    if (auto db = db::get(); db.isOpen()) {
-        db.transaction();
+    Q_ASSERT(_scene == nullptr);
+    _scene = scene;
+
+    auto graph = readTable(scene);
+
+    if (graph.empty()) {
+        auto* edge = NodeItem::createRootNode(scene->rootIndex());
+        scene->addItem(edge->source());
+        scene->addItem(edge->target());
+        scene->addItem(edge);
+        edge->adjust();
+
+        scene->openTo(QDir::homePath());
+        enableSave();
+        return;
+    }
+
+    auto sortByRows = [](QList<NodeData>& data) {
+        std::ranges::sort(data, [](const NodeData& a, const NodeData& b) {
+            return a.index.row() < b.index.row();
+        });
+    };
+
+    QList<NodeData> S;
+    if (graph.contains(QModelIndex())) {
+        /// This assumes we have only a single root node ("/").
+
+        auto& Ms = graph[QModelIndex()];
+        sortByRows(Ms);
+        Q_ASSERT(Ms.size() == 1);
+
+        for (auto m : Ms) {
+            m.edge = NodeItem::createRootNode(m.index);
+            scene->addItem(m.edge->source());
+            scene->addItem(m.edge->target());
+            scene->addItem(m.edge);
+            S.push_back(m);
+        }
+    }
+
+    QList<NodeItem*> halfOpenNodes;
+    while (!S.empty()) {
+        const auto& parent = S.back();
+        auto childNodeData = graph[parent.index];
+
+        if (!childNodeData.empty()) {
+            sortByRows(childNodeData);
+            asNodeItem(parent.edge->target())->createChildNodes(childNodeData);
+        }
+        parent.edge->target()->setPos(parent.pos);
+        parent.edge->adjust();
+
+        if (parent.type == NodeType::HalfClosedNode) {
+            halfOpenNodes.push_back(asNodeItem(parent.edge->target()));
+        }
+
+        S.pop_back();
+        for (const auto& nd : childNodeData) {
+            S.push_back(nd);
+        }
+    }
+
+    for (auto* node : halfOpenNodes) {
+        node->halfClose();
+    }
+
+    enableSave();
+}
+
 void SceneStorage::push()
 {
     if (const auto nextN = qMin(32, _toBeSaved.size()); nextN > 0) {
@@ -103,6 +170,7 @@ void SceneStorage::push()
     }
 }
 
+/// save functionality should be enabled after the scene has been loaded.
 void SceneStorage::enableSave()
 {
     connect(_scene, &QGraphicsScene::changed,

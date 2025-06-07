@@ -35,11 +35,11 @@ namespace core
 
         void saveNode(const NodeItem* node);
 
-        static void saveScene(const QGraphicsScene* scene);
         void saveNodes(const QList<const NodeItem*>& nodes) const;
 
         void saveScene() const;
 
+        void loadScene(FileSystemScene* scene);
 
     public slots:
         void push();
