@@ -33,6 +33,10 @@ namespace core
 
         static void configure();
 
+        void deleteNode(const NodeItem* node);
+
+        void deleteNodes(const QStringList& nodeIds) const;
+
         void saveNode(const NodeItem* node);
 
         void saveNodes(const QList<const NodeItem*>& nodes) const;
@@ -42,17 +46,19 @@ namespace core
         void loadScene(FileSystemScene* scene);
 
     public slots:
-        void push();
+        void deleteNextN();
+
+        void saveNextN();
 
     private:
-        void enableSave();
-
         static void createTable();
 
         static QHash<QPersistentModelIndex, QList<NodeData>> readTable(const FileSystemScene* scene);
 
         FileSystemScene* _scene{nullptr};
-        QTimer* _timer{nullptr};
+        QTimer* _deleteTimer{nullptr};
+        QTimer* _saveTimer{nullptr};
+        QStringList _toBeDeleted;
         QList<const NodeItem*> _toBeSaved;
     };
 }

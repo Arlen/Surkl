@@ -17,9 +17,11 @@ using namespace core;
 SceneStorage::SceneStorage(QObject* parent)
     : QObject(parent)
 {
-    _timer = new QTimer(this);
+    _deleteTimer = new QTimer(this);
+    _saveTimer   = new QTimer(this);
 
-    connect(_timer, &QTimer::timeout, this, &SceneStorage::push);
+    connect(_deleteTimer, &QTimer::timeout, this, &SceneStorage::deleteNextN);
+    connect(_saveTimer, &QTimer::timeout, this, &SceneStorage::saveNextN);
 }
 
 void SceneStorage::configure()
@@ -29,6 +31,40 @@ void SceneStorage::configure()
     Q_ASSERT(core::db::doesTableExists(NODES_TABLE));
 }
 
+void SceneStorage::deleteNode(const NodeItem *node)
+{
+    Q_ASSERT(node != nullptr);
+
+    const auto id = _scene->filePath(node->index());
+    _toBeDeleted.removeOne(id);
+    _toBeDeleted.push_back(id);
+
+    _deleteTimer->start(125);
+}
+
+void SceneStorage::deleteNodes(const QStringList& nodeIds) const
+{
+    if (auto db = db::get(); db.isOpen()) {
+        db.transaction();
+        QSqlQuery q(db);
+
+        q.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:id")
+            .arg(NODES_TABLE)
+            .arg(NODE_ID));
+
+        for (const auto& id : nodeIds) {
+            q.bindValue(":id", id);
+            if (!q.exec()) {
+                qWarning() << q.lastError();
+            }
+        }
+
+        if (!db.commit()) {
+            qWarning() << q.lastError();
+        }
+    }
+}
+
 void SceneStorage::saveNode(const NodeItem *node)
 {
     Q_ASSERT(node != nullptr);
@@ -36,7 +72,7 @@ void SceneStorage::saveNode(const NodeItem *node)
     _toBeSaved.removeOne(node);
     _toBeSaved.push_back(node);
 
-    _timer->start(125);
+    _saveTimer->start(125);
 }
 
 void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
@@ -91,9 +127,9 @@ void SceneStorage::loadScene(FileSystemScene* scene)
     Q_ASSERT(_scene == nullptr);
     _scene = scene;
 
-    auto graph = readTable(scene);
+    auto G = readTable(scene);
 
-    if (graph.empty()) {
+    if (G.empty()) {
         auto* edge = NodeItem::createRootNode(scene->rootIndex());
         scene->addItem(edge->source());
         scene->addItem(edge->target());
@@ -101,7 +137,6 @@ void SceneStorage::loadScene(FileSystemScene* scene)
         edge->adjust();
 
         scene->openTo(QDir::homePath());
-        enableSave();
         return;
     }
 
@@ -112,77 +147,95 @@ void SceneStorage::loadScene(FileSystemScene* scene)
     };
 
     QList<NodeData> S;
-    if (graph.contains(QModelIndex())) {
+    if (G.contains(QModelIndex())) {
         /// This assumes we have only a single root node ("/").
 
-        auto& Ms = graph[QModelIndex()];
+        auto& Ms = G[QModelIndex()];
         sortByRows(Ms);
         Q_ASSERT(Ms.size() == 1);
 
-        for (auto m : Ms) {
+        for (auto& m : Ms) {
+            Q_ASSERT(m.index.isValid());
             m.edge = NodeItem::createRootNode(m.index);
             scene->addItem(m.edge->source());
             scene->addItem(m.edge->target());
             scene->addItem(m.edge);
+            m.edge->target()->setPos(m.pos);
+            m.edge->adjust();
             S.push_back(m);
         }
     }
+    /// Minor Bug: if the DB contains only the root ("/") directory, after
+    /// loadScene() finishes, FileSystemScene::onRowsInserted is called, which
+    /// then calls NodeItem::reload() and that causes the root node to open.
+    /// This only happens with the root ("/") node; it's a minor issue, and not
+    /// sure if it's worth fixing.
+    /// One solution is to make the FileSystemScene::onRowsInserted connection
+    /// after SceneStorage::loadScene() and with a small delay.  The delay is
+    /// to give the event loop a chance to catch up and the connection is made
+    /// after  NodeItem::reload().
 
     QList<NodeItem*> halfOpenNodes;
     while (!S.empty()) {
-        const auto& parent = S.back();
-        auto childNodeData = graph[parent.index];
+        const auto parent = S.back();
+        S.pop_back();
+        Q_ASSERT(parent.edge != nullptr);
 
-        if (!childNodeData.empty()) {
-            sortByRows(childNodeData);
-            asNodeItem(parent.edge->target())->createChildNodes(childNodeData);
+        auto* parentNode = asNodeItem(parent.edge->target());
+
+        /// if graph does not contain parent.index, then parent is a closed (leaf) node.
+        if (G.count(parent.index)) {
+            auto& childNodeData = G[parent.index];
+            if (!childNodeData.empty()) {
+                sortByRows(childNodeData);
+
+                parentNode->createChildNodes(childNodeData);
+                parent.edge->adjust();
+            }
+            for (const auto& nd : childNodeData) {
+                S.push_back(nd);
+            }
         }
-        parent.edge->target()->setPos(parent.pos);
-        parent.edge->adjust();
+        parentNode->setPos(parent.pos);
 
         if (parent.type == NodeType::HalfClosedNode) {
-            halfOpenNodes.push_back(asNodeItem(parent.edge->target()));
-        }
-
-        S.pop_back();
-        for (const auto& nd : childNodeData) {
-            S.push_back(nd);
+            halfOpenNodes.push_back(parentNode);
         }
     }
 
     for (auto* node : halfOpenNodes) {
         node->halfClose();
     }
-
-    enableSave();
 }
 
-void SceneStorage::push()
+void SceneStorage::deleteNextN()
 {
-    if (const auto nextN = qMin(32, _toBeSaved.size()); nextN > 0) {
+    const auto batchSize = 128;
+
+    if (const auto nextN = qMin(batchSize, _toBeDeleted.size()); nextN > 0) {
+        const auto nodes = _toBeDeleted.first(nextN);
+        _toBeDeleted.remove(0, nextN);
+        deleteNodes(nodes);
+    }
+
+    if (_toBeDeleted.empty()) {
+        _deleteTimer->stop();
+    }
+}
+
+void SceneStorage::saveNextN()
+{
+    const auto batchSize = 128;
+
+    if (const auto nextN = qMin(batchSize, _toBeSaved.size()); nextN > 0) {
         const auto nodes = _toBeSaved.first(nextN);
         _toBeSaved.remove(0, nextN);
         saveNodes(nodes);
     }
 
     if (_toBeSaved.empty()) {
-        _timer->stop();
+        _saveTimer->stop();
     }
-}
-
-/// save functionality should be enabled after the scene has been loaded.
-void SceneStorage::enableSave()
-{
-    connect(_scene, &QGraphicsScene::changed,
-        [this](const QList<QRectF>& region) {
-            for (const auto& reg : region) {
-                for (const auto items = _scene->items(reg); auto* item : items) {
-                    if (auto* node = qgraphicsitem_cast<const NodeItem*>(item); node) {
-                        saveNode(node);
-                    }
-                }
-            }
-        });
 }
 
 void SceneStorage::createTable()
