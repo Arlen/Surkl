@@ -3,10 +3,12 @@
 
 #include "NodeItem.hpp"
 #include "FileSystemScene.hpp"
+#include "SceneStorage.hpp"
 #include "SessionManager.hpp"
-#include "theme.hpp"
 #include "layout.hpp"
+#include "theme.hpp"
 
+#include <QDir>
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
@@ -323,7 +325,7 @@ NodeItem::NodeItem(const QPersistentModelIndex& index)
 {
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
 
-    _index = index;
+    setIndex(index);
     _knot  = new KnotItem(this);
     _knot->setPos(QPointF(NODE_OPEN_RADIUS, 0));
     _knot->hide();
@@ -362,6 +364,7 @@ void NodeItem::createChildNodes()
 {
     Q_ASSERT(parentEdge());
     Q_ASSERT(knot());
+    Q_ASSERT(_index.isValid());
 
     const auto* model = _index.model();
     const auto count  = std::min(NODE_CHILD_COUNT, model->rowCount(_index));
@@ -420,6 +423,7 @@ void NodeItem::createChildNodes(QList<NodeData>& data)
 void NodeItem::reload(int start, int end)
 {
     if (_nodeType == NodeType::ClosedNode) {
+       open();
        return;
     }
 
@@ -437,6 +441,7 @@ void NodeItem::reload(int start, int end)
         }
 
         if (_nodeType == NodeType::OpenNode) {
+            skipTo(start);
             spread();
         }
         else if (_nodeType == NodeType::HalfClosedNode) {
@@ -472,7 +477,7 @@ void NodeItem::reload(int start, int end)
         /// only skipt to if the new rows are within range of existing rows; it's
         /// less annonying, and it prevents a reload() from quickly overwriting
         /// SceneStorage::loadScene.
-        if (start >= lowest && start <= highest) {
+        if (lowest == -1 || (start >= lowest && start <= highest)) {
             skipTo(start);
             adjustAllEdges(this);
         }
@@ -510,6 +515,7 @@ void NodeItem::unload(int start, int end)
                 deletedNodes++;
                 Q_ASSERT(node->isClosed());
 
+                SessionManager::ss()->deleteNode(node);
                 scene()->removeItem(node);
                 scene()->removeItem(node->parentEdge());
                 delete node->parentEdge();
@@ -560,7 +566,7 @@ void NodeItem::setIndex(const QPersistentModelIndex& index)
 {
     _index = index;
 
-    if (fsScene()->isDir(index)) {
+    if (SessionManager::scene()->isDir(index)) {
         _nodeType = NodeType::ClosedNode;
     } else {
         _nodeType = NodeType::FileNode;
@@ -705,6 +711,8 @@ void NodeItem::halfClose()
     setAllEdgeState(this, EdgeItem::CollapsedState);
     setNodeType(NodeType::HalfClosedNode);
     adjustAllEdges(this);
+
+    SessionManager::ss()->saveNode(this);
 }
 
 void NodeItem::closeOrHalfClose(bool forceClose)
@@ -743,6 +751,7 @@ void NodeItem::open()
         spread();
         setAllEdgeState(this, EdgeItem::ActiveState);
         adjustAllEdges(this);
+        SessionManager::ss()->saveNode(this);
     }
 }
 
@@ -776,17 +785,22 @@ void NodeItem::rotatePage(Rotation rot)
 QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     switch (change) {
-    case ItemScenePositionHasChanged:
-        adjustAllEdges(this);
-        break;
+        case ItemScenePositionHasChanged:
+            adjustAllEdges(this);
 
-    case ItemSelectedChange:
-        Q_ASSERT(value.canConvert<bool>());
-        if (value.toBool()) { setZValue(1); } else { setZValue(0); }
-        break;
+            /// this covers both open and close states, because the node is
+            /// moved with open/close, which triggers itemChange.  with
+            /// halfClose, the node is saved with a call to saveNode().
+            SessionManager::ss()->saveNode(this);
+            break;
 
-    default:
-        break;
+        case ItemSelectedChange:
+            Q_ASSERT(value.canConvert<bool>());
+            if (value.toBool()) { setZValue(1); } else { setZValue(0); }
+            break;
+
+        default:
+            break;
     };
 
     return QGraphicsItem::itemChange(change, value);
@@ -918,6 +932,7 @@ void NodeItem::destroyChildren()
         auto* node = edge->target();
 
         Q_ASSERT(scene()->items().contains(node));
+        SessionManager::ss()->deleteNode(asNodeItem(node));
         scene()->removeItem(node);
         delete node;
 

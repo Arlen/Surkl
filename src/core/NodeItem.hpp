@@ -93,11 +93,20 @@ namespace  core
         QHash<QGraphicsItem*, Movement> movement;
     };
 
+    struct NodeData
+    {
+        QPersistentModelIndex index;
+        NodeType type;
+        QPointF pos;
+        qreal length;
+        EdgeItem* edge{nullptr};
+    };
+
     class NodeItem final : public QGraphicsItem
     {
     public:
         /// fixed for now.
-        static constexpr int NODE_CHILD_COUNT = 6;
+        static constexpr int NODE_CHILD_COUNT = 13;
 
         enum { Type = UserType + 2 };
 
