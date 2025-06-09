@@ -33,8 +33,12 @@ namespace core
         void addSceneBookmark(const QPoint& pos, const QString& name);
         [[nodiscard]] QPersistentModelIndex rootIndex() const;
         bool isDir(const QModelIndex& index) const;
+        [[nodiscard]] QString filePath(const QPersistentModelIndex& index) const;
+        [[nodiscard]] QPersistentModelIndex index(const QString& paht) const;
+
         void setRootPath(const QString& newPath) const;
         bool openFile(const NodeItem* node) const;
+        void openTo(const QString &targetPath) const;
         void fetchMore(const QPersistentModelIndex& index) const;
 
     public slots:

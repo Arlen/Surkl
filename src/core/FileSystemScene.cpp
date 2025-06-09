@@ -7,7 +7,6 @@
 #include "NodeItem.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
-#include "db.hpp"
 #include "gui/theme.hpp"
 #include "nodes.hpp"
 
@@ -272,6 +271,18 @@ bool FileSystemScene::isDir(const QModelIndex& index) const
     return _model->isDir(_proxyModel->mapToSource(index));
 }
 
+QString FileSystemScene::filePath(const QPersistentModelIndex& index) const
+{
+    return _model->filePath(_proxyModel->mapToSource(index));
+}
+
+QPersistentModelIndex FileSystemScene::index(const QString& path) const
+{
+    auto index = _model->index(path);
+
+    return _proxyModel->mapFromSource(index);
+}
+
 void FileSystemScene::setRootPath(const QString& newPath) const
 {
     _model->setRootPath(newPath);
@@ -288,6 +299,13 @@ bool FileSystemScene::openFile(const NodeItem* node) const
     return success;
 }
 
+/// This fetches the path, which then triggers onRowsInserted(), and then
+/// NodeItem::reload() are called to open all the nodes to the path.
+void FileSystemScene::openTo(const QString &targetPath) const
+{
+    fetchMore(index(targetPath));
+}
+
 void FileSystemScene::fetchMore(const QPersistentModelIndex& index) const
 {
     _proxyModel->fetchMore(index);
@@ -299,7 +317,8 @@ void FileSystemScene::openSelectedNodes() const
         if (isDir(node->index())) {
             node->open();
         } else {
-            openFile(node);
+            const auto ok = openFile(node);
+            Q_UNUSED(ok);
         }
     }
 }
@@ -342,6 +361,7 @@ void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int e
     for (const auto _items = items(); auto* node : _items | filterNodes) {
         if (node->index() == parent) {
             node->reload(start, end);
+            break;
         }
     }
 }
