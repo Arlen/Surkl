@@ -60,8 +60,8 @@ void SessionManager::cleanup() const
 {
     BookmarkManager::saveToDatabase(_bm);
 
-    /// TODO: interactive save is too slow.  For now, we save onec before exit.
-    SceneStorage::saveScene(_sc);
+    /// TODO: with interactive save working, i'm not sure if this is needed!
+    _ss->saveScene();
 }
 
 void SessionManager::init()
@@ -74,11 +74,11 @@ void SessionManager::init()
     _bm = new BookmarkManager(this);
     BookmarkManager::configure(_bm);
 
-    _ss = new SceneStorage(this);
-    SceneStorage::configure(_ss);
-
     _sc = new FileSystemScene(this);
-    FileSystemScene::configure(_sc);
+
+    _ss = new SceneStorage(this);
+    SceneStorage::configure();
+    _ss->loadScene(_sc);
 
     _mw = new gui::MainWindow(_sc);
 

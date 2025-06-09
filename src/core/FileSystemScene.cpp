@@ -218,15 +218,6 @@ namespace
     auto filterEdges = std::views::transform(toEdge) | std::views::filter(notNull);
 }
 
-void FileSystemScene::configure(FileSystemScene* scene)
-{
-    if (auto db = db::get(); false && db.isOpen()) {
-        /// how do we save and restore the scene???
-    } else {
-        auto* n1 = Node::createRootNode(scene);
-    }
-}
-
 FileSystemScene::FileSystemScene(QObject* parent)
     : QGraphicsScene(parent)
 {

@@ -28,8 +28,6 @@ namespace core
 #endif
 
     public:
-        static void configure(FileSystemScene* scene);
-
         explicit FileSystemScene(QObject* parent = nullptr);
         ~FileSystemScene() override;
         void addSceneBookmark(const QPoint& pos, const QString& name);
