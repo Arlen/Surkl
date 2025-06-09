@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QObject>
+#include <QPointF>
 
 
 class QGraphicsScene;
@@ -24,6 +25,19 @@ namespace core
 
     class NodeData;
 
+    struct SaveData
+    {
+        QString id;
+        int nodeType;
+        QPointF pos;
+        qreal length;
+    };
+
+    struct DeleteData
+    {
+        QString id;
+    };
+
     class SceneStorage final : public QObject
     {
         Q_OBJECT
@@ -35,30 +49,30 @@ namespace core
 
         void deleteNode(const NodeItem* node);
 
-        void deleteNodes(const QStringList& nodeIds) const;
-
         void saveNode(const NodeItem* node);
-
-        void saveNodes(const QList<const NodeItem*>& nodes) const;
 
         void saveScene() const;
 
         void loadScene(FileSystemScene* scene);
 
-    public slots:
-        void deleteNextN();
-
-        void saveNextN();
+    private slots:
+        void nextN();
 
     private:
+        void enableStorage();
+
+        void saveNodes(const QList<const NodeItem*>& nodes) const;
+
+        static void consume(const QList<QVariant>& data);
+
         static void createTable();
 
         static QHash<QPersistentModelIndex, QList<NodeData>> readTable(const FileSystemScene* scene);
 
+        bool _enabled{false};
         FileSystemScene* _scene{nullptr};
-        QTimer* _deleteTimer{nullptr};
-        QTimer* _saveTimer{nullptr};
-        QStringList _toBeDeleted;
-        QList<const NodeItem*> _toBeSaved;
+        QTimer* _timer{nullptr};
+
+        QList<QVariant> _queue;
     };
 }

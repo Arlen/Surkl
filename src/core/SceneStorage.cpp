@@ -17,11 +17,9 @@ using namespace core;
 SceneStorage::SceneStorage(QObject* parent)
     : QObject(parent)
 {
-    _deleteTimer = new QTimer(this);
-    _saveTimer   = new QTimer(this);
+    _timer = new QTimer(this);
 
-    connect(_deleteTimer, &QTimer::timeout, this, &SceneStorage::deleteNextN);
-    connect(_saveTimer, &QTimer::timeout, this, &SceneStorage::saveNextN);
+    connect(_timer, &QTimer::timeout, this, &SceneStorage::nextN);
 }
 
 void SceneStorage::configure()
@@ -36,80 +34,40 @@ void SceneStorage::deleteNode(const NodeItem *node)
     Q_ASSERT(node != nullptr);
 
     const auto id = _scene->filePath(node->index());
-    _toBeDeleted.removeOne(id);
-    _toBeDeleted.push_back(id);
 
-    _deleteTimer->start(125);
-}
-
-void SceneStorage::deleteNodes(const QStringList& nodeIds) const
-{
-    if (auto db = db::get(); db.isOpen()) {
-        db.transaction();
-        QSqlQuery q(db);
-
-        q.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:id")
-            .arg(NODES_TABLE)
-            .arg(NODE_ID));
-
-        for (const auto& id : nodeIds) {
-            q.bindValue(":id", id);
-            if (!q.exec()) {
-                qWarning() << q.lastError();
-            }
-        }
-
-        if (!db.commit()) {
-            qWarning() << q.lastError();
-        }
-    }
+    _queue.push_back(QVariant::fromValue<DeleteData>({id}));
+    _timer->start(125);
 }
 
 void SceneStorage::saveNode(const NodeItem *node)
 {
+    if (!_enabled) {
+        return;
+    }
+
     Q_ASSERT(node != nullptr);
 
-    _toBeSaved.removeOne(node);
-    _toBeSaved.push_back(node);
+    const auto id       = _scene->filePath(node->index());
+    const auto nodeType = static_cast<int>(node->nodeType());
+    const auto pos      = node->scenePos();
+    const auto length   = node->parentEdge()->line().length();
 
-    _saveTimer->start(125);
-}
+    Q_ASSERT(!id.isEmpty());
 
-void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
-{
-    if (auto db = db::get(); db.isOpen()) {
-        db.transaction();
-        QSqlQuery q(db);
-
-        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6) VALUES(?, ?, ?, ?, ?)")
-            .arg(NODES_TABLE)
-
-            .arg(NODE_ID)
-            .arg(NODE_TYPE)
-            .arg(NODE_XPOS)
-            .arg(NODE_YPOS)
-            .arg(EDGE_LEN));
-
-        for (auto* node : nodes) {
-            if (node && node->index().isValid()) {
-                q.addBindValue(_scene->filePath(node->index()));
-                q.addBindValue(static_cast<int>(node->nodeType()));
-                const auto pos = node->scenePos();
-                q.addBindValue(pos.x());
-                q.addBindValue(pos.y());
-                if (const auto* pe  = node->parentEdge(); pe) {
-                    q.addBindValue(pe->line().length());
-                }
-                if (!q.exec()) {
-                    qWarning() << q.lastError();
-                }
-            }
+    auto match = [id](const QVariant& v) -> bool {
+        if (v.canConvert<SaveData>()) {
+            return id == v.value<SaveData>().id;
         }
+        return false;
+    };
 
-        if (!db.commit()) {
-            qWarning() << q.lastError();
-        }
+    if (auto found = std::ranges::find_if(_queue, match); found != _queue.end()) {
+        *found = QVariant::fromValue<SaveData>({id, nodeType, pos, length});
+    } else {
+        _queue.push_back(QVariant::fromValue<SaveData>({id, nodeType, pos, length}));
     }
+
+    _timer->start(125);
 }
 
 void SceneStorage::saveScene() const
@@ -137,6 +95,7 @@ void SceneStorage::loadScene(FileSystemScene* scene)
         edge->adjust();
 
         scene->openTo(QDir::homePath());
+        enableStorage();
         return;
     }
 
@@ -206,35 +165,114 @@ void SceneStorage::loadScene(FileSystemScene* scene)
     for (auto* node : halfOpenNodes) {
         node->halfClose();
     }
+    enableStorage();
 }
 
-void SceneStorage::deleteNextN()
+void SceneStorage::nextN()
 {
     const auto batchSize = 128;
 
-    if (const auto nextN = qMin(batchSize, _toBeDeleted.size()); nextN > 0) {
-        const auto nodes = _toBeDeleted.first(nextN);
-        _toBeDeleted.remove(0, nextN);
-        deleteNodes(nodes);
+    if (const auto N = qMin(batchSize, _queue.size()); N > 0) {
+        const auto batch = _queue.first(N);
+        _queue.remove(0, N);
+        consume(batch);
     }
 
-    if (_toBeDeleted.empty()) {
-        _deleteTimer->stop();
+    if (_queue.empty()) {
+        _timer->stop();
     }
 }
 
-void SceneStorage::saveNextN()
+/// storage functionality should be enabled after the scene has been loaded.
+void SceneStorage::enableStorage()
 {
-    const auto batchSize = 128;
+    _enabled = true;
+}
 
-    if (const auto nextN = qMin(batchSize, _toBeSaved.size()); nextN > 0) {
-        const auto nodes = _toBeSaved.first(nextN);
-        _toBeSaved.remove(0, nextN);
-        saveNodes(nodes);
+void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
+{
+    if (auto db = db::get(); db.isOpen()) {
+        db.transaction();
+        QSqlQuery q(db);
+
+        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6) VALUES(?, ?, ?, ?, ?)")
+            .arg(NODES_TABLE)
+
+            .arg(NODE_ID)
+            .arg(NODE_TYPE)
+            .arg(NODE_XPOS)
+            .arg(NODE_YPOS)
+            .arg(EDGE_LEN));
+
+        for (auto* node : nodes) {
+            if (node && node->index().isValid()) {
+                q.addBindValue(_scene->filePath(node->index()));
+                q.addBindValue(static_cast<int>(node->nodeType()));
+                const auto pos = node->scenePos();
+                q.addBindValue(pos.x());
+                q.addBindValue(pos.y());
+                if (const auto* pe  = node->parentEdge(); pe) {
+                    q.addBindValue(pe->line().length());
+                }
+                if (!q.exec()) {
+                    qWarning() << q.lastError();
+                }
+            }
+        }
+
+        if (!db.commit()) {
+            qWarning() << q.lastError();
+        }
     }
+}
 
-    if (_toBeSaved.empty()) {
-        _saveTimer->stop();
+void SceneStorage::consume(const QList<QVariant>& data)
+{
+    if (auto db = db::get(); db.isOpen()) {
+        db.transaction();
+        QSqlQuery q_del(db);
+        QSqlQuery q_save(db);
+
+        q_del.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:id")
+            .arg(NODES_TABLE)
+            .arg(NODE_ID));
+
+        q_save.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6) VALUES(?, ?, ?, ?, ?)")
+            .arg(NODES_TABLE)
+
+            .arg(NODE_ID)
+            .arg(NODE_TYPE)
+            .arg(NODE_XPOS)
+            .arg(NODE_YPOS)
+            .arg(EDGE_LEN));
+
+        for (const auto& d : data) {
+            if (d.canConvert<DeleteData>()) {
+                const auto [id] = d.value<DeleteData>();
+
+                q_del.bindValue(":id", id);
+
+                if (!q_del.exec()) {
+                    qWarning() << q_del.lastError();
+                }
+            } else if (d.canConvert<SaveData>()) {
+                const auto [id, nodeType, pos, length] = d.value<SaveData>();
+
+                q_save.addBindValue(id);
+                q_save.addBindValue(nodeType);
+                q_save.addBindValue(pos.x());
+                q_save.addBindValue(pos.y());
+                q_save.addBindValue(length);
+
+                if (!q_save.exec()) {
+                    qWarning() << db.lastError();
+                }
+            }
+        }
+
+        if (!db.commit()) {
+            qWarning() << db.lastError();
+        }
     }
 }
 
