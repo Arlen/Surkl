@@ -61,9 +61,8 @@ namespace
 
         if (rec.contains(QPoint{0, 0})) {
             p->setPen(QPen(fgColor, 2));
-            const auto pos = QPointF{0, 0};
-            p->drawLine({pos+dy0, pos+dy1});
-            p->drawLine({pos+dx0, pos+dx1});
+            p->drawLine({dy0, dy1});
+            p->drawLine({dx0, dx1});
         }
         p->restore();
     }
@@ -98,8 +97,8 @@ namespace
         const auto y0 = std::ceil(std::abs(t) / borderSize) * borderSize * (std::signbit(t) ? -1.0 : 1.0);
         const auto y1 = std::ceil(std::abs(b) / borderSize) * borderSize * (std::signbit(b) ? -1.0 : 1.0);
 
-        const bool x0IsEven = int(std::abs(x0)/borderSize) % 2;
-        const bool y0IsEven = int(std::abs(y0)/borderSize) % 2;
+        const bool x0IsEven = static_cast<int>(std::abs(x0)/borderSize) % 2;
+        const bool y0IsEven = static_cast<int>(std::abs(y0)/borderSize) % 2;
 
         auto doDrawH = [p](qreal start, qreal end, qreal y, qreal w, qreal h, const QColor& color)
         {
@@ -278,9 +277,7 @@ QString FileSystemScene::filePath(const QPersistentModelIndex& index) const
 
 QPersistentModelIndex FileSystemScene::index(const QString& path) const
 {
-    auto index = _model->index(path);
-
-    return _proxyModel->mapFromSource(index);
+    return _proxyModel->mapFromSource(_model->index(path));
 }
 
 void FileSystemScene::setRootPath(const QString& newPath) const
