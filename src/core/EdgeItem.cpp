@@ -224,7 +224,7 @@ void EdgeItem::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidg
 
     p->setRenderHint(QPainter::Antialiasing);
     p->setPen(QPen(option->state & QStyle::State_Selected
-            ? tm->edgeColor().lighter(1600)
+            ? tm->edgeHighlightColor()
             : tm->edgeColor()
         , EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
     p->drawLine(line());

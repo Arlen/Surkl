@@ -85,6 +85,7 @@ namespace gui
         NODE_CLOSED_COLOR,
         NODE_CLOSED_BORDER_COLOR,
         EDGE_COLOR,
+        EDGE_HIGHLIGHT_COLOR,
         EDGE_TEXT_COLOR,
 
         PaletteIndexSize
@@ -159,6 +160,7 @@ namespace gui
             result[NODE_CLOSED_COLOR]        = { 164, 164, 164, 255 };
             result[NODE_CLOSED_BORDER_COLOR] = {   8,   8,   8, 255 };
             result[EDGE_COLOR]               = {   8,   8,   8, 255 };
+            result[EDGE_HIGHLIGHT_COLOR]     = {  96,  96,  96, 255 };
             result[EDGE_TEXT_COLOR]          = { 220, 220, 220, 255 };
 
             return result;
@@ -194,6 +196,8 @@ namespace gui
             { return _active[NODE_CLOSED_BORDER_COLOR]; }
         const QColor& edgeColor() const
             { return _active[EDGE_COLOR]; }
+        const QColor& edgeHighlightColor() const
+            { return _active[EDGE_HIGHLIGHT_COLOR]; }
         const QColor& edgeTextColor() const
             { return _active[EDGE_TEXT_COLOR]; }
 
