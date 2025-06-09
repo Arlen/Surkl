@@ -151,7 +151,11 @@ void EdgeItem::adjust()
         return;
     }
 
-    setLine(QLineF());
+    /// QGraphicsScene::changed produces strange results if line() is null;
+    /// therefore, set it to a valid short line.
+    /// QGraphicsScene::changed isn't used, but the issue also affected
+    /// performance.
+    setLine(QLineF(QPointF(0,0), QPointF(1, 1)));
     _lineWithMargin = QLineF();
 
     /// line from the very edge of an Node to the very edge of the other
@@ -213,7 +217,7 @@ void EdgeItem::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidg
 
     const auto* tm = SessionManager::tm();
 
-    if (line().isNull()) {
+    if (qAbs(line().dx()) <= 1 && qAbs(line().dy()) <= 1) {
         /// nodes are too close to draw any edges.
         return;
     }
