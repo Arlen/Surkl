@@ -244,11 +244,7 @@ Q_GLOBAL_STATIC(core::Animator, animator)
 ////////////////
 RootItem::RootItem()
 {
-    const auto* tm = SessionManager::tm();
-
     setRect(QRectF(-12, -12, 24, 24));
-    setPen(Qt::NoPen);
-    setBrush(tm->edgeColor());
     setFlags(ItemIsSelectable | ItemIsMovable |  ItemSendsScenePositionChanges);
 }
 
@@ -264,31 +260,23 @@ void RootItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
     Q_UNUSED(option)
     Q_UNUSED(widget);
 
-    const auto rec = boundingRect();
+    const auto* tm = SessionManager::tm();
 
     p->setRenderHint(QPainter::Antialiasing);
-    p->setPen(Qt::NoPen);
-    p->setBrush(brush());
-    p->drawEllipse(rec);
-
-    auto bg = brush().color();
-    int r = 0, g = 0, b = 0;
-    bg.getRgb(&r, &g, &b);
-    bg.setRgb(255 - r, 255 - g, 255 - b);
-
-    p->setBrush(bg);
-    p->drawEllipse(rec.center(), rec.width() * 0.25, rec.height() * 0.25);
+    p->setPen(QPen(tm->closedNodeBorderColor(), 5));
+    p->setBrush(tm->closedNodeColor());
+    p->drawEllipse(boundingRect().adjusted(5, 5, -5, -5));
 }
 
 QVariant RootItem::itemChange(GraphicsItemChange change, const QVariant& value)
 {
     switch (change) {
-    case ItemScenePositionHasChanged:
-        _childEdge->adjust();
-        break;
+        case ItemScenePositionHasChanged:
+            _childEdge->adjust();
+            break;
 
-    default:
-        break;
+        default:
+            break;
     };
 
     return QGraphicsEllipseItem::itemChange(change, value);
