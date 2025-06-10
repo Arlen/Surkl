@@ -16,6 +16,7 @@
 #include <QTableView>
 #include <QVBoxLayout>
 
+#include <ranges>
 
 
 using namespace gui;
@@ -47,6 +48,14 @@ ThemeSettings::ThemeSettings(QWidget *parent)
         if (checked) { emit generated(_generated); }
     });
 
+    auto* prevPermButton = new QPushButton("Prev. Perm.", this);
+    connect(prevPermButton, &QPushButton::clicked, this, &ThemeSettings::prevPermutation);
+    prevPermButton->hide();
+
+    auto* nextPermButton = new QPushButton("Next Perm.", this);
+    connect(nextPermButton, &QPushButton::clicked, this, &ThemeSettings::nextPermutation);
+    nextPermButton->hide();
+
     auto* keepButton = new QPushButton("Keep", this);
     keepButton->hide();
     connect(keepButton, &QPushButton::clicked, [this, keepButton, previewLabel] {
@@ -55,15 +64,21 @@ ThemeSettings::ThemeSettings(QWidget *parent)
         keepButton->hide();
         _applyGenerated->hide();
     });
+    connect(keepButton, &QPushButton::clicked, prevPermButton, &QWidget::hide);
+    connect(keepButton, &QPushButton::clicked, nextPermButton, &QWidget::hide);
 
     auto* generateButton = new QPushButton("Generate", this);
     connect(generateButton, &QPushButton::clicked, this, &ThemeSettings::generatePalette);
+    connect(generateButton, &QPushButton::clicked, prevPermButton, &QWidget::show);
+    connect(generateButton, &QPushButton::clicked, nextPermButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, keepButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, previewLabel, &QWidget::show);
 
     auto* hl = new QHBoxLayout();
     hl->addWidget(_applyGenerated);
     hl->addSpacerItem(new QSpacerItem(1, 1, QSizePolicy::Expanding));
+    hl->addWidget(prevPermButton);
+    hl->addWidget(nextPermButton);
     hl->addWidget(keepButton);
     hl->addWidget(generateButton);
     layout->addLayout(hl);
@@ -155,6 +170,10 @@ void ThemeSettings::hideEvent(QHideEvent* event)
 
 void ThemeSettings::generatePalette()
 {
+    for (auto x : std::views::iota(0, std::ssize(_permutation))) {
+        _permutation[x] = x;
+    }
+
     _generated = core::SessionManager::tm()->generatePalette(_hsvRange);
 
     if (_applyGenerated->isChecked()) {
@@ -163,6 +182,30 @@ void ThemeSettings::generatePalette()
         _applyGenerated->show();
         _applyGenerated->toggle();
     }
+}
+
+void ThemeSettings::prevPermutation()
+{
+    std::ranges::prev_permutation(_permutation);
+    Palette result;
+
+    for (auto [i, pi] : std::ranges::views::enumerate(_permutation)) {
+        result[i] = _generated[pi];
+    }
+
+    emit generated(result);
+}
+
+void ThemeSettings::nextPermutation()
+{
+    std::ranges::next_permutation(_permutation);
+    Palette result;
+
+    for (auto [i, pi] : std::ranges::views::enumerate(_permutation)) {
+        result[i] = _generated[pi];
+    }
+
+    emit generated(result);
 }
 
 template <class Range>

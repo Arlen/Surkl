@@ -32,6 +32,8 @@ namespace gui
 
     private slots:
         void generatePalette();
+        void prevPermutation();
+        void nextPermutation();
 
     private:
         template <class Range>
@@ -47,6 +49,7 @@ namespace gui
         QTableView* _tv{nullptr};
         int _lastApplied{0};
 
+        std::array<int, std::tuple_size<Palette>{}> _permutation;
         HsvRange _hsvRange;
         Palette _generated;
     };
