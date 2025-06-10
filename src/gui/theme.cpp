@@ -175,6 +175,46 @@ Palette ThemeManager::generatePalette(const HsvRange& range)
         result[i] = QColor::fromHsvF(hue, sat, val).rgba();
     }
 
+    auto cmp = [](const QColor& a, const QColor& b) { return a.value() < b.value(); };
+
+    /// sort sub-groups by value.
+    QList<QColor> cs;
+    cs.push_back(result[NODE_CLOSED_MIDLIGHT_COLOR]);
+    cs.push_back(result[NODE_CLOSED_COLOR]);
+    cs.push_back(result[NODE_CLOSED_MIDARK_COLOR]);
+    cs.push_back(result[NODE_CLOSED_DARK_COLOR]);
+    std::ranges::sort(cs, cmp);
+    result[NODE_CLOSED_DARK_COLOR]     = cs[0];
+    result[NODE_CLOSED_MIDARK_COLOR]   = cs[1];
+    result[NODE_CLOSED_COLOR]          = cs[2];
+    result[NODE_CLOSED_MIDLIGHT_COLOR] = cs[3];
+    cs.clear();
+
+    cs.push_back(result[NODE_OPEN_LIGHT_COLOR]);
+    cs.push_back(result[NODE_OPEN_MIDLIGHT_COLOR]);
+    cs.push_back(result[NODE_OPEN_COLOR]);
+    std::ranges::sort(cs, cmp);
+    result[NODE_OPEN_COLOR]          = cs[0];
+    result[NODE_OPEN_MIDLIGHT_COLOR] = cs[1];
+    result[NODE_OPEN_LIGHT_COLOR]    = cs[2];
+    cs.clear();
+
+    cs.push_back(result[NODE_FILE_LIGHT_COLOR]);
+    cs.push_back(result[NODE_FILE_MIDLIGHT_COLOR]);
+    cs.push_back(result[NODE_FILE_COLOR]);
+    std::ranges::sort(cs, cmp);
+    result[NODE_FILE_COLOR]          = cs[0];
+    result[NODE_FILE_MIDLIGHT_COLOR] = cs[1];
+    result[NODE_FILE_LIGHT_COLOR]    = cs[2];
+    cs.clear();
+
+    cs.push_back(result[EDGE_LIGHT_COLOR]);
+    cs.push_back(result[EDGE_COLOR]);
+    std::ranges::sort(cs, cmp);
+    result[EDGE_COLOR]       = cs[0];
+    result[EDGE_LIGHT_COLOR] = cs[1];
+    cs.clear();
+
     return result;
 }
 
