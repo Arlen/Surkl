@@ -14,6 +14,23 @@
 
 using namespace gui;
 
+namespace
+{
+    template <std::size_t ... ints>
+    void sortByGroups(Palette& palette, std::index_sequence<ints...>)
+    {
+        auto cmp = [](const QColor& a, const QColor& b)
+            { return a.value() < b.value(); };
+
+        std::array xs = {std::get<ints>(std::forward<Palette>(palette))... };
+        std::ranges::sort(xs, cmp);
+
+        for (int xi = 0; auto pi : {ints...}) {
+            palette[pi] = xs[xi++];
+        }
+    };
+}
+
 void ThemeManager::configure(ThemeManager* tm)
 {
     using namespace std::ranges;
@@ -175,45 +192,10 @@ Palette ThemeManager::generatePalette(const HsvRange& range)
         result[i] = QColor::fromHsvF(hue, sat, val).rgba();
     }
 
-    auto cmp = [](const QColor& a, const QColor& b) { return a.value() < b.value(); };
-
-    /// sort sub-groups by value.
-    QList<QColor> cs;
-    cs.push_back(result[NODE_CLOSED_MIDLIGHT_COLOR]);
-    cs.push_back(result[NODE_CLOSED_COLOR]);
-    cs.push_back(result[NODE_CLOSED_MIDARK_COLOR]);
-    cs.push_back(result[NODE_CLOSED_DARK_COLOR]);
-    std::ranges::sort(cs, cmp);
-    result[NODE_CLOSED_DARK_COLOR]     = cs[0];
-    result[NODE_CLOSED_MIDARK_COLOR]   = cs[1];
-    result[NODE_CLOSED_COLOR]          = cs[2];
-    result[NODE_CLOSED_MIDLIGHT_COLOR] = cs[3];
-    cs.clear();
-
-    cs.push_back(result[NODE_OPEN_LIGHT_COLOR]);
-    cs.push_back(result[NODE_OPEN_MIDLIGHT_COLOR]);
-    cs.push_back(result[NODE_OPEN_COLOR]);
-    std::ranges::sort(cs, cmp);
-    result[NODE_OPEN_COLOR]          = cs[0];
-    result[NODE_OPEN_MIDLIGHT_COLOR] = cs[1];
-    result[NODE_OPEN_LIGHT_COLOR]    = cs[2];
-    cs.clear();
-
-    cs.push_back(result[NODE_FILE_LIGHT_COLOR]);
-    cs.push_back(result[NODE_FILE_MIDLIGHT_COLOR]);
-    cs.push_back(result[NODE_FILE_COLOR]);
-    std::ranges::sort(cs, cmp);
-    result[NODE_FILE_COLOR]          = cs[0];
-    result[NODE_FILE_MIDLIGHT_COLOR] = cs[1];
-    result[NODE_FILE_LIGHT_COLOR]    = cs[2];
-    cs.clear();
-
-    cs.push_back(result[EDGE_LIGHT_COLOR]);
-    cs.push_back(result[EDGE_COLOR]);
-    std::ranges::sort(cs, cmp);
-    result[EDGE_COLOR]       = cs[0];
-    result[EDGE_LIGHT_COLOR] = cs[1];
-    cs.clear();
+    sortByGroups(result, std::index_sequence<NODE_CLOSED_MIDLIGHT_COLOR, NODE_CLOSED_COLOR, NODE_CLOSED_MIDARK_COLOR, NODE_CLOSED_DARK_COLOR>{});
+    sortByGroups(result, std::index_sequence<NODE_OPEN_LIGHT_COLOR, NODE_OPEN_MIDLIGHT_COLOR, NODE_OPEN_COLOR>{});
+    sortByGroups(result, std::index_sequence<NODE_FILE_LIGHT_COLOR, NODE_FILE_MIDLIGHT_COLOR, NODE_FILE_COLOR>{});
+    sortByGroups(result, std::index_sequence<EDGE_LIGHT_COLOR, EDGE_COLOR>{});
 
     return result;
 }
