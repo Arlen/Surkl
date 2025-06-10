@@ -14,6 +14,7 @@
 #include <QKeyEvent>
 #include <QPainter>
 #include <QSequentialAnimationGroup>
+#include <QStyleOptionGraphicsItem>
 #include <QVariantAnimation>
 
 #include <numbers>
@@ -191,13 +192,59 @@ namespace
         p->drawPolygon(tri);
     }
 
-    void paintFile(QPainter* p, const NodeItem* node)
+    void paintFile(QPainter* p, const QStyleOptionGraphicsItem *option, const NodeItem* node)
     {
-        const auto* tm = SessionManager::tm();
+        const auto* tm   = SessionManager::tm();
+        const auto shape = node->shape();
 
-        p->setBrush(tm->closedNodeBorderColor());
+        if (option->state & QStyle::State_MouseOver) {
+            p->setBrush(tm->fileNodeMidlightColor());
+        } else {
+            p->setBrush(tm->fileNodeColor());
+        }
         p->setPen(Qt::NoPen);
-        p->drawPath(node->shape());
+        p->drawPath(shape);
+
+        /// draw file size indicator
+        const auto axis    = QLineF(shape.elementAt(2), shape.elementAt(0));
+        const auto axisLen = 1.0 / axis.length();
+
+        const auto lhs = QLineF(shape.elementAt(2), shape.elementAt(1)).normalVector().unitVector();
+        const auto rhs = QLineF(shape.elementAt(3), shape.elementAt(2)).normalVector().unitVector();
+
+        const auto lhsDxy = QPointF(lhs.dx(), lhs.dy());
+        const auto rhsDxy = QPointF(rhs.dx(), rhs.dy());
+
+        p->setBrush(Qt::NoBrush);
+
+        auto ok = false;
+        if (const auto sizel2 = node->data(NodeItem::FileSizeKey).toDouble(&ok); ok && sizel2 > 0.0) {
+            const int full = std::floor(sizel2 / 10.0);
+            auto t = 0.15;
+            auto p1 = axis.pointAt(t);
+
+            for (int i = 0; i < full; ++i) {
+                QPainterPath path;
+                path.moveTo(p1 + lhsDxy * (i+1.5));
+                path.lineTo(p1);
+                path.lineTo(p1 + rhsDxy * (i+1.5));
+
+                p->setPen(QPen(tm->fileNodeLightColor(), i+1, Qt::SolidLine, Qt::SquareCap, Qt::BevelJoin));
+                p->drawPath(path);
+
+                t += (i+4) * axisLen;
+                p1 = axis.pointAt(t);
+            }
+            if (const auto rem = std::fmod(sizel2, 10.0) * 0.1; rem > 0.0) {
+                QPainterPath path;
+                path.moveTo(p1 + lhsDxy * (full+1.5) * rem);
+                path.lineTo(p1);
+                path.lineTo(p1 + rhsDxy * (full+1.5) * rem);
+
+                p->setPen(QPen(tm->fileNodeLightColor(), full+1, Qt::SolidLine, Qt::SquareCap, Qt::BevelJoin));
+                p->drawPath(path);
+            }
+        }
     }
 }
 
@@ -312,6 +359,7 @@ void KnotItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 NodeItem::NodeItem(const QPersistentModelIndex& index)
 {
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
+    setAcceptHoverEvents(true);
 
     setIndex(index);
     _knot  = new KnotItem(this);
@@ -558,6 +606,8 @@ void NodeItem::setIndex(const QPersistentModelIndex& index)
         _nodeType = NodeType::ClosedNode;
     } else {
         _nodeType = NodeType::FileNode;
+        const auto size = SessionManager::scene()->fileSize(_index);
+        setData(FileSizeKey, size > 0 ? std::log2(size) : 0.0);
     }
 }
 
@@ -642,7 +692,7 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 
     qreal radius = 0;
     if (_nodeType == NodeType::FileNode) {
-        paintFile(p, this);
+        paintFile(p, option, this);
     } else if (_nodeType == NodeType::OpenNode) {
         radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
         p->setPen(QPen(tm->openNodeBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
@@ -785,6 +835,11 @@ QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
         case ItemSelectedChange:
             Q_ASSERT(value.canConvert<bool>());
             if (value.toBool()) { setZValue(1); } else { setZValue(0); }
+
+            if (_nodeType == NodeType::FileNode) {
+                const auto size = fsScene()->fileSize(_index);
+                setData(FileSizeKey, size > 0 ? std::log2(size) : 0.0);
+            }
             break;
 
         default:

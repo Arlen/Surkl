@@ -108,6 +108,11 @@ namespace  core
         /// fixed for now.
         static constexpr int NODE_CHILD_COUNT = 13;
 
+        enum
+        {
+            FileSizeKey = 0,
+        };
+
         enum { Type = UserType + 2 };
 
         explicit NodeItem(const QPersistentModelIndex& index);
