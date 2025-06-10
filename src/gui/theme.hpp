@@ -80,10 +80,15 @@ namespace gui
     {
         SCENE_BG_COLOR = 0,
         SCENE_FG_COLOR,
+
+        NODE_OPEN_LIGHT_COLOR,
+        NODE_OPEN_MIDLIGHT_COLOR,
         NODE_OPEN_COLOR,
-        NODE_OPEN_BORDER_COLOR,
+
+        NODE_CLOSED_MIDLIGHT_COLOR,
         NODE_CLOSED_COLOR,
-        NODE_CLOSED_BORDER_COLOR,
+        NODE_CLOSED_MIDARK_COLOR,
+        NODE_CLOSED_DARK_COLOR,
 
         NODE_FILE_LIGHT_COLOR,
         NODE_FILE_MIDLIGHT_COLOR,
@@ -158,18 +163,21 @@ namespace gui
         {
             Palette result;
 
-            result[SCENE_BG_COLOR]           = {  67,  67,  67, 255 };
-            result[SCENE_FG_COLOR]           = { 134, 134, 134, 255 };
-            result[NODE_OPEN_COLOR]          = { 148, 148, 148, 255 };
-            result[NODE_OPEN_BORDER_COLOR]   = { 220, 220, 220, 255 };
-            result[NODE_CLOSED_COLOR]        = { 164, 164, 164, 255 };
-            result[NODE_CLOSED_BORDER_COLOR] = {   8,   8,   8, 255 };
-            result[NODE_FILE_LIGHT_COLOR]    = { 220, 220, 220, 255 };
-            result[NODE_FILE_MIDLIGHT_COLOR] = { 128, 128, 128, 255 };
-            result[NODE_FILE_COLOR]          = {   8,   8,   8, 255 };
-            result[EDGE_LIGHT_COLOR]         = {  96,  96,  96, 255 };
-            result[EDGE_COLOR]               = {   8,   8,   8, 255 };
-            result[EDGE_TEXT_COLOR]          = { 220, 220, 220, 255 };
+            result[SCENE_BG_COLOR]             = {  67,  67,  67, 255 };
+            result[SCENE_FG_COLOR]             = { 134, 134, 134, 255 };
+            result[NODE_OPEN_LIGHT_COLOR]      = { 220, 220, 220, 255 };
+            result[NODE_OPEN_MIDLIGHT_COLOR]   = { 164, 164, 164, 255 };
+            result[NODE_OPEN_COLOR]            = { 128, 128, 128, 255 };
+            result[NODE_CLOSED_MIDLIGHT_COLOR] = { 192, 192, 192, 255 };
+            result[NODE_CLOSED_COLOR]          = { 144, 144, 144, 255 };
+            result[NODE_CLOSED_MIDARK_COLOR]   = {  80,  80,  80, 255 };
+            result[NODE_CLOSED_DARK_COLOR]     = {   8,   8,   8, 255 };
+            result[NODE_FILE_LIGHT_COLOR]      = { 220, 220, 220, 255 };
+            result[NODE_FILE_MIDLIGHT_COLOR]   = { 128, 128, 128, 255 };
+            result[NODE_FILE_COLOR]            = {   8,   8,   8, 255 };
+            result[EDGE_LIGHT_COLOR]           = {  96,  96,  96, 255 };
+            result[EDGE_COLOR]                 = {   8,   8,   8, 255 };
+            result[EDGE_TEXT_COLOR]            = { 220, 220, 220, 255 };
 
             return result;
         }
@@ -194,14 +202,22 @@ namespace gui
             { return _active[SCENE_BG_COLOR]; }
         const QColor& sceneFgColor() const
             { return _active[SCENE_FG_COLOR]; }
+
+        const QColor& openNodeLightColor() const
+            { return _active[NODE_OPEN_LIGHT_COLOR]; }
+        const QColor& openNodeMidlightColor() const
+            { return _active[NODE_OPEN_MIDLIGHT_COLOR]; }
         const QColor& openNodeColor() const
             { return _active[NODE_OPEN_COLOR]; }
-        const QColor& openNodeBorderColor() const
-            { return _active[NODE_OPEN_BORDER_COLOR]; }
+
+        const QColor& closedNodeMidlightColor() const
+            { return _active[NODE_CLOSED_MIDLIGHT_COLOR]; }
         const QColor& closedNodeColor() const
             { return _active[NODE_CLOSED_COLOR]; }
-        const QColor& closedNodeBorderColor() const
-            { return _active[NODE_CLOSED_BORDER_COLOR]; }
+        const QColor& closedNodeMidarkColor() const
+            { return _active[NODE_CLOSED_MIDARK_COLOR]; }
+        const QColor& closedNodeDarkColor() const
+            { return _active[NODE_CLOSED_DARK_COLOR]; }
 
         const QColor& fileNodeLightColor() const
             { return _active[NODE_FILE_LIGHT_COLOR]; }
@@ -210,7 +226,7 @@ namespace gui
         const QColor& fileNodeColor() const
             { return _active[NODE_FILE_COLOR]; }
 
-        const QColor& edgeHighlightColor() const
+        const QColor& edgeLightColor() const
             { return _active[EDGE_LIGHT_COLOR]; }
         const QColor& edgeColor() const
             { return _active[EDGE_COLOR]; }

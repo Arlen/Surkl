@@ -224,7 +224,7 @@ void EdgeItem::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidg
 
     p->setRenderHint(QPainter::Antialiasing);
     p->setPen(QPen(option->state & QStyle::State_Selected
-            ? tm->edgeHighlightColor()
+            ? tm->edgeLightColor()
             : tm->edgeColor()
         , EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
     p->drawLine(line());
@@ -238,7 +238,7 @@ void EdgeItem::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidg
     const auto v2 = QPointF(uv.dx(), uv.dy()) * 3.0;
 
     p->setBrush(Qt::NoBrush);
-    p->setPen(QPen(tm->openNodeBorderColor(), EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    p->setPen(QPen(tm->openNodeLightColor(), EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
     p->drawLine(QLineF(p1, p1 + v2));
 }
 

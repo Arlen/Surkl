@@ -153,7 +153,7 @@ namespace
         return path;
     }
 
-    void paintClosedFolder(QPainter* p, const NodeItem* node)
+    void paintClosedFolder(QPainter* p, const QStyleOptionGraphicsItem *option, const NodeItem* node)
     {
         Q_ASSERT(node->isClosed());
         Q_ASSERT(node->shape().elementCount() == 4);
@@ -170,25 +170,27 @@ namespace
                                         << center
                                         << shape.elementAt(2);
 
-        const auto color = node->isSelected()
-            ? tm->closedNodeColor().lighter()
+        const auto color1 = node->isSelected() || (option->state & QStyle::State_MouseOver)
+            ? tm->closedNodeMidlightColor()
             : tm->closedNodeColor();
+        const auto color2 = node->isSelected() || (option->state & QStyle::State_MouseOver)
+            ? tm->closedNodeMidlightColor()
+            : tm->closedNodeMidarkColor();
 
-        p->setBrush(tm->closedNodeBorderColor());
+        p->setBrush(tm->closedNodeDarkColor());
         p->setPen(Qt::NoPen);
         p->drawPath(shape);
 
         p->setBrush(Qt::NoBrush);
-        p->setPen(QPen(color.darker(), 2));
+        p->setPen(QPen(color2, 2));
         p->drawLine(QLineF(spine.pointAt(0.1), spine.pointAt(0.5)));
 
-        p->setBrush(tm->closedNodeBorderColor().lighter(400));
-        //p->setPen(Qt::NoPen);
+        p->setBrush(tm->closedNodeDarkColor());
         const auto rec2 = QRectF(-6, -6, 12, 12);
         p->drawEllipse(rec2);
 
         p->setPen(Qt::NoPen);
-        p->setBrush(color);
+        p->setBrush(color1);
         p->drawPolygon(tri);
     }
 
@@ -310,7 +312,7 @@ void RootItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
     const auto* tm = SessionManager::tm();
 
     p->setRenderHint(QPainter::Antialiasing);
-    p->setPen(QPen(tm->closedNodeBorderColor(), 5));
+    p->setPen(QPen(tm->closedNodeDarkColor(), 5));
     p->setBrush(tm->closedNodeColor());
     p->drawEllipse(boundingRect().adjusted(5, 5, -5, -5));
 }
@@ -688,22 +690,23 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
     const auto* tm  = SessionManager::tm();
     const auto& rec = boundingRect();
     p->setRenderHint(QPainter::Antialiasing);
-    p->setBrush(isSelected() ? tm->openNodeColor().lighter() : tm->openNodeColor());
+    p->setBrush(isSelected() || (option->state & QStyle::State_MouseOver) ?
+        tm->openNodeMidlightColor() : tm->openNodeColor());
 
     qreal radius = 0;
     if (_nodeType == NodeType::FileNode) {
         paintFile(p, option, this);
     } else if (_nodeType == NodeType::OpenNode) {
         radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
-        p->setPen(QPen(tm->openNodeBorderColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(tm->openNodeLightColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
     } else if (_nodeType == NodeType::ClosedNode) {
-        paintClosedFolder(p, this);
+        paintClosedFolder(p, option, this);
     } else if (_nodeType == NodeType::HalfClosedNode) {
         radius = rec.width() * 0.5 - NODE_HALF_CLOSED_PEN_WIDTH * 0.5;
-        p->setPen(QPen(tm->closedNodeBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(tm->closedNodeDarkColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
-        p->setPen(QPen(tm->openNodeBorderColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
+        p->setPen(QPen(tm->openNodeLightColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->setBrush(Qt::NoBrush);
         /// draw a 20 degree arc indicator for every child edge that is visible.
         auto rec2 = QRectF(0, 0, radius * 2, radius * 2);
