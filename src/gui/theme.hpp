@@ -84,6 +84,11 @@ namespace gui
         NODE_OPEN_BORDER_COLOR,
         NODE_CLOSED_COLOR,
         NODE_CLOSED_BORDER_COLOR,
+
+        NODE_FILE_LIGHT_COLOR,
+        NODE_FILE_MIDLIGHT_COLOR,
+        NODE_FILE_COLOR,
+
         EDGE_COLOR,
         EDGE_HIGHLIGHT_COLOR,
         EDGE_TEXT_COLOR,
@@ -159,6 +164,9 @@ namespace gui
             result[NODE_OPEN_BORDER_COLOR]   = { 220, 220, 220, 255 };
             result[NODE_CLOSED_COLOR]        = { 164, 164, 164, 255 };
             result[NODE_CLOSED_BORDER_COLOR] = {   8,   8,   8, 255 };
+            result[NODE_FILE_LIGHT_COLOR]    = { 220, 220, 220, 255 };
+            result[NODE_FILE_MIDLIGHT_COLOR] = { 128, 128, 128, 255 };
+            result[NODE_FILE_COLOR]          = {   8,   8,   8, 255 };
             result[EDGE_COLOR]               = {   8,   8,   8, 255 };
             result[EDGE_HIGHLIGHT_COLOR]     = {  96,  96,  96, 255 };
             result[EDGE_TEXT_COLOR]          = { 220, 220, 220, 255 };
@@ -194,6 +202,14 @@ namespace gui
             { return _active[NODE_CLOSED_COLOR]; }
         const QColor& closedNodeBorderColor() const
             { return _active[NODE_CLOSED_BORDER_COLOR]; }
+
+        const QColor& fileNodeLightColor() const
+            { return _active[NODE_FILE_LIGHT_COLOR]; }
+        const QColor& fileNodeMidlightColor() const
+            { return _active[NODE_FILE_MIDLIGHT_COLOR]; }
+        const QColor& fileNodeColor() const
+            { return _active[NODE_FILE_COLOR]; }
+
         const QColor& edgeColor() const
             { return _active[EDGE_COLOR]; }
         const QColor& edgeHighlightColor() const
