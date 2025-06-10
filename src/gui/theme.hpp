@@ -89,8 +89,8 @@ namespace gui
         NODE_FILE_MIDLIGHT_COLOR,
         NODE_FILE_COLOR,
 
+        EDGE_LIGHT_COLOR,
         EDGE_COLOR,
-        EDGE_HIGHLIGHT_COLOR,
         EDGE_TEXT_COLOR,
 
         PaletteIndexSize
@@ -167,8 +167,8 @@ namespace gui
             result[NODE_FILE_LIGHT_COLOR]    = { 220, 220, 220, 255 };
             result[NODE_FILE_MIDLIGHT_COLOR] = { 128, 128, 128, 255 };
             result[NODE_FILE_COLOR]          = {   8,   8,   8, 255 };
+            result[EDGE_LIGHT_COLOR]         = {  96,  96,  96, 255 };
             result[EDGE_COLOR]               = {   8,   8,   8, 255 };
-            result[EDGE_HIGHLIGHT_COLOR]     = {  96,  96,  96, 255 };
             result[EDGE_TEXT_COLOR]          = { 220, 220, 220, 255 };
 
             return result;
@@ -210,10 +210,10 @@ namespace gui
         const QColor& fileNodeColor() const
             { return _active[NODE_FILE_COLOR]; }
 
+        const QColor& edgeHighlightColor() const
+            { return _active[EDGE_LIGHT_COLOR]; }
         const QColor& edgeColor() const
             { return _active[EDGE_COLOR]; }
-        const QColor& edgeHighlightColor() const
-            { return _active[EDGE_HIGHLIGHT_COLOR]; }
         const QColor& edgeTextColor() const
             { return _active[EDGE_TEXT_COLOR]; }
 
