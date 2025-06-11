@@ -121,6 +121,7 @@ void SceneStorage::loadScene(FileSystemScene* scene)
             scene->addItem(m.edge);
             m.edge->target()->setPos(m.pos);
             m.edge->adjust();
+            scene->fetchMore(m.index);
             S.push_back(m);
         }
     }
@@ -150,6 +151,7 @@ void SceneStorage::loadScene(FileSystemScene* scene)
 
                 parentNode->createChildNodes(childNodeData);
                 parent.edge->adjust();
+                scene->fetchMore(parent.index);
             }
             for (const auto& nd : childNodeData) {
                 if (nd.edge) {
