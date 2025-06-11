@@ -1,7 +1,10 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #define DRAW_ITEM_SHAPE 0
 #define DRAW_ITEM_BOUNDING_RECT 0
 
-#include "nodes.hpp"
+#include "BookmarkItem.hpp"
 
 #include <QCursor>
 #include <QGraphicsScene>
@@ -9,9 +12,9 @@
 #include <QTimeLine>
 
 
-using namespace core::nodes;
+using namespace core;
 
-void core::nodes::drawItemShape(QPainter* p, QGraphicsItem* item)
+void core::internal::drawItemShape(QPainter* p, QGraphicsItem* item)
 {
     p->save();
     p->setPen(Qt::red);
@@ -20,7 +23,7 @@ void core::nodes::drawItemShape(QPainter* p, QGraphicsItem* item)
     p->restore();
 }
 
-void core::nodes::drawBoundingRect(QPainter* p, QGraphicsItem* item)
+void core::internal::drawBoundingRect(QPainter* p, QGraphicsItem* item)
 {
     p->save();
     p->setPen(Qt::green);

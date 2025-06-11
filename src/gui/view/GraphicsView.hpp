@@ -1,11 +1,14 @@
 #pragma once
 
-#include "core/nodes.hpp"
-
 #include <QtWidgets/QGraphicsView>
 
 
 class QVariantAnimation;
+
+namespace core
+{
+    class SceneBookmarkItem;
+}
 
 namespace gui::view
 {
@@ -60,6 +63,6 @@ namespace gui::view
 
         QVariantAnimation* _bookmarkAnimation = nullptr;
         QuadrantButton* _quadrantButton = nullptr;
-        core::nodes::SceneBookmarkItem* _selectedSceneBookmark = nullptr;
+        core::SceneBookmarkItem* _selectedSceneBookmark = nullptr;
     };
 }

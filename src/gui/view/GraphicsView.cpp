@@ -1,6 +1,6 @@
 #include "GraphicsView.hpp"
 #include "QuadrantButton.hpp"
-#include "core/nodes.hpp"
+#include "core/BookmarkItem.hpp"
 #include "core/FileSystemScene.hpp"
 
 #include <QMouseEvent>
@@ -348,7 +348,7 @@ void GraphicsView::addSceneBookmark(const QPoint& pos)
 
 void GraphicsView::processSelection()
 {
-    using namespace core::nodes;
+    using namespace core;
 
     /// TODO: once more item types are added to the project, a momre
     /// sophisticated approach to selection will be needed to handle different

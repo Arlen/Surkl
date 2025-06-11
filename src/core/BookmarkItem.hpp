@@ -1,3 +1,6 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
 #include "geometry.hpp"
@@ -6,10 +9,13 @@
 #include <QRadialGradient>
 
 
-namespace core::nodes
+namespace core
 {
-    void drawItemShape(QPainter* p, QGraphicsItem* item);
-    void drawBoundingRect(QPainter* p, QGraphicsItem* item);
+    namespace internal
+    {
+        void drawItemShape(QPainter* p, QGraphicsItem* item);
+        void drawBoundingRect(QPainter* p, QGraphicsItem* item);
+    }
 
     class SceneBookmarkItem final : public QGraphicsRectItem
     {

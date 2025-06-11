@@ -3,12 +3,12 @@
 
 #include "EdgeItem.hpp"
 #include "FileSystemScene.hpp"
+#include "BookmarkItem.hpp"
 #include "GraphicsView.hpp"
 #include "NodeItem.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
 #include "gui/theme.hpp"
-#include "nodes.hpp"
 
 #include <QDesktopServices>
 #include <QFileSystemModel>
@@ -234,7 +234,7 @@ FileSystemScene::FileSystemScene(QObject* parent)
     connect(_proxyModel, &QAbstractItemModel::rowsRemoved, this, &FileSystemScene::onRowsRemoved);
 
     for (const auto& [pos, name] : SessionManager::bm()->sceneBookmarksAsList()) {
-        addItem(new nodes::SceneBookmarkItem{pos, name});
+        addItem(new SceneBookmarkItem{pos, name});
     }
 }
 
@@ -254,7 +254,7 @@ void FileSystemScene::addSceneBookmark(const QPoint& pos, const QString& name)
 
     if (const auto data = SceneBookmarkData{pos, name}; !bm->sceneBookmarks().contains(data)) {
         bm->insertBookmark(data);
-        addItem(new nodes::SceneBookmarkItem(pos, name, true));
+        addItem(new SceneBookmarkItem(pos, name, true));
     }
 }
 
