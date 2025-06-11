@@ -106,10 +106,10 @@ void SceneStorage::loadScene(FileSystemScene* scene)
     };
 
     QList<NodeData> S;
-    if (G.contains(QModelIndex())) {
+    if (G.contains(QPersistentModelIndex())) {
         /// This assumes we have only a single root node ("/").
 
-        auto& Ms = G[QModelIndex()];
+        auto& Ms = G[QPersistentModelIndex()];
         sortByRows(Ms);
         Q_ASSERT(Ms.size() == 1);
 
@@ -143,7 +143,7 @@ void SceneStorage::loadScene(FileSystemScene* scene)
         auto* parentNode = asNodeItem(parent.edge->target());
 
         /// if graph does not contain parent.index, then parent is a closed (leaf) node.
-        if (G.count(parent.index)) {
+        if (G.contains(parent.index)) {
             auto& childNodeData = G[parent.index];
             if (!childNodeData.empty()) {
                 sortByRows(childNodeData);
@@ -152,7 +152,11 @@ void SceneStorage::loadScene(FileSystemScene* scene)
                 parent.edge->adjust();
             }
             for (const auto& nd : childNodeData) {
-                S.push_back(nd);
+                if (nd.edge) {
+                    S.push_back(nd);
+                } else {
+                    /// TODO: nd can be removed from DB.
+                }
             }
         }
         parentNode->setPos(parent.pos);
