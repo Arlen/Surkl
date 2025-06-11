@@ -802,6 +802,8 @@ void NodeItem::rotate(Rotation rot)
         return;
     }
 
+    fsScene()->fetchMore(_index);
+
     auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
 
     if (ranges::distance(availableNodes) > 0) {
@@ -814,6 +816,8 @@ void NodeItem::rotatePage(Rotation rot)
     if (!isOpen()) {
         return;
     }
+
+    fsScene()->fetchMore(_index);
 
     auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
     const auto pageSize = ranges::distance(availableNodes);
