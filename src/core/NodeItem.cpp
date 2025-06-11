@@ -470,7 +470,7 @@ void NodeItem::reload(int start, int end)
     if (const int growth = rowCount - _childEdges.size(); growth > 0) {
         NodeVector nodes;
         nodes.reserve(growth);
-        for (auto [[maybe_unused]] i : std::views::iota(0, growth)) {
+        for (auto /*[[maybe_unused]]*/ i : std::views::iota(0, growth)) {
             auto* edge = createNode(QModelIndex(), this);
             scene()->addItem(edge->target());
             scene()->addItem(edge);
@@ -531,7 +531,7 @@ void NodeItem::unload(int start, int end)
 
     /// 1. close all invalid nodes that are not closed.
     for (auto* node : all) {
-        if (!node->index().isValid() && !node->isClosed()) {
+        if (!node->index().isValid() && (node->isOpen() || node->isHalfClosed())) {
             /// This is close() without the internalRotationAfterClose();
             node->_knot->hide();
             node->destroyChildren();
@@ -552,7 +552,7 @@ void NodeItem::unload(int start, int end)
             }
             if (!node->index().isValid()) {
                 deletedNodes++;
-                Q_ASSERT(node->isClosed());
+                Q_ASSERT(node->isClosed() || node->isFile());
 
                 SessionManager::ss()->deleteNode(node);
                 scene()->removeItem(node);
@@ -945,7 +945,7 @@ void NodeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
             spread(dxy);
             /// 3. spread the child nodes.
             for (const auto* edge : _childEdges) {
-                if (auto* node = asNodeItem(edge->target()); !node->isClosed()) {
+                if (auto* node = asNodeItem(edge->target()); node->isOpen() || node->isHalfClosed()) {
                     node->spread();
                 }
             }
