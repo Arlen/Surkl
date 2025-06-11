@@ -533,6 +533,7 @@ void NodeItem::unload(int start, int end)
     for (auto* node : all) {
         if (!node->index().isValid() && !node->isClosed()) {
             /// This is close() without the internalRotationAfterClose();
+            node->_knot->hide();
             node->destroyChildren();
             node->setNodeType(NodeType::ClosedNode);
             shrink(node);
