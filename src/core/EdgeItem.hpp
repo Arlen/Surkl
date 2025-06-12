@@ -11,6 +11,8 @@ namespace  core
     class EdgeLabelItem final : public QGraphicsSimpleTextItem
     {
     public:
+        enum { Type = UserType + 5 };
+
         explicit EdgeLabelItem(QGraphicsItem* parent = nullptr);
         void alignToAxis(const QLineF& line);
         void alignToAxis(const QLineF& line, const QString& newText);
