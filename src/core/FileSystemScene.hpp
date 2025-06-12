@@ -12,11 +12,8 @@ class QSortFilterProxyModel;
 namespace core
 {
     class NodeItem;
+    class SceneBookmarkItem;
 
-    namespace nodes
-    {
-        class SceneBookmarkItem;
-    }
 
     class FileSystemScene final : public QGraphicsScene
     {
@@ -30,7 +27,8 @@ namespace core
     public:
         explicit FileSystemScene(QObject* parent = nullptr);
         ~FileSystemScene() override;
-        void addSceneBookmark(const QPoint& pos, const QString& name);
+        void addSceneBookmark(const QPoint& clickPos, const QString& name);
+        void removeSceneBookmark(SceneBookmarkItem* bm);
         [[nodiscard]] QPersistentModelIndex rootIndex() const;
         bool isDir(const QModelIndex& index) const;
         [[nodiscard]] QString filePath(const QPersistentModelIndex& index) const;

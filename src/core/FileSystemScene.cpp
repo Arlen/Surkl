@@ -247,14 +247,32 @@ FileSystemScene::~FileSystemScene()
     disconnect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
 }
 
-void FileSystemScene::addSceneBookmark(const QPoint& pos, const QString& name)
+void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& name)
 {
     auto* bm = SessionManager::bm();
-    assert(bm != nullptr);
 
-    if (const auto data = SceneBookmarkData{pos, name}; !bm->sceneBookmarks().contains(data)) {
-        bm->insertBookmark(data);
-        addItem(new SceneBookmarkItem(pos, name, true));
+    auto* bookmarkItem      = new SceneBookmarkItem(clickPos, name);
+    const auto itemPos      = bookmarkItem->scenePos().toPoint();
+    const auto bookmarkData = SceneBookmarkData{itemPos, name};
+
+    if (const auto bookmarks = bm->sceneBookmarks(); !bookmarks.contains(bookmarkData)) {
+        bm->insertBookmark(bookmarkData);
+        addItem(bookmarkItem);
+    } else {
+        delete bookmarkItem;
+    }
+}
+
+void FileSystemScene::removeSceneBookmark(SceneBookmarkItem* bookmarkItem)
+{
+    auto* bm = SessionManager::bm();
+
+    const auto bookmarkData = SceneBookmarkData{bookmarkItem->scenePos().toPoint()};
+
+    if (const auto bookmarks = bm->sceneBookmarks(); bookmarks.contains(bookmarkData)) {
+        bm->removeBookmark(bookmarkData);
+        removeItem(bookmarkItem);
+        delete bookmarkItem;
     }
 }
 
