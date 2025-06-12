@@ -14,7 +14,7 @@ GraphicsView::GraphicsView(QGraphicsScene *scene, QWidget *parent)
 {
     configure();
 
-    connect(scene, &QGraphicsScene::selectionChanged, this, &GraphicsView::processSelection);
+    connect(scene, &QGraphicsScene::selectionChanged, this, &GraphicsView::pickSceneBookmark);
 
     _quadrantButton = new QuadrantButton(this);
     _quadrantButton->hide();
@@ -45,8 +45,8 @@ void GraphicsView::requestSceneBookmark()
 
 void GraphicsView::focusQuadrant1()
 {
-    if (_selectedSceneBookmark) {
-        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
+    if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
+        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
         auto region = mapToScene(rect()).boundingRect();
         region.moveBottomLeft(bookmarkCenter);
         ensureVisible(region, 0, 0);
@@ -55,8 +55,8 @@ void GraphicsView::focusQuadrant1()
 
 void GraphicsView::focusQuadrant2()
 {
-    if (_selectedSceneBookmark) {
-        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
+    if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
+        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
         auto region = mapToScene(rect()).boundingRect();
         region.moveBottomRight(bookmarkCenter);
         ensureVisible(region, 0, 0);
@@ -65,8 +65,8 @@ void GraphicsView::focusQuadrant2()
 
 void GraphicsView::focusQuadrant3()
 {
-    if (_selectedSceneBookmark) {
-        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
+    if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
+        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
         auto region = mapToScene(rect()).boundingRect();
         region.moveTopRight(bookmarkCenter);
         ensureVisible(region, 0, 0);
@@ -75,8 +75,8 @@ void GraphicsView::focusQuadrant3()
 
 void GraphicsView::focusQuadrant4()
 {
-    if (_selectedSceneBookmark) {
-        const auto bookmarkCenter = _selectedSceneBookmark->sceneBoundingRect().center();
+    if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
+        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
         auto region = mapToScene(rect()).boundingRect();
         region.moveTopLeft(bookmarkCenter);
         ensureVisible(region, 0, 0);
@@ -85,8 +85,8 @@ void GraphicsView::focusQuadrant4()
 
 void GraphicsView::focusAllQuadrants()
 {
-    if (_selectedSceneBookmark) {
-        centerOn(_selectedSceneBookmark);
+    if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
+        centerOn(sbm.first());
     }
 }
 
@@ -100,6 +100,12 @@ void GraphicsView::enterEvent(QEnterEvent* event)
 void GraphicsView::keyPressEvent(QKeyEvent *event)
 {
     togglePanOrZoom(event->modifiers());
+
+    if (event->key() == Qt::Key_Delete) {
+        if (const auto sbm = selectedSceneBookmarks(); !sbm.isEmpty()) {
+            removeSceneBookmark(sbm);
+        }
+    }
 
     QGraphicsView::keyPressEvent(event);
 }
@@ -218,7 +224,7 @@ void GraphicsView::scaleView(qreal factor)
     if (zoomInLimit.contains(candidate) && candidate.contains(zoomOutLimit)) {
         /// If a bookmark is selected and it's at one of the corners, then use
         /// it as an anchor.
-        if (_selectedSceneBookmark) {
+        if (!_zoomAnchor.isNull()) {
             /// the quadrant test must be performed before scale() operation,
             /// because the test region is only couple pixels wide.
 
@@ -230,7 +236,7 @@ void GraphicsView::scaleView(qreal factor)
             };
 
             const auto rec         = rect();
-            const auto bmCenter    = _selectedSceneBookmark->sceneBoundingRect().center();
+            const auto bmCenter    = _zoomAnchor.pointAt(0.5);
             const auto atQuadrant1 = regionOfInterest(rec.bottomLeft()).contains(bmCenter);
             const auto atQuadrant2 = regionOfInterest(rec.bottomRight()).contains(bmCenter);
             const auto atQuadrant3 = regionOfInterest(rec.topRight()).contains(bmCenter);
@@ -339,35 +345,46 @@ void GraphicsView::drawBookmarkingCursorAnimation(QPainter& p) const
     p.restore();
 }
 
-void GraphicsView::addSceneBookmark(const QPoint& pos)
+void GraphicsView::addSceneBookmark(const QPoint& pos) const
 {
     if (auto* gs = qobject_cast<core::FileSystemScene*>(scene())) {
         gs->addSceneBookmark(mapToScene(pos).toPoint(), "test");
     }
 }
 
-void GraphicsView::processSelection()
+void GraphicsView::removeSceneBookmark(const QList<core::SceneBookmarkItem*>& items) const
 {
-    using namespace core;
-
-    /// TODO: once more item types are added to the project, a momre
-    /// sophisticated approach to selection will be needed to handle different
-    /// sets of rules.
-    /// A. only one SceneBookmarkItem can be selected at a time.
-    /// B. selecting a SceneBookmarkItem when other types of items have already
-    ///    been selected should unselect the other items.
-    /// C. ...other rules!?
-
-    /// 1. toggle quadrant button.
-    bool visible = false;
-    _selectedSceneBookmark = nullptr;
-
-    if (const auto sel = scene()->selectedItems(); !sel.isEmpty()) {
-        /// always select the last; last is not always the most recent selection.
-        if (auto* bm = qgraphicsitem_cast<SceneBookmarkItem*>(sel.last()); bm) {
-            _selectedSceneBookmark = bm;
-            visible = true;
+    if (auto* gs = qobject_cast<core::FileSystemScene*>(scene())) {
+        for (auto* bm : items) {
+            gs->removeSceneBookmark(bm);
         }
     }
-    _quadrantButton->setVisible(visible);
+}
+
+void GraphicsView::pickSceneBookmark()
+{
+    if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
+        _quadrantButton->setVisible(true);
+        const auto* bookmark = sbm.first();
+        const auto rec = bookmark->mapRectToScene(bookmark->rect());
+        /// (0,0) is a valid bookmark position, but isNull() would return true,
+        /// so use a QLineF.
+        _zoomAnchor = QLineF(rec.bottomLeft(), rec.topRight());
+    } else {
+        _quadrantButton->setVisible(false);
+        _zoomAnchor = QLineF();
+    }
+}
+
+QList<core::SceneBookmarkItem*> GraphicsView::selectedSceneBookmarks() const
+{
+    QList<core::SceneBookmarkItem*>  result;
+
+    for (const auto selection = scene()->selectedItems(); auto* item : selection) {
+        if (auto* sbm = qgraphicsitem_cast<core::SceneBookmarkItem*>(item); sbm) {
+            result.push_back(sbm);
+        }
+    }
+
+    return result;
 }

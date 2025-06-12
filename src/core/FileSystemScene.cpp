@@ -234,7 +234,9 @@ FileSystemScene::FileSystemScene(QObject* parent)
     connect(_proxyModel, &QAbstractItemModel::rowsRemoved, this, &FileSystemScene::onRowsRemoved);
 
     for (const auto& [pos, name] : SessionManager::bm()->sceneBookmarksAsList()) {
-        addItem(new SceneBookmarkItem{pos, name});
+        auto* bookmarkItem = new SceneBookmarkItem(QPoint(0, 0), name);
+        addItem(bookmarkItem);
+        bookmarkItem->setPos(pos);
     }
 }
 

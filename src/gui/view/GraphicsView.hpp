@@ -57,12 +57,14 @@ namespace gui::view
 
         void destroyBookmarkAnimation();
         void drawBookmarkingCursorAnimation(QPainter& p) const;
-        void addSceneBookmark(const QPoint& pos);
+        void addSceneBookmark(const QPoint& pos) const;
+        void removeSceneBookmark(const QList<core::SceneBookmarkItem*>& items) const;
 
-        void processSelection();
+        void pickSceneBookmark();
+        QList<core::SceneBookmarkItem*> selectedSceneBookmarks() const;
 
         QVariantAnimation* _bookmarkAnimation = nullptr;
         QuadrantButton* _quadrantButton = nullptr;
-        core::SceneBookmarkItem* _selectedSceneBookmark = nullptr;
+        QLineF _zoomAnchor;
     };
 }
