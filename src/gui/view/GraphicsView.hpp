@@ -3,6 +3,7 @@
 #include <QtWidgets/QGraphicsView>
 
 
+class QTimeLine;
 class QVariantAnimation;
 
 namespace core
@@ -59,12 +60,14 @@ namespace gui::view
         void drawBookmarkingCursorAnimation(QPainter& p) const;
         void addSceneBookmark(const QPoint& pos) const;
         void removeSceneBookmark(const QList<core::SceneBookmarkItem*>& items) const;
+        void centerTargetOn(const core::SceneBookmarkItem* bm, const QPointF& target);
 
         void pickSceneBookmark();
         QList<core::SceneBookmarkItem*> selectedSceneBookmarks() const;
 
-        QVariantAnimation* _bookmarkAnimation = nullptr;
-        QuadrantButton* _quadrantButton = nullptr;
+        QVariantAnimation* _bookmarkAnimation{nullptr};
+        QuadrantButton* _quadrantButton{nullptr};
+        QTimeLine* _timeline{nullptr};
         QLineF _zoomAnchor;
     };
 }

@@ -4,6 +4,7 @@
 #include "core/FileSystemScene.hpp"
 
 #include <QMouseEvent>
+#include <QTimeLine>
 #include <QVariantAnimation>
 
 
@@ -24,6 +25,10 @@ GraphicsView::GraphicsView(QGraphicsScene *scene, QWidget *parent)
     connect(_quadrantButton, &QuadrantButton::quad3Pressed, this, &GraphicsView::focusQuadrant3);
     connect(_quadrantButton, &QuadrantButton::quad4Pressed, this, &GraphicsView::focusQuadrant4);
     connect(_quadrantButton, &QuadrantButton::centerPressed, this, &GraphicsView::focusAllQuadrants);
+
+    _timeline = new QTimeLine(300, this);
+    _timeline->setFrameRange(0, 36);
+    _timeline->setEasingCurve(QEasingCurve::OutExpo);
 }
 
 void GraphicsView::requestSceneBookmark()
@@ -46,47 +51,35 @@ void GraphicsView::requestSceneBookmark()
 void GraphicsView::focusQuadrant1()
 {
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
-        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
-        auto region = mapToScene(rect()).boundingRect();
-        region.moveBottomLeft(bookmarkCenter);
-        ensureVisible(region, 0, 0);
+        centerTargetOn(sbm.first(), mapToScene(rect().bottomLeft()));
     }
 }
 
 void GraphicsView::focusQuadrant2()
 {
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
-        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
-        auto region = mapToScene(rect()).boundingRect();
-        region.moveBottomRight(bookmarkCenter);
-        ensureVisible(region, 0, 0);
+        centerTargetOn(sbm.first(), mapToScene(rect().bottomRight()));
     }
 }
 
 void GraphicsView::focusQuadrant3()
 {
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
-        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
-        auto region = mapToScene(rect()).boundingRect();
-        region.moveTopRight(bookmarkCenter);
-        ensureVisible(region, 0, 0);
+        centerTargetOn(sbm.first(), mapToScene(rect().topRight()));
     }
 }
 
 void GraphicsView::focusQuadrant4()
 {
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
-        const auto bookmarkCenter = sbm.first()->sceneBoundingRect().center();
-        auto region = mapToScene(rect()).boundingRect();
-        region.moveTopLeft(bookmarkCenter);
-        ensureVisible(region, 0, 0);
+        centerTargetOn(sbm.first(), mapToScene(rect().topLeft()));
     }
 }
 
 void GraphicsView::focusAllQuadrants()
 {
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
-        centerOn(sbm.first());
+        centerTargetOn(sbm.first(), mapToScene(rect().center()));
     }
 }
 
@@ -359,6 +352,35 @@ void GraphicsView::removeSceneBookmark(const QList<core::SceneBookmarkItem*>& it
             gs->removeSceneBookmark(bm);
         }
     }
+}
+
+/// centers the target position on given bookmark item.
+void GraphicsView::centerTargetOn(const core::SceneBookmarkItem* bm, const QPointF& target)
+{
+    const auto bmCenter   = bm->mapToScene(bm->rect().center());
+    const auto viewCenter = mapToScene(rect().center());
+    const auto path       = QLineF(QPointF(0, 0), bmCenter - target);
+
+    if (path.length() < 2) {
+        return;
+    }
+
+    if (_timeline->state() == QTimeLine::State::Running) {
+        _timeline->stop();
+        disconnect(_timeline, &QTimeLine::valueChanged, nullptr, nullptr);
+    }
+
+    connect(_timeline, &QTimeLine::valueChanged,
+        [viewCenter, path, this](qreal t) {
+            centerOn(viewCenter + path.pointAt(t));
+    });
+
+    connect(_timeline, &QTimeLine::finished,
+        [this] {
+            disconnect(_timeline, &QTimeLine::valueChanged, nullptr, nullptr);
+    });
+
+    _timeline->start();
 }
 
 void GraphicsView::pickSceneBookmark()
