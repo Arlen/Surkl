@@ -3,10 +3,7 @@
 
 #pragma once
 
-#include "geometry.hpp"
-
 #include <QGraphicsRectItem>
-#include <QRadialGradient>
 
 
 namespace core
@@ -19,26 +16,20 @@ namespace core
 
     class SceneBookmarkItem final : public QGraphicsRectItem
     {
-        static constexpr auto RECT_SIZE   = 64*4;
-        inline static const auto POLYGONS = geometry::SceneBookmarkIcon().generate(RECT_SIZE);
+        static constexpr auto RECT_SIZE = 32;
 
     public:
-        SceneBookmarkItem(const QPoint& pos, const QString& name, bool born = false);
+        enum { Type = UserType + 6 };
+
+        SceneBookmarkItem(const QPoint& pos, const QString& name);
 
         void paint(QPainter* p, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
+        void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;
+        void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
 
-    protected:
-        void setFrame(int frame);
+        [[nodiscard]] int type() const override { return Type; }
 
     private:
-        int _frame = -1;
-        std::array<QColor, 4> _bigLeafColors;
-        std::array<QColor, 4> _smallLeafColors;
-
-        QRadialGradient _bigGradient1;
-        QRadialGradient _bigGradient2;
-        QRadialGradient _bigGradient3;
-
-        QString _name;
+        QGraphicsSimpleTextItem* _name;
     };
 }
