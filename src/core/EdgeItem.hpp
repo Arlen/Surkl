@@ -18,6 +18,8 @@ namespace  core
         void alignToAxis(const QLineF& line, const QString& newText);
         void updatePos();
 
+        [[nodiscard]] int type() const override { return Type; }
+
     private:
         QLineF _normal;
         QLineF _axis;
