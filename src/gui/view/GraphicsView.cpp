@@ -362,9 +362,10 @@ void GraphicsView::processSelection()
     bool visible = false;
     _selectedSceneBookmark = nullptr;
 
-    if (auto sel = scene()->selectedItems(); !sel.isEmpty()) {
+    if (const auto sel = scene()->selectedItems(); !sel.isEmpty()) {
         /// always select the last; last is not always the most recent selection.
-        if ((_selectedSceneBookmark = qgraphicsitem_cast<SceneBookmarkItem*>(sel.last()))) {
+        if (auto* bm = qgraphicsitem_cast<SceneBookmarkItem*>(sel.last()); bm) {
+            _selectedSceneBookmark = bm;
             visible = true;
         }
     }
