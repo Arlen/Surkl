@@ -1,3 +1,6 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
 #include <QPushButton>
@@ -5,7 +8,7 @@
 
 namespace gui::view
 {
-    class QuadrantButton : public QPushButton
+    class QuadrantButton final : public QWidget
     {
         Q_OBJECT
 
@@ -18,18 +21,5 @@ namespace gui::view
 
     public:
         explicit QuadrantButton(QWidget *parent = nullptr);
-
-    protected:
-        void paintEvent(QPaintEvent *event) override;
-        void mousePressEvent(QMouseEvent *event) override;
-        void mouseMoveEvent(QMouseEvent* event) override;
-        void leaveEvent(QEvent* event) override;
-
-        QRect _q1;
-        QRect _q2;
-        QRect _q3;
-        QRect _q4;
-        QRect _qc;
-        QPoint _mousePos;
     };
 }

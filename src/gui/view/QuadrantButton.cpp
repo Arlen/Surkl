@@ -1,109 +1,42 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "QuadrantButton.hpp"
 
-#include <QMouseEvent>
-#include <QPainter>
+#include <QGridLayout>
 
 
 using namespace gui::view;
 
 QuadrantButton::QuadrantButton(QWidget* parent)
-    : QPushButton(parent)
+    : QWidget(parent)
 {
     setFixedSize(64, 64);
-    setMouseTracking(true);
 
-    const auto rec = rect();
-    _q2 = QRect(rec.topLeft(), rec.center());
-    _q4 = QRect(rec.center(), rec.bottomRight());
-    _q3 = QRect(_q2.bottomLeft(), _q4.bottomLeft());
-    _q1 = QRect(_q2.topRight(), _q4.topRight());
-    _qc = QRect(_q2.center(), _q4.center());
-}
+    auto* q1 = new QPushButton("  1", this);
+    auto* q2 = new QPushButton("2  ", this);
+    auto* q3 = new QPushButton("3  ", this);
+    auto* q4 = new QPushButton("  4", this);
+    auto* qc = new QPushButton("5", this);
 
-void QuadrantButton::paintEvent(QPaintEvent* event)
-{
-    Q_UNUSED(event);
+    q1->setFixedSize(32, 32);
+    q2->setFixedSize(32, 32);
+    q3->setFixedSize(32, 32);
+    q4->setFixedSize(32, 32);
+    qc->setFixedSize(32, 32);
 
-    QPainter p(this);
+    auto* layout = new QGridLayout(this);
+    layout->setSpacing(0);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(q1, 0, 1);
+    layout->addWidget(q2, 0, 0);
+    layout->addWidget(q3, 1, 0);
+    layout->addWidget(q4, 1, 1);
+    qc->move(16, 16);
 
-    p.setPen(Qt::black);
-    p.setBrush(QColor(67, 67, 67, 128));
-    p.drawRect(rect().adjusted(0, 0, -1, -1));
-
-    p.setPen(QColor(128, 128, 128, 255));
-    p.drawLine(_q2.topRight(), _q4.bottomLeft());
-    p.drawLine(_q2.bottomLeft(), _q4.topRight());
-
-    p.setRenderHint(QPainter::Antialiasing);
-    p.drawEllipse(_qc);
-
-
-    p.drawText(_q1.adjusted(6, 0, 0, -6), Qt::AlignCenter, "I");
-    p.drawText(_q2.adjusted(0, 0, -6, -6), Qt::AlignCenter, "II");
-    p.drawText(_q3.adjusted(0, 6, -6, 0), Qt::AlignCenter, "III");
-    p.drawText(_q4.adjusted(6, 6, 0, 0), Qt::AlignCenter, "IV");
-    p.drawText(_qc, Qt::AlignCenter, "C");
-
-    if (_mousePos.isNull()) {
-        return;
-    }
-
-    p.setBrush(QColor(128, 128, 128, 128));
-    p.setPen(QColor(160, 160, 160, 255));
-
-    if (_qc.contains(_mousePos)) {
-        p.drawEllipse(_qc);
-        p.drawText(_qc, Qt::AlignCenter, "C");
-    } else {
-        if (_q1.contains(_mousePos)) {
-            p.drawRect(_q1);
-            p.drawText(_q1.adjusted(6, 0, 0, -6), Qt::AlignCenter, "I");
-        } else if (_q2.contains(_mousePos)) {
-            p.drawRect(_q2);
-            p.drawText(_q2.adjusted(0, 0, -6, -6), Qt::AlignCenter, "II");
-        } else if (_q3.contains(_mousePos)) {
-            p.drawRect(_q3);
-            p.drawText(_q3.adjusted(0, 6, -6, 0), Qt::AlignCenter, "III");
-        } else if (_q4.contains(_mousePos)) {
-            p.drawRect(_q4);
-            p.drawText(_q4.adjusted(6, 6, 0, 0), Qt::AlignCenter, "IV");
-        }
-        p.setBrush(QColor(67, 67, 67, 128));
-        p.setPen(QColor(128, 128, 128, 255));
-        p.drawEllipse(_qc);
-        p.drawText(_qc, Qt::AlignCenter, "C");
-    }
-}
-
-void QuadrantButton::mousePressEvent(QMouseEvent* event)
-{
-    Q_UNUSED(event);
-
-    if (_qc.contains(_mousePos)) {
-        emit centerPressed();
-    } else if (_q1.contains(_mousePos)) {
-        emit quad1Pressed();
-    } else if (_q2.contains(_mousePos)) {
-        emit quad2Pressed();
-    } else if (_q3.contains(_mousePos)) {
-        emit quad3Pressed();
-    } else if (_q4.contains(_mousePos)) {
-        emit quad4Pressed();
-    }
-}
-
-void QuadrantButton::mouseMoveEvent(QMouseEvent* event)
-{
-    QWidget::mouseMoveEvent(event);
-
-    _mousePos = event->pos();
-    update();
-}
-
-void QuadrantButton::leaveEvent(QEvent* event)
-{
-    QWidget::leaveEvent(event);
-
-    _mousePos = QPoint();
-    update();
+    connect(q1, &QPushButton::clicked, this, &QuadrantButton::quad1Pressed);
+    connect(q2, &QPushButton::clicked, this, &QuadrantButton::quad2Pressed);
+    connect(q3, &QPushButton::clicked, this, &QuadrantButton::quad3Pressed);
+    connect(q4, &QPushButton::clicked, this, &QuadrantButton::quad4Pressed);
+    connect(qc, &QPushButton::clicked, this, &QuadrantButton::centerPressed);
 }
