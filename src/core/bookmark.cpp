@@ -15,39 +15,28 @@ void BookmarkManager::configure(BookmarkManager* bm)
             q.prepare(QLatin1StringView("SELECT * FROM %1").arg(TABLE_NAME));
             q.exec();
             const auto rec         = q.record();
-            const auto hash_index  = rec.indexOf(BOOKMARK_HASH);
             const auto pos_x_index = rec.indexOf(POSITION_X_COL);
             const auto pos_y_index = rec.indexOf(POSITION_Y_COL);
             const auto name_index  = rec.indexOf(NAME_COL);
 
             while (q.next())
             {
-                bool ok = false;
-                const auto hash = q.value(hash_index).toULongLong(&ok);
-                const auto pos = QPoint(q.value(pos_x_index).toInt(), q.value(pos_y_index).toInt());
+                const auto pos  = QPoint(q.value(pos_x_index).toInt(), q.value(pos_y_index).toInt());
                 const auto name = q.value(name_index).toString();
-                const auto sbm = SceneBookmarkData{pos, name};
-                const auto computed_hash = qHash(pos);
+                const auto sbm  = SceneBookmarkData{pos, name};
 
-                assert(ok);
-
-                if (computed_hash == hash) {
-                    bm->_scene_bms.insert(sbm);
-                } else {
-                    qWarning() << "BookmarkManager::configure bookmarks don't match";
-                }
+                bm->_scene_bms.insert(sbm);
             }
         } else {
             db.transaction();
             QSqlQuery q(db);
             q.prepare(
                 QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                                    ( %2 INTEGER NOT NULL PRIMARY KEY
+                                    ( %2 INTEGER NOT NULL
                                     , %3 INTEGER NOT NULL
-                                    , %4 INTEGER NOT NULL
-                                    , %5 TEXT NOT NULL))")
+                                    , %4 TEXT NOT NULL
+                                    , UNIQUE(%2, %3)))")
                 .arg(TABLE_NAME)
-                .arg(BOOKMARK_HASH)
                 .arg(POSITION_X_COL)
                 .arg(POSITION_Y_COL)
                 .arg(NAME_COL));
@@ -134,18 +123,19 @@ void BookmarkManager::addToDatabase(const SceneBookmarkData& sbm)
 {
     if (auto db = db::get(); db.isOpen()) {
         QSqlQuery q(db);
-        q.prepare(R"(INSERT OR REPLACE INTO %1 (%2, %3, %4, %5)
-                        VALUES(?, ?, ?, ?))"_L1
-        .arg(TABLE_NAME)
-        .arg(BOOKMARK_HASH)
-        .arg(POSITION_X_COL)
-        .arg(POSITION_Y_COL)
-        .arg(NAME_COL));
-        q.addBindValue(QVariant::fromValue(qHash(sbm.pos)));
+        q.prepare(R"(INSERT OR REPLACE INTO %1 (%2, %3, %4) VALUES(?, ?, ?))"_L1
+            .arg(TABLE_NAME)
+            .arg(POSITION_X_COL)
+            .arg(POSITION_Y_COL)
+            .arg(NAME_COL));
+
         q.addBindValue(sbm.pos.x());
         q.addBindValue(sbm.pos.y());
         q.addBindValue(sbm.name);
-        q.exec();
+
+        if (!q.exec()) {
+            qWarning() << q.lastError();
+        }
     }
 }
 
@@ -153,9 +143,16 @@ void BookmarkManager::removeFromDatabase(const SceneBookmarkData& sbm)
 {
     if (auto db = db::get(); db.isOpen()) {
         QSqlQuery q(db);
-        q.prepare(R"(DELETE FROM %1 WHERE hash=%2)"_L1
-        .arg(TABLE_NAME)
-        .arg(qHash(sbm.pos)));
-        q.exec();
+        q.prepare(R"(DELETE FROM %1 WHERE %2=? AND %3=?)"_L1
+            .arg(TABLE_NAME)
+            .arg(POSITION_X_COL)
+            .arg(POSITION_Y_COL));
+
+        q.addBindValue(sbm.pos.x());
+        q.addBindValue(sbm.pos.y());
+
+        if (!q.exec()) {
+            qWarning() << q.lastError();
+        }
     }
 }

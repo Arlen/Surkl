@@ -32,7 +32,6 @@ namespace core
 
     public:
         static constexpr auto TABLE_NAME     = QLatin1StringView("SceneBookmarks");
-        static constexpr auto BOOKMARK_HASH  = QLatin1StringView("hash");
         static constexpr auto POSITION_X_COL = QLatin1StringView("position_x");
         static constexpr auto POSITION_Y_COL = QLatin1StringView("position_y");
         static constexpr auto NAME_COL       = QLatin1StringView("name");
