@@ -99,14 +99,19 @@ void BookmarkManager::updateBookmark(const SceneBookmarkData& bm)
     }
 }
 
-void BookmarkManager::removeBookmark(const SceneBookmarkData& bm)
+void BookmarkManager::removeBookmarks(const QList<SceneBookmarkData>& bookmarks)
 {
-    assert(_scene_bms.contains(bm));
+    QList<SceneBookmarkData> data;
 
-    if (_scene_bms.contains(bm)) {
-        removeFromDatabase(bm);
-        _scene_bms.remove(bm);
+    for (const auto& bm : bookmarks) {
+        Q_ASSERT(_scene_bms.contains(bm));
+
+        if (_scene_bms.remove(bm)) {
+            data.push_back(bm);
+        }
     }
+
+    removeFromDatabase(data);
 }
 
 QList<SceneBookmarkData> BookmarkManager::sceneBookmarksAsList() const
@@ -139,20 +144,31 @@ void BookmarkManager::addToDatabase(const SceneBookmarkData& sbm)
     }
 }
 
-void BookmarkManager::removeFromDatabase(const SceneBookmarkData& sbm)
+void BookmarkManager::removeFromDatabase(const QList<SceneBookmarkData>& bookmarks)
 {
     if (auto db = db::get(); db.isOpen()) {
+        db.transaction();
+
         QSqlQuery q(db);
         q.prepare(R"(DELETE FROM %1 WHERE %2=? AND %3=?)"_L1
             .arg(TABLE_NAME)
             .arg(POSITION_X_COL)
             .arg(POSITION_Y_COL));
 
-        q.addBindValue(sbm.pos.x());
-        q.addBindValue(sbm.pos.y());
+        for (const auto& sbm : bookmarks) {
+            q.addBindValue(sbm.pos.x());
+            q.addBindValue(sbm.pos.y());
 
-        if (!q.exec()) {
-            qWarning() << q.lastError();
+            if (!q.exec()) {
+                qWarning() << q.lastError();
+            }
+        }
+
+        if (!db.commit()) {
+            qWarning()
+                << "BookmarkManager::removeFromDatabase: Failed to commit changes ("
+                << db.lastError()
+                << ")";
         }
     }
 }

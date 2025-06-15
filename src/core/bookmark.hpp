@@ -43,13 +43,13 @@ namespace core
 
         void insertBookmark(const SceneBookmarkData& bm);
         void updateBookmark(const SceneBookmarkData& bm);
-        void removeBookmark(const SceneBookmarkData& bm);
+        void removeBookmarks(const QList<SceneBookmarkData>& bookmarks);
         QList<SceneBookmarkData> sceneBookmarksAsList() const;
         QSet<SceneBookmarkData> sceneBookmarks() const;
 
     private:
         static void addToDatabase(const SceneBookmarkData& sbm);
-        static void removeFromDatabase(const SceneBookmarkData& sbm);
+        static void removeFromDatabase(const QList<SceneBookmarkData>& bookmarks);
 
         QSet<SceneBookmarkData> _scene_bms;
     };
