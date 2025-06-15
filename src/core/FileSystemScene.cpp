@@ -265,19 +265,6 @@ void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& na
     }
 }
 
-void FileSystemScene::removeSceneBookmark(SceneBookmarkItem* bookmarkItem)
-{
-    auto* bm = SessionManager::bm();
-
-    const auto bookmarkData = SceneBookmarkData{bookmarkItem->scenePos().toPoint()};
-
-    if (const auto bookmarks = bm->sceneBookmarks(); bookmarks.contains(bookmarkData)) {
-        bm->removeBookmark(bookmarkData);
-        removeItem(bookmarkItem);
-        delete bookmarkItem;
-    }
-}
-
 QPersistentModelIndex FileSystemScene::rootIndex() const
 {
     auto index = _model->index(_model->rootPath());
@@ -373,6 +360,55 @@ void FileSystemScene::refreshItems()
     update();
 }
 
+void FileSystemScene::deleteSelection()
+{
+    using namespace std::placeholders;
+
+    const auto selection = selectedItems();
+
+    /// 1. remove files and folders
+    auto indices = selection
+        | std::views::filter(&asNodeItem)
+        | std::views::transform(&asNodeItem)
+        | asIndex
+        | std::views::transform(std::bind(&QSortFilterProxyModel::mapToSource, _proxyModel, _1))
+        | std::views::filter(&QModelIndex::isValid)
+        ;
+
+    for (auto i : indices) {
+        _model->remove(i);
+    }
+
+
+    /// 2. remove bookmarks
+    auto* bm = SessionManager::bm();
+
+    auto bookmarkItems = selection
+        | std::views::filter([](QGraphicsItem* item)
+            { return qgraphicsitem_cast<SceneBookmarkItem*>(item); })
+        ;
+
+    QList<SceneBookmarkData> data;
+    for (auto* item : bookmarkItems) {
+        data.push_back(SceneBookmarkData(item->scenePos().toPoint()));
+        removeItem(item);
+        delete item;
+    }
+    bm->removeBookmarks(data);
+}
+
+void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
+{
+    p->fillRect(rec, SessionManager::tm()->sceneBgColor());
+    drawCrosshairs(p, rec);
+    drawBorder(p, rec, sceneRect());
+}
+
+void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e)
+{
+    return QGraphicsScene::mouseDoubleClickEvent(e);
+}
+
 void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int end) const
 {
     for (const auto _items = items(); auto* node : _items | filterNodes) {
@@ -398,18 +434,6 @@ void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int en
     for (auto* node : toBeUnloaded) {
         node->unload(start, end);
     }
-}
-
-void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
-{
-    p->fillRect(rec, SessionManager::tm()->sceneBgColor());
-    drawCrosshairs(p, rec);
-    drawBorder(p, rec, sceneRect());
-}
-
-void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e)
-{
-    return QGraphicsScene::mouseDoubleClickEvent(e);
 }
 
 void FileSystemScene::onSelectionChange()
