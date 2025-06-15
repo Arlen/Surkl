@@ -312,7 +312,14 @@ void FileSystemScene::openTo(const QString &targetPath) const
 
 void FileSystemScene::fetchMore(const QPersistentModelIndex& index) const
 {
-    _proxyModel->fetchMore(index);
+    if (_proxyModel->canFetchMore(index)) {
+        _proxyModel->fetchMore(index);
+    }
+}
+
+qint64 FileSystemScene::fileSize(const QPersistentModelIndex& index) const
+{
+    return _model->size(_proxyModel->mapToSource(index));
 }
 
 void FileSystemScene::openSelectedNodes() const

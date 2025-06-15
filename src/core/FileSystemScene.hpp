@@ -37,6 +37,7 @@ namespace core
         bool openFile(const NodeItem* node) const;
         void openTo(const QString &targetPath) const;
         void fetchMore(const QPersistentModelIndex& index) const;
+        qint64 fileSize(const QPersistentModelIndex& index) const;
 
     public slots:
         void openSelectedNodes() const;
