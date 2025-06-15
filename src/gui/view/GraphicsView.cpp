@@ -10,7 +10,7 @@
 
 using namespace gui::view;
 
-GraphicsView::GraphicsView(QGraphicsScene *scene, QWidget *parent)
+GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
     : QGraphicsView(scene, parent)
 {
     configure();
@@ -25,6 +25,8 @@ GraphicsView::GraphicsView(QGraphicsScene *scene, QWidget *parent)
     connect(_quadrantButton, &QuadrantButton::quad3Pressed, this, &GraphicsView::focusQuadrant3);
     connect(_quadrantButton, &QuadrantButton::quad4Pressed, this, &GraphicsView::focusQuadrant4);
     connect(_quadrantButton, &QuadrantButton::centerPressed, this, &GraphicsView::focusAllQuadrants);
+
+    connect(this, &GraphicsView::deleteSelection, scene, &core::FileSystemScene::deleteSelection);
 
     _timeline = new QTimeLine(300, this);
     _timeline->setFrameRange(0, 36);
@@ -95,9 +97,7 @@ void GraphicsView::keyPressEvent(QKeyEvent *event)
     togglePanOrZoom(event->modifiers());
 
     if (event->key() == Qt::Key_Delete) {
-        if (const auto sbm = selectedSceneBookmarks(); !sbm.isEmpty()) {
-            removeSceneBookmark(sbm);
-        }
+        emit deleteSelection();
     }
 
     QGraphicsView::keyPressEvent(event);
@@ -342,15 +342,6 @@ void GraphicsView::addSceneBookmark(const QPoint& pos) const
 {
     if (auto* gs = qobject_cast<core::FileSystemScene*>(scene())) {
         gs->addSceneBookmark(mapToScene(pos).toPoint(), "test");
-    }
-}
-
-void GraphicsView::removeSceneBookmark(const QList<core::SceneBookmarkItem*>& items) const
-{
-    if (auto* gs = qobject_cast<core::FileSystemScene*>(scene())) {
-        for (auto* bm : items) {
-            gs->removeSceneBookmark(bm);
-        }
     }
 }
 

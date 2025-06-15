@@ -9,6 +9,7 @@ class QVariantAnimation;
 namespace core
 {
     class SceneBookmarkItem;
+    class FileSystemScene;
 }
 
 namespace gui::view
@@ -22,8 +23,11 @@ namespace gui::view
         constexpr static auto MOUSE_POSITION_PROPERTY = "MOUSE_POSITION_PROPERTY";
         constexpr static auto MOUSE_LAST_POSITION_PROPERTY = "MOUSE_LAST_POSITION_PROPERTY";
 
+    signals:
+        void deleteSelection();
+
     public:
-        GraphicsView(QGraphicsScene* scene, QWidget* parent = nullptr);
+        GraphicsView(core::FileSystemScene* scene, QWidget* parent = nullptr);
 
     public slots:
         void requestSceneBookmark();
@@ -59,7 +63,6 @@ namespace gui::view
         void destroyBookmarkAnimation();
         void drawBookmarkingCursorAnimation(QPainter& p) const;
         void addSceneBookmark(const QPoint& pos) const;
-        void removeSceneBookmark(const QList<core::SceneBookmarkItem*>& items) const;
         void centerTargetOn(const core::SceneBookmarkItem* bm, const QPointF& target);
 
         void pickSceneBookmark();
