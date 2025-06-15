@@ -1,5 +1,5 @@
 #pragma once
-
+#if 0
 #include <QGraphicsItem>
 #include <QGraphicsLineItem>
 #include <QGraphicsSimpleTextItem>
@@ -90,7 +90,7 @@ namespace  core
     {
     public:
         enum { Type = UserType + 1 };
-        enum State { ActiveState, CollapsedState, InactiveState };
+        enum State { ActiveState, CollapsedState/*, InactiveState*/ };
 
         explicit Edge(QGraphicsItem* source = nullptr, QGraphicsItem* target = nullptr);
         void setName(const QString& name) const;
@@ -193,6 +193,7 @@ namespace  core
         void open();
         void rotate(Rotation rot);
         void rotatePage(Rotation rot);
+        bool openTo(QString targetPath);
 
     protected:
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
@@ -227,6 +228,7 @@ namespace  core
     void extend(Node* node, qreal distance = 144.0);
     void shrink(Node* node, qreal distance = 144.0);
     void adjustAllEdges(const Node* node);
+    void updateAllChildNodes(const Node* node);
     void setAllEdgeState(const Node* node, Edge::State state);
 
 
@@ -262,3 +264,4 @@ namespace  core
 }
 
 Q_GLOBAL_STATIC(core::Animator, animator)
+#endif

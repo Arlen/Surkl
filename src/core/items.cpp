@@ -1,14 +1,17 @@
+#if 0
 #include "items.hpp"
 #include "FileSystemScene.hpp"
 #include "SessionManager.hpp"
 #include "theme.hpp"
 
 #include <QCursor>
+#include <QFileSystemModel>
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
 #include <QSequentialAnimationGroup>
+#include <QSortFilterProxyModel>
 #include <QStyleOptionGraphicsItem>
 #include <QTextLayout>
 #include <QTimeLine>
@@ -19,6 +22,7 @@
 #include <ranges>
 #include <stack>
 #include <unordered_set>
+
 
 
 using namespace core;
@@ -41,10 +45,10 @@ namespace
     constexpr qreal NODE_HALF_CLOSED_PEN_WIDTH = NODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
 
     /// fixed for now.
-    constexpr int NODE_CHILD_COUNT = 12;
+    constexpr int NODE_CHILD_COUNT = 16;
 
     /// ---- These will need to go into theme.[hpp,cpp]
-    QFont nodeFont() { return {"Adwaita Sans", 11}; }
+    QFont nodeFont() { return {"Adwaita Sans", 9}; }
     /// ----
 
     std::deque<QLineF> circle(QLineF line1, int sides, qreal startAngle = 0.0)
@@ -70,6 +74,16 @@ namespace
         Q_ASSERT(item != nullptr);
 
         return qgraphicsitem_cast<Node*>(item);
+    }
+
+    const QSortFilterProxyModel* asSortFilterProxyModel(const QAbstractItemModel* model)
+    {
+        return qobject_cast<const QSortFilterProxyModel*>(model);
+    }
+
+    const QFileSystemModel* asFileSystemModel(const QAbstractItemModel* model)
+    {
+        return qobject_cast<const QFileSystemModel*>(model);
     }
 
     QLineF shrinkLine(const QLineF& line, qreal margin_p1, qreal margin_p2)
@@ -198,6 +212,9 @@ namespace
 
     void paintClosedFolder(QPainter* p, Node* node)
     {
+        Q_ASSERT(node->isClosed());
+        Q_ASSERT(node->shape().elementCount() == 4);
+
         const auto* tm = SessionManager::tm();
 
         const auto rec    = node->boundingRect();
@@ -222,9 +239,13 @@ namespace
         p->setPen(QPen(color.darker(), 2));
         p->drawLine(QLineF(spine.pointAt(0.1), spine.pointAt(0.5)));
 
+        p->setBrush(tm->closedNodeBorderColor().lighter(400));
+        //p->setPen(Qt::NoPen);
+        auto rec2 = QRectF(-6, -6, 12, 12);
+        p->drawEllipse(rec2);
+
         p->setPen(Qt::NoPen);
         p->setBrush(color);
-
         p->drawPolygon(tri);
     }
 
@@ -506,11 +527,11 @@ void Edge::setState(State state)
         setVisible(true);
         toggleMembers(true);
         break;
-
-    case InactiveState:
-        setVisible(false);
-        toggleMembers(false);
-        break;
+    //
+    // case InactiveState:
+    //     setVisible(false);
+    //     toggleMembers(false);
+    //     break;
 
     case CollapsedState:
         setVisible(true);
@@ -665,7 +686,7 @@ QVariant NewFolderNode::itemChange(GraphicsItemChange change, const QVariant& va
 ////////////
 Node::Node(const QPersistentModelIndex& index)
 {
-    _index = index;
+    setIndex(index);
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
 }
 
@@ -713,6 +734,16 @@ void Node::init()
     Q_ASSERT(_childEdges.empty());
     Q_ASSERT(_index.isValid());
 
+    if (false) {
+        qDebug() << "rowCount model:" <<  _index.model()->rowCount(_index);
+        auto* m1 = _index.model();
+        if (auto* m2 = qobject_cast<const QSortFilterProxyModel*>(m1); m2) {
+            if (auto* m3 = qobject_cast<QFileSystemModel*>(m2->sourceModel()); m3) {
+                auto ii = m2->mapToSource(_index);
+                qDebug() << "rowCount source:" << m3->rowCount(ii);
+            }
+        }
+    }
     const auto count = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
     _childEdges.reserve(count);
@@ -873,7 +904,10 @@ QString Node::name() const
 {
     Q_ASSERT(_index.isValid());
 
-    return _index.data().toString();
+    const auto datum = _index.data();
+    Q_ASSERT(datum.isValid());
+
+    return datum.toString();
 }
 
 QRectF Node::boundingRect() const
@@ -948,6 +982,7 @@ void Node::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *w
     const auto& rec = boundingRect();
     p->setRenderHint(QPainter::Antialiasing);
     p->setBrush(isSelected() ? tm->openNodeColor().lighter() : tm->openNodeColor());
+    p->setBrush(QColor(128, 128, 128, 128));
 
     qreal radius = 0;
     if (!fsScene()->isDir(_index)) {
@@ -1028,10 +1063,22 @@ void Node::open()
 
         setState(FolderState::Open);
         extend(this);
+        //qDebug() << "opening:" << name() << "with:" << _index.model()->rowCount(_index);
         init();
         spread();
         skipTo(0);
+
+        using std::views::transform;
+        auto indices = _childEdges
+            | transform(&Edge::target)
+            | transform(&asNode)
+            //| views::filter(&Node::isClosed)
+            | transform(&Node::index)
+            ;
+        Q_ASSERT(std::ranges::all_of(indices, &QPersistentModelIndex::isValid));
+
     } else if (_state == FolderState::HalfClosed) {
+        qDebug() << "rowCount:" << _index.model()->rowCount(_index);
         setState(FolderState::Open);
         spread();
         setAllEdgeState(this, Edge::ActiveState);
@@ -1084,6 +1131,112 @@ void Node::rotatePage(Rotation rot)
     animator->addPageRotation(this, totalDur, pageSize, advance);
 }
 
+bool Node::openTo(QString targetPath)
+{
+    using std::views::transform;
+
+    Q_ASSERT(fsScene()->isDir(_index));
+
+    auto currPath = fsScene()->filePath(_index);
+    qDebug() << "curr path: " << currPath;
+    qDebug() << "target path: " << targetPath;
+
+
+    if (!targetPath.startsWith(currPath)) { return false; }
+    if (targetPath == currPath) { return true; }
+
+    QList<QPersistentModelIndex> indices;
+    for (auto start = targetPath.indexOf(QDir::separator(), currPath.size()+1); start != -1; ) {
+        auto path =  targetPath.first(start);
+        indices.push_back(fsScene()->index(path));
+        start = targetPath.indexOf(QDir::separator(), start + 1);
+    }
+    indices.push_back(fsScene()->index(targetPath));
+
+    if (!std::ranges::all_of(indices, &QPersistentModelIndex::isValid)) {
+        return false;
+    }
+
+    /// if all the child nodes are open or halfClosed, then openTo can't work, unless one of those open
+    /// or half-closed nodes is a folder that we need to go through.
+    std::vector<Node*> toClose;
+    auto* node = this;
+    animator->disable();
+    QList<Node*> toHalfClosed;
+    for (const auto& index : indices) {
+        //qDebug() << "working on:" << index.data();
+
+        if (node) {
+            if (node->isClosed()) {
+                /// this is basically Node::open with non-zero skipTo and manual selection.
+                //qDebug() << "openin:" << node->name();
+                node->setSelected(true);
+                node->setState(FolderState::Open);
+                extend(node);
+                node->init();
+                node->spread();
+                node->skipTo(index.row());
+                node->setSelected(false);
+                toHalfClosed.push_back(node);
+            } else if (node->isHalfClosed()) {
+                node->setSelected(true);
+                node->skipTo(index.row());
+                node->setSelected(false);
+            } else if (node->isOpen()) {
+                node->setSelected(true);
+                node->skipTo(index.row());
+                node->setSelected(false);
+            }
+        } else {
+            animator->enable();
+            return false;
+        }
+
+        auto *n = node;
+        node = nullptr;
+        for (auto *c: n->childEdges() | transform(&Edge::target) | transform(&asNode)) {
+            if (c->index() == index) {
+                //qDebug() << "found:" << c->name();
+                node = c;
+                break;
+            }
+        }
+    }
+    if (node) {
+        if (node->isClosed()) {
+            /// this is basically Node::open with non-zero skipTo and manual selection.
+            //qDebug() << "openin:" << node->name();
+            node->setSelected(true);
+            node->open();
+            node->setSelected(false);
+            toHalfClosed.push_back(node);
+        } else if (node->isHalfClosed()) {
+            node->setSelected(true);
+            node->open();
+            node->setSelected(false);
+        }
+    }
+
+    if (!toHalfClosed.empty()) {
+        /// last node is the target node, and stays open.
+        toHalfClosed.pop_back();
+
+        ///
+        for (auto* n : std::views::reverse(toHalfClosed)) {
+            n->halfClose();
+        }
+        for (auto* n : toHalfClosed) {
+            n->setPos(n->parentEdge()->source()->pos() + QPointF(128, 0));
+        }
+    }
+
+
+    animator->enable();
+
+    return false;
+}
+
+
 QVariant Node::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     switch (change) {
@@ -1113,6 +1266,16 @@ void Node::keyPressEvent(QKeyEvent *event)
     } else if (event->key() == Qt::Key_D) {
         if (mod) { rotatePage(Rotation::CCW); }
         else { rotate(Rotation::CCW); }
+    }
+
+    if (event->key() == Qt::Key_S) {
+        const auto children = _childEdges | std::views::transform(&Edge::target)
+        | std::views::transform(&asNode);
+        QStringList xs;
+        for (auto x : children) {
+            xs.push_back(x->name());
+        }
+        qDebug() << "children:" << xs;
     }
 }
 
@@ -1297,8 +1460,10 @@ void Node::doInternalRotationAfterClose(Edge* closedEdge)
         /// call to adjustAllEdges(), but only if causes a change in position.
         /// a call to spread() is needed for when closedEdge doesn't line up
         /// with reset of the collapsed edges.
-        adjustAllEdges(this);
         spread();
+        /// revisit this; there is some tearing when zooming in and performing close
+        /// these two lines are also used in ::reload() in very similar use case.
+        adjustAllEdges(this);
     }
     if (closedIndices.empty()) { return; }
 
@@ -1574,10 +1739,16 @@ void Node::spread(QPointF dxy)
         }
         const auto guide = guides.front();
         const auto norm  = guide.normalVector();
-        auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
-        if (nodeLine.p2().isNull() || nodeLine.length() < boundingRect().width()) {
-            nodeLine.setLength(144);
+        //auto nodeLine = QLineF(center, node->mapToScene(node->boundingRect().center()));
+        const auto nodeNorm = node->parentEdge()->line().normalVector();
+        auto nodeLine = QLineF(pos(), pos() + QPointF(nodeNorm.dx(), nodeNorm.dy()));
+        qDebug() << name() << nodeLine;
+
+        if (nodeLine.isNull() || nodeLine.length() < boundingRect().width()) {
+            //nodeLine.setP2(QPointF(1, 1));
+            //nodeLine.setLength(144);
         }
+
         nodeLine.setAngle(norm.angle());
         node->setPos(nodeLine.p2() + dxy);
         guides.pop_front();
@@ -1618,6 +1789,14 @@ void core::adjustAllEdges(const Node* node)
 {
     node->parentEdge()->adjust();
     std::ranges::for_each(node->childEdges(), &Edge::adjust);
+}
+
+void core::updateAllChildNodes(const Node* node)
+{
+    for (auto* x : node->childEdges()  | std::views::transform(&Edge::target)
+        | std::views::transform(&asNode)) {
+        x->update();
+    }
 }
 
 /// only used on closed nodes, but can be made more general if needed.
@@ -1856,3 +2035,4 @@ void Animator::stopTimeline(const Node* node)
         _timelines.erase(node);
     }
 }
+#endif
