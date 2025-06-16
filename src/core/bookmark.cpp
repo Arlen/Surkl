@@ -80,7 +80,7 @@ BookmarkManager::BookmarkManager(QObject* parent)
 
 void BookmarkManager::insertBookmark(const SceneBookmarkData& bm)
 {
-    assert(!_scene_bms.contains(bm));
+    Q_ASSERT(!_scene_bms.contains(bm));
 
     if (!_scene_bms.contains(bm)) {
         addToDatabase(bm);
@@ -90,7 +90,7 @@ void BookmarkManager::insertBookmark(const SceneBookmarkData& bm)
 
 void BookmarkManager::updateBookmark(const SceneBookmarkData& bm)
 {
-    assert(_scene_bms.contains(bm));
+    Q_ASSERT(_scene_bms.contains(bm));
 
     if (_scene_bms.contains(bm)) {
         addToDatabase(bm);
