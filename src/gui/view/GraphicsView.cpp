@@ -1,3 +1,6 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "GraphicsView.hpp"
 #include "QuadrantButton.hpp"
 #include "core/BookmarkItem.hpp"
