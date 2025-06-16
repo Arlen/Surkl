@@ -1,3 +1,6 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
 #include <QtWidgets/QGraphicsView>
@@ -24,10 +27,11 @@ namespace gui::view
         constexpr static auto MOUSE_LAST_POSITION_PROPERTY = "MOUSE_LAST_POSITION_PROPERTY";
 
     signals:
-        void deleteSelection();
+        void deletePressed();
+        void sceneBookmarkRequested(const QPoint& pos, const QString& name);
 
     public:
-        GraphicsView(core::FileSystemScene* scene, QWidget* parent = nullptr);
+        explicit GraphicsView(core::FileSystemScene* scene, QWidget* parent = nullptr);
 
     public slots:
         void requestSceneBookmark();
@@ -62,7 +66,6 @@ namespace gui::view
 
         void destroyBookmarkAnimation();
         void drawBookmarkingCursorAnimation(QPainter& p) const;
-        void addSceneBookmark(const QPoint& pos) const;
         void centerTargetOn(const core::SceneBookmarkItem* bm, const QPointF& target);
 
         void pickSceneBookmark();

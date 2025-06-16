@@ -26,7 +26,8 @@ GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
     connect(_quadrantButton, &QuadrantButton::quad4Pressed, this, &GraphicsView::focusQuadrant4);
     connect(_quadrantButton, &QuadrantButton::centerPressed, this, &GraphicsView::focusAllQuadrants);
 
-    connect(this, &GraphicsView::deleteSelection, scene, &core::FileSystemScene::deleteSelection);
+    connect(this, &GraphicsView::deletePressed, scene, &core::FileSystemScene::deleteSelection);
+    connect(this, &GraphicsView::sceneBookmarkRequested, scene, &core::FileSystemScene::addSceneBookmark);
 
     _timeline = new QTimeLine(300, this);
     _timeline->setFrameRange(0, 36);
@@ -97,7 +98,7 @@ void GraphicsView::keyPressEvent(QKeyEvent *event)
     togglePanOrZoom(event->modifiers());
 
     if (event->key() == Qt::Key_Delete) {
-        emit deleteSelection();
+        emit deletePressed();
     }
 
     QGraphicsView::keyPressEvent(event);
@@ -133,7 +134,11 @@ void GraphicsView::mousePressEvent(QMouseEvent *event)
 {
     if (_bookmarkAnimation) {
         destroyBookmarkAnimation();
-        addSceneBookmark(event->pos());
+
+        const auto pos  = mapToScene(event->position().toPoint()).toPoint();
+        const auto name = QString("(%1,%2)").arg(pos.x()).arg(pos.y());
+
+        emit sceneBookmarkRequested(pos, name);
     }
 
     QGraphicsView::mousePressEvent(event);
@@ -338,13 +343,6 @@ void GraphicsView::drawBookmarkingCursorAnimation(QPainter& p) const
     p.restore();
 }
 
-void GraphicsView::addSceneBookmark(const QPoint& pos) const
-{
-    if (auto* gs = qobject_cast<core::FileSystemScene*>(scene())) {
-        gs->addSceneBookmark(mapToScene(pos).toPoint(), "test");
-    }
-}
-
 /// centers the target position on given bookmark item.
 void GraphicsView::centerTargetOn(const core::SceneBookmarkItem* bm, const QPointF& target)
 {
@@ -366,9 +364,8 @@ void GraphicsView::centerTargetOn(const core::SceneBookmarkItem* bm, const QPoin
             centerOn(viewCenter + path.pointAt(t));
     });
 
-    connect(_timeline, &QTimeLine::finished,
-        [this] {
-            disconnect(_timeline, &QTimeLine::valueChanged, nullptr, nullptr);
+    connect(_timeline, &QTimeLine::finished, [this] {
+        disconnect(_timeline, &QTimeLine::valueChanged, nullptr, nullptr);
     });
 
     _timeline->start();

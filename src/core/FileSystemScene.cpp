@@ -249,22 +249,6 @@ FileSystemScene::~FileSystemScene()
     disconnect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
 }
 
-void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& name)
-{
-    auto* bm = SessionManager::bm();
-
-    auto* bookmarkItem      = new SceneBookmarkItem(clickPos, name);
-    const auto itemPos      = bookmarkItem->scenePos().toPoint();
-    const auto bookmarkData = SceneBookmarkData{itemPos, name};
-
-    if (const auto bookmarks = bm->sceneBookmarks(); !bookmarks.contains(bookmarkData)) {
-        bm->insertBookmark(bookmarkData);
-        addItem(bookmarkItem);
-    } else {
-        delete bookmarkItem;
-    }
-}
-
 QPersistentModelIndex FileSystemScene::rootIndex() const
 {
     auto index = _model->index(_model->rootPath());
@@ -397,11 +381,27 @@ void FileSystemScene::deleteSelection()
 
     QList<SceneBookmarkData> data;
     for (auto* item : bookmarkItems) {
-        data.push_back(SceneBookmarkData(item->scenePos().toPoint()));
+        data.push_back(SceneBookmarkData(item->scenePos().toPoint(), {}));
         removeItem(item);
         delete item;
     }
     bm->removeBookmarks(data);
+}
+
+void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& name)
+{
+    auto* bm = SessionManager::bm();
+
+    auto* bookmarkItem      = new SceneBookmarkItem(clickPos, name);
+    const auto itemPos      = bookmarkItem->scenePos().toPoint();
+    const auto bookmarkData = SceneBookmarkData{itemPos, name};
+
+    if (const auto bookmarks = bm->sceneBookmarks(); !bookmarks.contains(bookmarkData)) {
+        bm->insertBookmark(bookmarkData);
+        addItem(bookmarkItem);
+    } else {
+        delete bookmarkItem;
+    }
 }
 
 void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
