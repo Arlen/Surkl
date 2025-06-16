@@ -1,35 +1,48 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "test_bookmark.hpp"
 
-#include "core/db.hpp"
-#include "core/Scene.hpp"
 #include "core/SessionManager.hpp"
 #include "core/bookmark.hpp"
-#include "view/GraphicsView.hpp"
+#include "core/db.hpp"
+
+#include <QTest>
 
 
 void TestBookmarks::initTestCase()
 {
-    QFile db(core::db::DB_DATABASE_NAME);
-    if (db.exists()) {
-        db.remove();
+    qApp->setProperty(core::db::DB_NAME
+        , core::db::DB_CONFIG_TEST.databaseName);
+    qApp->setProperty(core::db::DB_CONNECTION_NAME
+        , core::db::DB_CONFIG_TEST.connectionName);
+
+    if (auto dbFile = QFile(qApp->property(core::db::DB_NAME).toString()); dbFile.exists()) {
+        dbFile.remove();
     }
 
-    core::session()->start();
-    core::session()->mw()->resize(640*2, 480*2);
-    core::session()->mw()->show();
+    auto* bm = core::SessionManager::bm();
+    QVERIFY(bm->sceneBookmarks().size() == 0);
+}
 
-    _scene = core::session()->scene();
-    QVERIFY(_scene != nullptr);
-    _bm = core::session()->bm();
-    QVERIFY(_bm != nullptr);
-    QVERIFY(_bm->sceneBookmarks().size() == 0);
+void TestBookmarks::initTestCase_data()
+{
+    QTest::addColumn<QPoint>("pos");
+    QTest::addColumn<QString>("name");
+
+    QTest::newRow("1st-bookmark") << QPoint(2, 3) << "Alpha";
+    QTest::newRow("2nd-bookmark") << QPoint(5, 7) << "Beta";
+    QTest::newRow("3rd-bookmark") << QPoint(2, 4) << "Gamma";
+    QTest::newRow("4th-bookmark") << QPoint(6, 8) << "Delta";
+    QTest::newRow("5th-bookmark") << QPoint(5, 7) << "duplicate";
 }
 
 void TestBookmarks::cleanupTestCase()
 {
-    QFile db(core::db::DB_DATABASE_NAME);
-    QVERIFY(db.exists());
-    QVERIFY(db.remove());
+    auto dbFile = QFile(qApp->property(core::db::DB_NAME).toString());
+
+    QVERIFY(dbFile.exists());
+    QVERIFY(dbFile.remove());
 }
 
 void TestBookmarks::init()
@@ -37,27 +50,45 @@ void TestBookmarks::init()
 
 }
 
-void TestBookmarks::bookmarkSingle()
+void TestBookmarks::sceneBookmarkInsert()
 {
-    QVERIFY(_bm->sceneBookmarks().size() == 0);
-    QVERIFY(_scene->views().size() > 0);
+    QFETCH_GLOBAL(QPoint, pos);
+    QFETCH_GLOBAL(QString, name);
 
-    if (auto* view = dynamic_cast<gui::view::GraphicsView*>(_scene->views().first())) {
-        QVERIFY(view != nullptr);
-        view->setFocus();
-        auto* vp = view->viewport();
-        QVERIFY(vp != nullptr);
-        QVERIFY(_bm->sceneBookmarks().size() == 0);
+    if (auto* bm = core::SessionManager::bm(); bm->sceneBookmarks().contains({pos})) {
+        QCOMPARE(name, "duplicate");
+    } else {
+        bm->insertBookmark({pos, name});
+        QCOMPARE(bm->sceneBookmarks().contains({pos}), true);
+    }
+}
 
-        QTest::mouseMove(vp);
-        QTest::keyPress(vp, Qt::Key_B, Qt::NoModifier);
+void TestBookmarks::sceneBookmarkUpdate()
+{
+    QFETCH_GLOBAL(QPoint, pos);
+    QFETCH_GLOBAL(QString, name);
 
-        const auto bmPos  = QPoint(300, 300);
-        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, bmPos);
-        QVERIFY(_bm->sceneBookmarks().contains({bmPos, ""}));
-        _bm->removeBookmark({bmPos, ""});
-        QVERIFY(!_bm->sceneBookmarks().contains({bmPos, ""}));
-        QVERIFY(_bm->sceneBookmarks().size() == 0);
+    if (auto* bm = core::SessionManager::bm(); bm->sceneBookmarks().contains({pos})) {
+        bm->updateBookmark({pos, name + "Updated"});
+        const auto bookmarks = bm->sceneBookmarks();
+        QCOMPARE(bookmarks.contains({pos}), true);
+        const auto updateName = bookmarks.find({pos});
+        QVERIFY(updateName != bookmarks.end());
+        QCOMPARE(updateName->name, name + "Updated");
+    }
+}
+
+void TestBookmarks::sceneBookmarkRemove()
+{
+    QFETCH_GLOBAL(QPoint, pos);
+    QFETCH_GLOBAL(QString, name);
+
+    if (auto* bm = core::SessionManager::bm(); name == "duplicate") {
+        QCOMPARE(bm->sceneBookmarks().contains({pos}), false);
+    } else {
+        QCOMPARE(bm->sceneBookmarks().contains({pos}), true);
+        bm->removeBookmarks({{pos, name}});
+        QCOMPARE(bm->sceneBookmarks().contains({pos}), false);
     }
 }
 

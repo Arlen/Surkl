@@ -1,26 +1,23 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
-#include <QTest>
+#include <QObject>
 
 
-namespace core
-{
-    class Scene;
-    class BookmarkManager;
-}
-
-class TestBookmarks : public QObject
+class TestBookmarks final : public QObject
 {
     Q_OBJECT
 
 private slots:
     void initTestCase();
+    void initTestCase_data();
     void cleanupTestCase();
+
     void init();
 
-    void bookmarkSingle();
-
-private:
-    core::Scene *_scene;
-    core::BookmarkManager *_bm;
+    void sceneBookmarkInsert();
+    void sceneBookmarkUpdate();
+    void sceneBookmarkRemove();
 };
