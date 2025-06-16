@@ -10,6 +10,14 @@ void db::init()
     const auto databaseName   = qApp->property(DB_NAME).toString();
     const auto connectionName = qApp->property(DB_CONNECTION_NAME).toString();
 
+    if (databaseName.isEmpty()) {
+        qWarning() << "DB name not set!";
+    }
+
+    if (connectionName.isEmpty()) {
+        qWarning() << "DB connection name not set!";
+    }
+
     auto db = QSqlDatabase::addDatabase("QSQLITE", connectionName);
     db.setDatabaseName(databaseName);
 
