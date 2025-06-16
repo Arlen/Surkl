@@ -1,7 +1,7 @@
 /// Copyright (C) 2025 Arlen Avakian
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "test_bookmark.hpp"
+#include "tst_bookmark.hpp"
 
 #include "core/SessionManager.hpp"
 #include "core/bookmark.hpp"
