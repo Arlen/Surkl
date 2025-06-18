@@ -115,7 +115,7 @@ namespace  core
 
         enum { Type = UserType + 2 };
 
-        explicit NodeItem(const QPersistentModelIndex& index);
+        explicit NodeItem();
         ~NodeItem() override;
 
         [[nodiscard]] static EdgeItem* createNode(const QPersistentModelIndex& targetIndex, QGraphicsItem* source);

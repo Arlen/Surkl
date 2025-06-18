@@ -358,12 +358,11 @@ void KnotItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 ////////////
 /// Node ///
 ////////////
-NodeItem::NodeItem(const QPersistentModelIndex& index)
+NodeItem::NodeItem()
 {
     setFlags(ItemIsSelectable | ItemIsMovable | ItemIsFocusable | ItemSendsScenePositionChanges);
     setAcceptHoverEvents(true);
 
-    setIndex(index);
     _knot  = new KnotItem(this);
     _knot->setPos(QPointF(NODE_OPEN_RADIUS, 0));
     _knot->hide();
@@ -378,10 +377,11 @@ EdgeItem* NodeItem::createNode(const QPersistentModelIndex& targetIndex, QGraphi
 {
     Q_ASSERT(source);
 
-    auto* target        = new NodeItem(targetIndex);
+    auto* target        = new NodeItem();
     target->_parentEdge = new EdgeItem(source, target);
 
     if (targetIndex.isValid()) {
+        target->setIndex(targetIndex);
         target->_parentEdge->setText(target->name());
     }
 
@@ -603,6 +603,8 @@ void NodeItem::unload(int start, int end)
 
 void NodeItem::setIndex(const QPersistentModelIndex& index)
 {
+    Q_ASSERT(index.isValid());
+
     _index = index;
 
     if (SessionManager::scene()->isDir(index)) {
@@ -1175,13 +1177,14 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
         toGrow = _extra;
 
         /// insert after if going CW, or insert before if going CCW.
-        _childEdges.insert(rot==Rotation::CW ? std::next(found) : found, toGrow);
+        _childEdges.insert(rot==Rotation::CW ? std::next(found) : found, _extra);
+        _extra = nullptr;
     } else { Q_ASSERT(false); }
 
     if (auto found = ranges::find(_childEdges, toErase); found != _childEdges.end()) {
         _extra = *found;
+        asNodeItem(_extra->target())->_index = QModelIndex();
         _childEdges.erase(found);
-        asNodeItem(_extra->target())->setIndex(QModelIndex());
         toShrink = _extra;
     } else { Q_ASSERT(false); }
     Q_ASSERT(isFileOrClosed(_extra));
