@@ -4,7 +4,9 @@
 #include "tst_NodeItem.hpp"
 #include "core/FileSystemScene.hpp"
 #include "core/NodeItem.hpp"
+#include "core/SceneStorage.hpp"
 #include "core/SessionManager.hpp"
+#include "core/db.hpp"
 
 #include <QFileSystemModel>
 #include <QRandomGenerator>
@@ -50,6 +52,26 @@ namespace
         return (rows | std::ranges::to<std::vector>()).size() ==
                (rows | std::ranges::to<std::unordered_set>()).size();
     };
+
+    auto nodeFromPath = [](const core::FileSystemScene* scene, const QString& path) -> core::NodeItem*
+    {
+        if (const auto index = scene->index(path); index.isValid()) {
+            const auto items = scene->items();
+
+            auto nodes = items
+                | std::views::filter(&core::asNodeItem)
+                | std::views::transform(&core::asNodeItem)
+                ;
+
+            for (auto* n : nodes) {
+                if (n->index() == index) {
+                    return n;
+                }
+            }
+        }
+
+        return nullptr;
+    };
 }
 
 //#define TEST_TRACK_STEPS
@@ -61,7 +83,24 @@ do { qDebug() << _steps; } while (false)
 
 void TestNodeItem::initTestCase()
 {
+    qApp->setProperty(core::db::DB_NAME
+        , core::db::DB_CONFIG_TEST.databaseName);
+    qApp->setProperty(core::db::DB_CONNECTION_NAME
+        , core::db::DB_CONFIG_TEST.connectionName);
 
+    if (auto dbFile = QFile(qApp->property(core::db::DB_NAME).toString()); dbFile.exists()) {
+        dbFile.remove();
+    }
+
+    auto* scene = core::SessionManager::scene();
+    auto dir = QDir(ROOT_PATH);
+    scene->setRootPath(dir.absolutePath());
+    core::SessionManager::ss()->loadScene(scene);
+
+    /// wait for filesystem data to be fetched
+    QTest::qWait(50);
+
+    _scene = scene;
 }
 
 void TestNodeItem::initTestCase_data()
@@ -83,6 +122,11 @@ void TestNodeItem::cleanupTestCase()
 {
     auto dir = QDir(ROOT_PATH);
     QVERIFY(dir.removeRecursively());
+
+    auto dbFile = QFile(qApp->property(core::db::DB_NAME).toString());
+
+    QVERIFY(dbFile.exists());
+    QVERIFY(dbFile.remove());
 }
 
 void TestNodeItem::init()
@@ -111,41 +155,41 @@ void TestNodeItem::rotation()
     QFETCH_GLOBAL(QDir, testDir);
     QFETCH(WeightPair, rotWeights);
 
-    auto* scene = new core::FileSystemScene();
-    scene->setRootPath(testDir.absolutePath());
-    auto* node = core::NodeItem::createRootItem(scene);
+    auto* node = nodeFromPath(_scene, testDir.path());
+    QVERIFY(node != nullptr);
+    QVERIFY(_scene->isDir(node->index()));
+    QVERIFY(_scene == node->scene());
 
-    /// wait for filesystem data to be fetched
-    QTest::qWait(25);
+    if (node->isClosed()) {
+        node->open();
 
-    node->open();
+        /// wait for filesystem data to be fetched
+        QTest::qWait(25);
+    }
+
     QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
     QVERIFY(fileOrClosedDirAreSorted(node));
     QVERIFY(hasUniqueChildren(node));
     verifyNames(node, testDir);
 
     constexpr auto MAX_ITER = core::NodeItem::NODE_CHILD_COUNT;
-    QSignalSpy spy1(scene, &core::FileSystemScene::sequenceFinished);
+    QSignalSpy spy1(_scene, &core::FileSystemScene::sequenceFinished);
 
     for (int k = 1; k <= MAX_ITER; ++k) {
         for (int i = 1; i <= MAX_ITER; ++i) {
             doRandomRotations(node, rotWeights, i*k);
-            QVERIFY(spy1.wait(50));
+            QVERIFY(spy1.wait(250));
             QVERIFY(fileOrClosedDirAreSorted(node));
             QVERIFY(hasUniqueChildren(node));
             verifyNames(node, testDir);
         }
         node->close();
         node->open();
+
         QVERIFY(fileOrClosedDirAreSorted(node));
         QVERIFY(hasUniqueChildren(node));
         verifyNames(node, testDir);
     }
-
-    /// wait for any animations to finish.
-    QTest::qWait(100);
-    scene->clear();
-    scene->deleteLater();
 }
 
 void TestNodeItem::rotationOpenCloseSubdir_data()
@@ -165,14 +209,15 @@ void TestNodeItem::rotationOpenCloseSubdir()
     QFETCH_GLOBAL(QDir, testDir);
     QFETCH(WeightPair, rotWeights);
 
-    auto* scene = new core::FileSystemScene();
-    scene->setRootPath(testDir.absolutePath());
-    auto* node = core::NodeItem::createRootItem(scene);
+    auto* node = nodeFromPath(_scene, testDir.path());
 
-    /// wait for filesystem data to be fetched
-    QTest::qWait(25);
+    if (node->isClosed()) {
+        node->open();
 
-    node->open();
+        /// wait for filesystem data to be fetched
+        QTest::qWait(25);
+    }
+
     QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
     QVERIFY(fileOrClosedDirAreSorted(node));
     QVERIFY(hasUniqueChildren(node));
@@ -180,12 +225,12 @@ void TestNodeItem::rotationOpenCloseSubdir()
     verifyNames(node, testDir);
 
     constexpr auto MAX_ITER = core::NodeItem::NODE_CHILD_COUNT;
-    QSignalSpy animSpy(scene, &core::FileSystemScene::sequenceFinished);
+    QSignalSpy animSpy(_scene, &core::FileSystemScene::sequenceFinished);
 
     for (int k = 1; k <= MAX_ITER; ++k) {
         for (int i = 1; i <= MAX_ITER; ++i) {
             doRandomRotations(node, rotWeights, i*k);
-            QVERIFY(animSpy.wait(50));
+            QVERIFY(animSpy.wait(250));
             QVERIFY(hasUniqueChildren(node));
             QVERIFY(fileOrClosedDirAreSorted(node));
             verifyIndices(node);
@@ -200,14 +245,14 @@ void TestNodeItem::rotationOpenCloseSubdir()
 
             randomClose(node, i);
             SHOW_STEPS();
-            QVERIFY(animSpy.wait(50));
+            QVERIFY(animSpy.wait(250));
             QVERIFY(fileOrClosedDirAreSorted(node));
             QVERIFY(hasUniqueChildren(node));
             verifyIndices(node);
             verifyNames(node, testDir);
 
             doRandomRotations(node, rotWeights, i);
-            QVERIFY(animSpy.wait(50));
+            QVERIFY(animSpy.wait(250));
             QVERIFY(fileOrClosedDirAreSorted(node));
             QVERIFY(hasUniqueChildren(node));
             verifyIndices(node);
@@ -228,11 +273,6 @@ void TestNodeItem::rotationOpenCloseSubdir()
     QVERIFY(hasUniqueChildren(node));
     verifyIndices(node);
     verifyNames(node, testDir);
-
-    /// wait for any animations to finish.
-    QTest::qWait(100);
-    scene->clear();
-    scene->deleteLater();
 }
 
 void TestNodeItem::verifyNames(core::NodeItem* node, const QDir& dir)

@@ -44,5 +44,6 @@ private:
     void closeAll(core::NodeItem* node);
 
     QString _steps;
+    core::FileSystemScene* _scene{nullptr};
 };
 

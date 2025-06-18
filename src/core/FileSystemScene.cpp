@@ -258,11 +258,17 @@ QPersistentModelIndex FileSystemScene::rootIndex() const
 
 bool FileSystemScene::isDir(const QModelIndex& index) const
 {
+    Q_ASSERT(index.isValid());
+    Q_ASSERT(index.model() == _proxyModel);
+
     return _model->isDir(_proxyModel->mapToSource(index));
 }
 
 QString FileSystemScene::filePath(const QPersistentModelIndex& index) const
 {
+    Q_ASSERT(index.isValid());
+    Q_ASSERT(index.model() == _proxyModel);
+
     return _model->filePath(_proxyModel->mapToSource(index));
 }
 
@@ -281,6 +287,8 @@ bool FileSystemScene::openFile(const NodeItem* node) const
     bool success = false;
     if (const auto& index = node->index(); index.isValid()) {
         Q_ASSERT(!isDir(index));
+        Q_ASSERT(index.model() == _proxyModel);
+
         const auto info = _model->filePath(_proxyModel->mapToSource(index));
         success = QDesktopServices::openUrl(QUrl::fromLocalFile(info));
     }
@@ -303,6 +311,9 @@ void FileSystemScene::fetchMore(const QPersistentModelIndex& index) const
 
 qint64 FileSystemScene::fileSize(const QPersistentModelIndex& index) const
 {
+    Q_ASSERT(index.isValid());
+    Q_ASSERT(index.model() == _proxyModel);
+
     return _model->size(_proxyModel->mapToSource(index));
 }
 

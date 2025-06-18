@@ -981,11 +981,13 @@ void NodeItem::destroyChildren()
     /// "it is more efficient to remove the item from the QGraphicsScene
     /// before destroying the item." -- Qt docs
 
-    auto destroyEdge = [this](EdgeItem* edge) {
+    auto destroyEdge = [this](EdgeItem* edge, bool storage = true) {
         auto* node = edge->target();
 
         Q_ASSERT(scene()->items().contains(node));
-        SessionManager::ss()->deleteNode(asNodeItem(node));
+        if (storage) {
+            SessionManager::ss()->deleteNode(asNodeItem(node));
+        }
         scene()->removeItem(node);
         delete node;
 
@@ -1013,14 +1015,14 @@ void NodeItem::destroyChildren()
         node->_childEdges.clear();
 
         if (node->_extra) {
-            destroyEdge(node->_extra);
+            destroyEdge(node->_extra, false);
         }
         destroyEdge(edge);
     }
 
     _childEdges.clear();
 
-    destroyEdge(_extra);
+    destroyEdge(_extra, false);
     _extra = nullptr;
 }
 
