@@ -20,7 +20,6 @@
 
 using namespace std;
 
-
 namespace
 {
     auto fileOrClosedDirAreSorted = [](const core::NodeItem* parent)
@@ -49,8 +48,8 @@ namespace
             | core::asTargetNodes | core::asIndexRow
             ;
 
-        return (rows | std::ranges::to<std::vector>()).size() ==
-               (rows | std::ranges::to<std::unordered_set>()).size();
+        return (rows | ranges::to<std::vector>()).size() ==
+               (rows | ranges::to<std::unordered_set>()).size();
     };
 
     auto nodeFromPath = [](const core::FileSystemScene* scene, const QString& path) -> core::NodeItem*
@@ -59,8 +58,8 @@ namespace
             const auto items = scene->items();
 
             auto nodes = items
-                | std::views::filter(&core::asNodeItem)
-                | std::views::transform(&core::asNodeItem)
+                | views::filter(&core::asNodeItem)
+                | views::transform(&core::asNodeItem)
                 ;
 
             for (auto* n : nodes) {
@@ -291,7 +290,7 @@ void TestNodeItem::verifyIndices(const core::NodeItem* node)
     const auto indices = node->childEdges()
         | core::asTargetNodes
         | core::asIndexRow
-        | std::ranges::to<std::unordered_set>()
+        | ranges::to<std::unordered_set>()
         ;
 
     QCOMPARE(indices.size(), node->childEdges().size());
@@ -322,9 +321,9 @@ void TestNodeItem::randomOpen(const core::NodeItem* node, int count)
         | views::filter(std::not_fn(&core::NodeItem::isOpen))
         | ranges::to<std::vector>()
         ;
-    std::ranges::shuffle(candidates, *QRandomGenerator::global());
+    ranges::shuffle(candidates, *QRandomGenerator::global());
 
-    for (auto* child : candidates | std::views::take(count)) {
+    for (auto* child : candidates | views::take(count)) {
         QVERIFY(!child->isOpen());
         child->open();
 
@@ -342,9 +341,9 @@ void TestNodeItem::randomClose(const core::NodeItem* node, int count)
         | views::filter(std::not_fn(&core::NodeItem::isClosed))
         | ranges::to<std::vector>()
         ;
-    std::ranges::shuffle(candidates, *QRandomGenerator::global());
+    ranges::shuffle(candidates, *QRandomGenerator::global());
 
-    for (auto* child : candidates | std::views::take(count)) {
+    for (auto* child : candidates | views::take(count)) {
         QVERIFY(!child->isClosed());
         child->close();
 
