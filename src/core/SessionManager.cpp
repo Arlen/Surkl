@@ -78,7 +78,6 @@ void SessionManager::init()
 
     _ss = new SceneStorage(this);
     SceneStorage::configure();
-    _ss->loadScene(_sc);
 
     _mw = new gui::MainWindow(_sc);
 

@@ -1,5 +1,5 @@
 #include "src/core/SessionManager.hpp"
-
+#include "SceneStorage.hpp"
 #include "db.hpp"
 
 #include <QApplication>
@@ -23,6 +23,8 @@ int main(int argc, char* argv[])
 
     core::SessionManager::mw()->resize(640*2, 480*2);
     core::SessionManager::mw()->show();
+
+    core::SessionManager::ss()->loadScene(core::SessionManager::scene());
 
     return app->exec();
 }
