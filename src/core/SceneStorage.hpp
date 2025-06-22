@@ -18,6 +18,7 @@ namespace core
     constexpr auto NODES_TABLE = QLatin1String("Nodes");
     constexpr auto NODE_ID     = QLatin1String("node_id");
     constexpr auto NODE_TYPE   = QLatin1String("node_type");
+    constexpr auto FIRST_ROW   = QLatin1String("first_row"); // row number of the first child node.
     constexpr auto NODE_XPOS   = QLatin1String("node_xpos");
     constexpr auto NODE_YPOS   = QLatin1String("node_ypos");
     constexpr auto EDGE_LEN    = QLatin1String("edge_len");
@@ -29,6 +30,7 @@ namespace core
     {
         QString id;
         int nodeType;
+        int firstRow;
         QPointF pos;
         qreal length;
     };

@@ -14,6 +14,34 @@
 
 using namespace core;
 
+namespace
+{
+    void skipToFirstRow(QList<NodeData>& data, int firstRow)
+    {
+        using namespace std;
+
+        const auto isFirstRow = [firstRow](const NodeData& nd) -> bool
+        {
+            return nd.index.row() == firstRow;
+        };
+
+        if (firstRow != -1) {
+            if (auto found = ranges::find_if(data, isFirstRow); found != data.end()) {
+                QList<NodeData> r, e;
+                while (data.first().index.row() != firstRow) {
+                    const auto first = data.takeFirst();
+                    if  (first.type == NodeType::OpenNode || first.type == NodeType::HalfClosedNode) {
+                        r.push_back(first);
+                    } else {
+                        e.push_back(first);
+                    }
+                }
+                data = r + data + e;
+            }
+        }
+    }
+}
+
 SceneStorage::SceneStorage(QObject* parent)
     : QObject(parent)
 {
@@ -41,7 +69,7 @@ void SceneStorage::deleteNode(const NodeItem *node)
 
 void SceneStorage::saveNode(const NodeItem *node)
 {
-    if (!_enabled) {
+    if (!_enabled || !node->index().isValid()) {
         return;
     }
 
@@ -49,8 +77,10 @@ void SceneStorage::saveNode(const NodeItem *node)
 
     const auto id       = _scene->filePath(node->index());
     const auto nodeType = static_cast<int>(node->nodeType());
+    const auto firstRow = node->firstRow();
     const auto pos      = node->scenePos();
     const auto length   = node->parentEdge()->line().length();
+    const auto saveData = SaveData{id, nodeType, firstRow, pos, length};
 
     Q_ASSERT(!id.isEmpty());
 
@@ -62,9 +92,9 @@ void SceneStorage::saveNode(const NodeItem *node)
     };
 
     if (auto found = std::ranges::find_if(_queue, match); found != _queue.end()) {
-        *found = QVariant::fromValue<SaveData>({id, nodeType, pos, length});
+        *found = QVariant::fromValue<SaveData>(saveData);
     } else {
-        _queue.push_back(QVariant::fromValue<SaveData>({id, nodeType, pos, length}));
+        _queue.push_back(QVariant::fromValue<SaveData>(saveData));
     }
 
     _timer->start(125);
@@ -73,6 +103,7 @@ void SceneStorage::saveNode(const NodeItem *node)
 void SceneStorage::saveScene() const
 {
     const auto toBeSaved = _scene->items()
+        | std::views::filter(&asNodeItem)
         | std::views::transform(&asNodeItem)
         | std::ranges::to<QList<const NodeItem*>>()
         ;
@@ -149,7 +180,7 @@ void SceneStorage::loadScene(FileSystemScene* scene)
             auto& childNodeData = G[parent.index];
             if (!childNodeData.empty()) {
                 sortByRows(childNodeData);
-
+                skipToFirstRow(childNodeData, parent.firstRow);
                 parentNode->createChildNodes(childNodeData);
                 parent.edge->adjust();
                 scene->fetchMore(parent.index);
@@ -202,19 +233,22 @@ void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
         db.transaction();
         QSqlQuery q(db);
 
-        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6) VALUES(?, ?, ?, ?, ?)")
+        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
             .arg(NODES_TABLE)
 
             .arg(NODE_ID)
             .arg(NODE_TYPE)
+            .arg(FIRST_ROW)
             .arg(NODE_XPOS)
             .arg(NODE_YPOS)
             .arg(EDGE_LEN));
 
         for (auto* node : nodes) {
-            if (node && node->index().isValid()) {
+            Q_ASSERT(node != nullptr);
+            if (node->index().isValid()) {
                 q.addBindValue(_scene->filePath(node->index()));
                 q.addBindValue(static_cast<int>(node->nodeType()));
+                q.addBindValue(node->firstRow());
                 const auto pos = node->scenePos();
                 q.addBindValue(pos.x());
                 q.addBindValue(pos.y());
@@ -244,11 +278,12 @@ void SceneStorage::consume(const QList<QVariant>& data)
             .arg(NODES_TABLE)
             .arg(NODE_ID));
 
-        q_save.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6) VALUES(?, ?, ?, ?, ?)")
+        q_save.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
             .arg(NODES_TABLE)
 
             .arg(NODE_ID)
             .arg(NODE_TYPE)
+            .arg(FIRST_ROW)
             .arg(NODE_XPOS)
             .arg(NODE_YPOS)
             .arg(EDGE_LEN));
@@ -263,10 +298,11 @@ void SceneStorage::consume(const QList<QVariant>& data)
                     qWarning() << q_del.lastError();
                 }
             } else if (d.canConvert<SaveData>()) {
-                const auto [id, nodeType, pos, length] = d.value<SaveData>();
+                const auto [id, nodeType, firstRow, pos, length] = d.value<SaveData>();
 
                 q_save.addBindValue(id);
                 q_save.addBindValue(nodeType);
+                q_save.addBindValue(firstRow);
                 q_save.addBindValue(pos.x());
                 q_save.addBindValue(pos.y());
                 q_save.addBindValue(length);
@@ -291,6 +327,7 @@ void SceneStorage::createTable()
         q.exec(
             QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
                             ( %2 TEXT PRIMARY KEY
+                            , %3 INTEGER
                             , %4 INTEGER
                             , %5 REAL
                             , %6 REAL
@@ -298,6 +335,7 @@ void SceneStorage::createTable()
                 .arg(NODES_TABLE)
                 .arg(NODE_ID)
                 .arg(NODE_TYPE)
+                .arg(FIRST_ROW)
                 .arg(NODE_XPOS)
                 .arg(NODE_YPOS)
                 .arg(EDGE_LEN));
@@ -321,6 +359,7 @@ QHash<QPersistentModelIndex, QList<NodeData>> SceneStorage::readTable(const File
         const auto rec       = q.record();
         const auto idIndex   = rec.indexOf(NODE_ID);
         const auto typeIndex = rec.indexOf(NODE_TYPE);
+        const auto rowIndex  = rec.indexOf(FIRST_ROW);
         const auto xposIndex = rec.indexOf(NODE_XPOS);
         const auto yposIndex = rec.indexOf(NODE_YPOS);
         const auto lenIndex  = rec.indexOf(EDGE_LEN);
@@ -330,12 +369,13 @@ QHash<QPersistentModelIndex, QList<NodeData>> SceneStorage::readTable(const File
             const auto path  = q.value(idIndex).toString();
             const auto index = scene->index(path);
             const auto type  = static_cast<NodeType>(q.value(typeIndex).toInt(&ok)); Q_ASSERT(ok);
+            const auto row   = q.value(rowIndex).toInt(&ok);   Q_ASSERT(ok);
             const auto x     = q.value(xposIndex).toReal(&ok); Q_ASSERT(ok);
             const auto y     = q.value(yposIndex).toReal(&ok); Q_ASSERT(ok);
             const auto len   = q.value(lenIndex).toReal(&ok);  Q_ASSERT(ok);
 
             if (index.isValid()) {
-                graph[index.parent()].push_back(NodeData{ index, type, QPointF(x, y), len });
+                graph[index.parent()].push_back(NodeData{ index, type, row, QPointF(x, y), len });
             }
         }
     }
