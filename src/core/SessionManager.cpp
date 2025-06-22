@@ -60,7 +60,7 @@ void SessionManager::cleanup() const
 {
     BookmarkManager::saveToDatabase(_bm);
 
-    /// TODO: with interactive save working, i'm not sure if this is needed!
+    /// TODO: interactive save does not cover everything.
     _ss->saveScene();
 }
 
