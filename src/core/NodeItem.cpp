@@ -423,7 +423,13 @@ void NodeItem::createChildNodes()
         nodeLine.setLength(144);
         nodeLine.setAngle(norm.angle());
 
-        data.push_back({index, NodeType::ClosedNode, nodeLine.p2(), 0});
+        data.push_back(
+            { .index    = index,
+              .type     = NodeType::ClosedNode,
+              .firstRow = 0,
+              .pos      = nodeLine.p2(),
+              .length   = 0
+            });
         gl.pop_front();
     }
 
@@ -450,6 +456,8 @@ void NodeItem::createChildNodes(QList<NodeData>& data)
         d.edge->adjust();
         _childEdges.emplace_back(d.edge);
     }
+
+    updateFirstRow();
 
     _extra = createNode(QModelIndex(), this);
     scene()->addItem(_extra->target());
@@ -795,8 +803,9 @@ void NodeItem::open()
         spread();
         setAllEdgeState(this, EdgeItem::ActiveState);
         adjustAllEdges(this);
-        SessionManager::ss()->saveNode(this);
     }
+
+    SessionManager::ss()->saveNode(this);
 }
 
 void NodeItem::rotate(Rotation rot)
@@ -835,10 +844,6 @@ QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
     switch (change) {
         case ItemScenePositionHasChanged:
             adjustAllEdges(this);
-
-            /// this covers both open and close states, because the node is
-            /// moved with open/close, which triggers itemChange.  with
-            /// halfClose, the node is saved with a call to saveNode().
             SessionManager::ss()->saveNode(this);
             break;
 
@@ -985,14 +990,14 @@ void NodeItem::destroyChildren()
         auto* node = edge->target();
 
         Q_ASSERT(scene()->items().contains(node));
+        Q_ASSERT(scene()->items().contains(edge));
+
         if (storage) {
             SessionManager::ss()->deleteNode(asNodeItem(node));
         }
         scene()->removeItem(node);
-        delete node;
-
-        Q_ASSERT(scene()->items().contains(edge));
         scene()->removeItem(edge);
+        delete node;
         delete edge;
     };
 
@@ -1021,9 +1026,23 @@ void NodeItem::destroyChildren()
     }
 
     _childEdges.clear();
+    _firstRow = -1;
 
     destroyEdge(_extra, false);
     _extra = nullptr;
+}
+
+/// finds the row number of the first child node that is either a file or a
+/// closed folder.
+/// This is only used in storage when loading the scene to reposition the child
+/// nodes at the last-saved start position.
+void NodeItem::updateFirstRow()
+{
+    _firstRow = -1;
+
+    if (auto rows = _childEdges | asFilesOrClosedTargetNodes | asIndexRow; !rows.empty()) {
+        _firstRow = *rows.begin();
+    }
 }
 
 /// repositions a closed node.
@@ -1058,7 +1077,10 @@ void NodeItem::repositionAfterClose(EdgeItem* closed)
         /// these two lines are also used in ::reload() in very similar use case.
         adjustAllEdges(this);
     }
-    if (fileOrClosedIndices.empty()) { return; }
+    if (fileOrClosedIndices.empty()) {
+        _firstRow = -1;
+        return;
+    }
 
     const auto usedRows = allButClosedEdge
         | asTargetNodes | asIndexRow
@@ -1093,7 +1115,9 @@ void NodeItem::repositionAfterClose(EdgeItem* closed)
             if (const auto sibling = gap->sibling(start, 0);
                 sibling.isValid() && !usedRows.contains(sibling.row())) {
                 assignIndex(closed, sibling);
-                return sortByRows(_childEdges);
+                sortByRows(_childEdges);
+                updateFirstRow();
+                return;
             }
         }
         gap = std::ranges::adjacent_find(std::next(gap), fileOrClosedIndices.end(), isGap);
@@ -1103,14 +1127,18 @@ void NodeItem::repositionAfterClose(EdgeItem* closed)
         if (auto before = first->sibling(first->row() + i, 0);
             before.isValid() && !usedRows.contains(before.row())) {
             assignIndex(closed, before);
-            return sortByRows(_childEdges);
+            sortByRows(_childEdges);
+            updateFirstRow();
+            return;
         }
     }
     for (int k = 0, i = 1; k < NODE_CHILD_COUNT; ++k, ++i) {
         if (auto after = last->sibling(last->row() + i, 0);
             after.isValid() && !usedRows.contains(after.row())) {
             assignIndex(closed, after);
-            return sortByRows(_childEdges);
+            sortByRows(_childEdges);
+            updateFirstRow();
+            return;
         }
     }
     Q_ASSERT(false);
@@ -1125,7 +1153,10 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
         | asFilesOrClosedTargetNodes
         | ranges::to<std::deque>();
 
-    if (targetNodes.empty()) { return {}; }
+    if (targetNodes.empty()) {
+        _firstRow = -1;
+        return {};
+    }
 
     const auto openOrHalfClosedRows = _childEdges
         | asNotClosedTargetNodes
@@ -1150,7 +1181,10 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
         | views::filter(isAvailable)
         ;
 
-    if (candidates.empty()) { return {}; }
+    if (candidates.empty()) {
+        _firstRow = -1;
+        return {};
+    }
 
     auto sibling = candidates.front();
     asNodeItem(_extra->target())->setIndex(sibling);
@@ -1190,6 +1224,7 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
         toShrink = _extra;
     } else { Q_ASSERT(false); }
     Q_ASSERT(isFileOrClosed(_extra));
+    updateFirstRow();
 
     return { rot, this, toGrow, toShrink, angularDisplacements, angles };
 }
@@ -1203,6 +1238,7 @@ void NodeItem::skipTo(int row)
     auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
 
     if (availableNodes.empty()) {
+        _firstRow = -1;
         return;
     }
 
@@ -1253,6 +1289,7 @@ void NodeItem::skipTo(int row)
         }
         newIndices.pop_front();
     }
+    updateFirstRow();
 }
 
 /// dxy is used only for the node that is being moved by the mouse.  Without

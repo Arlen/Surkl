@@ -97,6 +97,7 @@ namespace  core
     {
         QPersistentModelIndex index;
         NodeType type;
+        int firstRow;
         QPointF pos;
         qreal length;
         EdgeItem* edge{nullptr};
@@ -142,6 +143,7 @@ namespace  core
         [[nodiscard]] int type() const override     { return Type; }
         [[nodiscard]] EdgeItem* parentEdge() const  { return _parentEdge; }
         [[nodiscard]] KnotItem* knot() const        { return _knot; }
+        [[nodiscard]] int firstRow() const          { return _firstRow; }
 
         [[nodiscard]] const QPersistentModelIndex& index() const { return _index; }
         [[nodiscard]] const EdgeDeque& childEdges() const        { return _childEdges; }
@@ -166,6 +168,7 @@ namespace  core
     private:
         FileSystemScene* fsScene() const;
         void destroyChildren();
+        void updateFirstRow();
 
         void repositionAfterClose(EdgeItem* closed);
         InternalRotationAnimationData doInternalRotation(Rotation rot);
@@ -174,11 +177,12 @@ namespace  core
         void spread(QPointF dxy = QPointF(0,0));
 
         NodeType _nodeType{NodeType::ClosedNode};
+        int _firstRow{-1};
         QPersistentModelIndex _index;
         EdgeItem* _parentEdge{nullptr};
-        EdgeDeque _childEdges;
         KnotItem* _knot{nullptr};
         EdgeItem* _extra{nullptr};
+        EdgeDeque _childEdges;
 
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
 
