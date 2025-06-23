@@ -78,7 +78,7 @@ namespace
         deque result {start};
 
         auto next = start;
-        while (result.size() < count) {
+        while (std::ssize(result) < count) {
             next = next.sibling(next.row() + 1, 0);
             if (!next.isValid()) {
                 /// reached the end
@@ -90,7 +90,7 @@ namespace
             result.push_back(next);
         }
         next = start;
-        while (result.size() < count) {
+        while (std::ssize(result) < count) {
             next = next.sibling(next.row() - 1, 0);
             if (!next.isValid()) {
                 /// reach the end
@@ -468,6 +468,8 @@ void NodeItem::createChildNodes(QList<NodeData>& data)
 
 void NodeItem::reload(int start, int end)
 {
+    Q_UNUSED(end)
+
     if (_nodeType == NodeType::ClosedNode) {
        open();
        return;
@@ -484,6 +486,7 @@ void NodeItem::reload(int start, int end)
             scene()->addItem(edge);
             nodes.push_back(asNodeItem(edge->target()));
             _childEdges.push_back(edge);
+            Q_UNUSED(i)
         }
 
         if (_nodeType == NodeType::OpenNode) {
@@ -1198,7 +1201,7 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
 
     QHash<QGraphicsItem*, qreal> angularDisplacements;
     QHash<QGraphicsItem*, qreal> angles;
-    for (int i = 1; i < targetNodes.size(); ++i) {
+    for (int i = 1; i < std::ssize(targetNodes); ++i) {
         auto* a = targetNodes[i-1];
         auto* b = targetNodes[i  ];
         const auto la = QLineF(scenePos(), a->scenePos());
@@ -1233,7 +1236,7 @@ void NodeItem::skipTo(int row)
 {
     const auto rowCount = _index.model()->rowCount(_index);
 
-    Q_ASSERT(_childEdges.size() <= rowCount);
+    Q_ASSERT(std::ssize(_childEdges) <= rowCount);
 
     auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
 
@@ -1266,11 +1269,11 @@ void NodeItem::skipTo(int row)
         }
         newIndices.push_back(target);
         target = target.sibling(target.row() + 1, 0);
-    } while (newIndices.size() < rows);
+    } while (std::ssize(newIndices) < rows);
 
     target = _index.model()->index(row - 1, 0, _index);
 
-    while (newIndices.size() < rows) {
+    while (std::ssize(newIndices) < rows) {
         if (!target.isValid()) { break; }
         if (openOrHalfClosedRows.contains(target.row())) {
             target = target.sibling(target.row() - 1, 0);
@@ -1280,7 +1283,7 @@ void NodeItem::skipTo(int row)
         target = target.sibling(target.row() - 1, 0);
     }
 
-    Q_ASSERT(newIndices.size() == rows);
+    Q_ASSERT(std::ssize(newIndices) == rows);
 
     for (auto* node : availableNodes) {
         if (auto newIndex = newIndices.front(); node->index() != newIndex) {

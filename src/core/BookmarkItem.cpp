@@ -60,6 +60,8 @@ void SceneBookmarkItem::paint(QPainter* p, const QStyleOptionGraphicsItem* optio
     internal::drawBoundingRect(p, this);
 #endif
 
+    Q_UNUSED(widget)
+
     const auto* tm  = SessionManager::tm();
 
     const auto rec = rect();
