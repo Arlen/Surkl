@@ -24,7 +24,7 @@ namespace gui
         void generated(const Palette& pal);
 
     public:
-        ThemeSettings(QWidget* parent);
+        explicit ThemeSettings(QWidget* parent);
 
     protected:
         void resizeEvent(QResizeEvent *event) override;

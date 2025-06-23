@@ -91,7 +91,7 @@ void SceneBookmarkItem::hoverEnterEvent(QGraphicsSceneHoverEvent *event)
 {
     const auto* tm  = SessionManager::tm();
     _name->setPen(Qt::NoPen);
-    _name->setBrush(tm->sceneFgColor());
+    _name->setBrush(tm->sceneColor());
 
     _name->show();
 

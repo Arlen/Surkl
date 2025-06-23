@@ -48,7 +48,7 @@ namespace
         constexpr auto dx0 = QPointF{-8, 0};
         constexpr auto dx1 = QPointF{ 8, 0};
 
-        const auto fgColor = SessionManager::tm()->sceneFgColor();
+        const auto fgColor = SessionManager::tm()->sceneColor();
 
         p->setPen(QPen(fgColor, 1));
         for (qreal x = x0; x < x1; x += grid) {
@@ -417,7 +417,7 @@ void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& na
 
 void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
 {
-    p->fillRect(rec, SessionManager::tm()->sceneBgColor());
+    p->fillRect(rec, SessionManager::tm()->sceneMidarkColor());
     drawCrosshairs(p, rec);
     drawBorder(p, rec, sceneRect());
 }

@@ -78,8 +78,12 @@ namespace gui
 {
     enum PaletteIndex
     {
-        SCENE_BG_COLOR = 0,
-        SCENE_FG_COLOR,
+        SCENE_LIGHT_COLOR = 0,
+        SCENE_MIDLIGHT_COLOR,
+        SCENE_COLOR,
+        SCENE_MIDARK_COLOR,
+        SCENE_DARK_COLOR,
+        SCENE_SHADOW_COLOR,
 
         NODE_OPEN_LIGHT_COLOR,
         NODE_OPEN_MIDLIGHT_COLOR,
@@ -163,8 +167,12 @@ namespace gui
         {
             Palette result;
 
-            result[SCENE_BG_COLOR]             = {  67,  67,  67, 255 };
-            result[SCENE_FG_COLOR]             = { 134, 134, 134, 255 };
+            result[SCENE_LIGHT_COLOR]          = { 210, 210, 210, 255 };
+            result[SCENE_MIDLIGHT_COLOR]       = { 166, 166, 166, 255 };
+            result[SCENE_COLOR]                = { 134, 134, 134, 255 };
+            result[SCENE_MIDARK_COLOR]         = {  67,  67,  67, 255 };
+            result[SCENE_DARK_COLOR]           = {  32,  32,  32, 255 };
+            result[SCENE_SHADOW_COLOR]         = {   4,   4,   4, 255 };
             result[NODE_OPEN_LIGHT_COLOR]      = { 220, 220, 220, 255 };
             result[NODE_OPEN_MIDLIGHT_COLOR]   = { 164, 164, 164, 255 };
             result[NODE_OPEN_COLOR]            = { 128, 128, 128, 255 };
@@ -198,10 +206,19 @@ namespace gui
             { return id == _factoryId; }
         bool isActive(const PaletteId& id) const
             { return id == idFromPalette(_active); }
-        const QColor& sceneBgColor() const
-            { return _active[SCENE_BG_COLOR]; }
-        const QColor& sceneFgColor() const
-            { return _active[SCENE_FG_COLOR]; }
+
+        const QColor& sceneLightColor() const
+            { return _active[SCENE_LIGHT_COLOR]; }
+        const QColor& sceneMidlightColor() const
+            { return _active[SCENE_MIDLIGHT_COLOR]; }
+        const QColor& sceneColor() const
+            { return _active[SCENE_COLOR]; }
+        const QColor& sceneMidarkColor() const
+            { return _active[SCENE_MIDARK_COLOR]; }
+        const QColor& sceneDarkColor() const
+            { return _active[SCENE_DARK_COLOR]; }
+        const QColor& sceneShadowColor() const
+            { return _active[SCENE_SHADOW_COLOR]; }
 
         const QColor& openNodeLightColor() const
             { return _active[NODE_OPEN_LIGHT_COLOR]; }
@@ -265,6 +282,8 @@ namespace gui
         static void saveActiveTheme(const std::string &id);
 
         static QString getActiveTheme();
+
+        QPalette toQPalette() const;
 
 
         lds::GoldenLds _golden;

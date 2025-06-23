@@ -4,9 +4,11 @@
 #include "gui/theme.hpp"
 #include "core/db.hpp"
 
+#include <QApplication>
+#include <QPalette>
+#include <QRandomGenerator>
 #include <QSqlRecord>
 #include <QStandardItemModel>
-#include <QRandomGenerator>
 
 #include <ranges>
 #include <set>
@@ -112,6 +114,8 @@ void ThemeManager::configure(ThemeManager* tm)
         palettes.contains(active) && colors.contains(active)) {
         tm->_active = colors[active];
     }
+
+    qApp->setPalette(tm->toQPalette());
 }
 
 ThemeManager::ThemeManager(QObject* parent)
@@ -192,10 +196,11 @@ Palette ThemeManager::generatePalette(const HsvRange& range)
         result[i] = QColor::fromHsvF(hue, sat, val).rgba();
     }
 
-    sortByGroups(result, std::index_sequence<NODE_CLOSED_MIDLIGHT_COLOR, NODE_CLOSED_COLOR, NODE_CLOSED_MIDARK_COLOR, NODE_CLOSED_DARK_COLOR>{});
-    sortByGroups(result, std::index_sequence<NODE_OPEN_LIGHT_COLOR, NODE_OPEN_MIDLIGHT_COLOR, NODE_OPEN_COLOR>{});
-    sortByGroups(result, std::index_sequence<NODE_FILE_LIGHT_COLOR, NODE_FILE_MIDLIGHT_COLOR, NODE_FILE_COLOR>{});
-    sortByGroups(result, std::index_sequence<EDGE_LIGHT_COLOR, EDGE_COLOR>{});
+    sortByGroups(result, std::index_sequence<SCENE_SHADOW_COLOR, SCENE_DARK_COLOR, SCENE_MIDARK_COLOR, SCENE_COLOR, SCENE_MIDLIGHT_COLOR, SCENE_LIGHT_COLOR>{});
+    sortByGroups(result, std::index_sequence<NODE_CLOSED_DARK_COLOR, NODE_CLOSED_MIDARK_COLOR, NODE_CLOSED_COLOR, NODE_CLOSED_MIDLIGHT_COLOR>{});
+    sortByGroups(result, std::index_sequence<NODE_OPEN_COLOR, NODE_OPEN_MIDLIGHT_COLOR, NODE_OPEN_LIGHT_COLOR>{});
+    sortByGroups(result, std::index_sequence<NODE_FILE_COLOR, NODE_FILE_MIDLIGHT_COLOR, NODE_FILE_LIGHT_COLOR>{});
+    sortByGroups(result, std::index_sequence<EDGE_COLOR, EDGE_LIGHT_COLOR>{});
 
     return result;
 }
@@ -214,7 +219,7 @@ Palette ThemeManager::paletteFromId(const PaletteId& id)
     Palette result; result.fill(QColor(0, 0, 0, 0));
 
     /// J += 9 b/c HexArgb is '#AARRGGBB' long.
-    for (int i = 0, j = 0; i < result.size() && j < bytes.size()-8; ++i, j += 9) {
+    for (int i = 0, j = 0; i < std::ssize(result) && j < bytes.size()-8; ++i, j += 9) {
         result[i] = QColor::fromString(bytes.sliced(j, 9));
     }
 
@@ -235,6 +240,8 @@ PaletteId ThemeManager::idFromPalette(const Palette& palette)
 void ThemeManager::setActivePalette(const Palette& palette)
 {
     _active = palette;
+
+    qApp->setPalette(toQPalette());
 
     emit themeChanged();
 }
@@ -486,4 +493,28 @@ QString ThemeManager::getActiveTheme()
     }
 
     return active;
+}
+
+QPalette ThemeManager::toQPalette() const
+{
+    auto result = QPalette();
+
+    result.setColor(QPalette::Light, sceneLightColor());
+    result.setColor(QPalette::Midlight, sceneMidlightColor());
+
+    result.setColor(QPalette::Base, sceneColor());
+    result.setColor(QPalette::Button, sceneColor());
+    result.setColor(QPalette::Window, sceneColor());
+
+    result.setColor(QPalette::Mid, sceneMidarkColor());
+    result.setColor(QPalette::Dark, sceneDarkColor());
+    result.setColor(QPalette::Shadow, sceneShadowColor());
+
+    result.setColor(QPalette::ButtonText, sceneDarkColor());
+    result.setColor(QPalette::Text, sceneDarkColor());
+    result.setColor(QPalette::WindowText, sceneDarkColor());
+
+    result.setColor(QPalette::Highlight, sceneMidlightColor());
+
+    return result;
 }
