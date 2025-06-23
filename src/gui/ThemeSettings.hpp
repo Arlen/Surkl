@@ -32,6 +32,7 @@ namespace gui
 
     private slots:
         void generatePalette();
+        void shuffle();
         void prevPermutation();
         void nextPermutation();
 

@@ -48,6 +48,10 @@ ThemeSettings::ThemeSettings(QWidget *parent)
         if (checked) { emit generated(_generated); }
     });
 
+    auto* shuffleButton = new QPushButton("Shuffle", this);
+    connect(shuffleButton, &QPushButton::clicked, this, &ThemeSettings::shuffle);
+    shuffleButton->hide();
+
     auto* prevPermButton = new QPushButton("Prev. Perm.", this);
     connect(prevPermButton, &QPushButton::clicked, this, &ThemeSettings::prevPermutation);
     prevPermButton->hide();
@@ -64,11 +68,13 @@ ThemeSettings::ThemeSettings(QWidget *parent)
         keepButton->hide();
         _applyGenerated->hide();
     });
+    connect(keepButton, &QPushButton::clicked, shuffleButton, &QWidget::hide);
     connect(keepButton, &QPushButton::clicked, prevPermButton, &QWidget::hide);
     connect(keepButton, &QPushButton::clicked, nextPermButton, &QWidget::hide);
 
     auto* generateButton = new QPushButton("Generate", this);
     connect(generateButton, &QPushButton::clicked, this, &ThemeSettings::generatePalette);
+    connect(generateButton, &QPushButton::clicked, shuffleButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, prevPermButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, nextPermButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, keepButton, &QWidget::show);
@@ -77,6 +83,7 @@ ThemeSettings::ThemeSettings(QWidget *parent)
     auto* hl = new QHBoxLayout();
     hl->addWidget(_applyGenerated);
     hl->addSpacerItem(new QSpacerItem(1, 1, QSizePolicy::Expanding));
+    hl->addWidget(shuffleButton);
     hl->addWidget(prevPermButton);
     hl->addWidget(nextPermButton);
     hl->addWidget(keepButton);
@@ -182,6 +189,18 @@ void ThemeSettings::generatePalette()
         _applyGenerated->show();
         _applyGenerated->toggle();
     }
+}
+
+void ThemeSettings::shuffle()
+{
+    std::ranges::shuffle(_permutation, *QRandomGenerator::global());
+    Palette result;
+
+    for (auto [i, pi] : std::ranges::views::enumerate(_permutation)) {
+        result[i] = _generated[pi];
+    }
+
+    emit generated(result);
 }
 
 void ThemeSettings::prevPermutation()
