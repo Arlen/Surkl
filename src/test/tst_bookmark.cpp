@@ -55,11 +55,13 @@ void TestBookmarks::sceneBookmarkInsert()
     QFETCH_GLOBAL(QPoint, pos);
     QFETCH_GLOBAL(QString, name);
 
-    if (auto* bm = core::SessionManager::bm(); bm->sceneBookmarks().contains({pos})) {
+    const auto bookmark = core::SceneBookmarkData{pos, name};
+
+    if (auto* bm = core::SessionManager::bm(); bm->sceneBookmarks().contains(bookmark)) {
         QCOMPARE(name, "duplicate");
     } else {
-        bm->insertBookmark({pos, name});
-        QCOMPARE(bm->sceneBookmarks().contains({pos}), true);
+        bm->insertBookmark(bookmark);
+        QCOMPARE(bm->sceneBookmarks().contains(bookmark), true);
     }
 }
 
@@ -68,11 +70,13 @@ void TestBookmarks::sceneBookmarkUpdate()
     QFETCH_GLOBAL(QPoint, pos);
     QFETCH_GLOBAL(QString, name);
 
-    if (auto* bm = core::SessionManager::bm(); bm->sceneBookmarks().contains({pos})) {
+    const auto bookmark = core::SceneBookmarkData{pos, name};
+
+    if (auto* bm = core::SessionManager::bm(); bm->sceneBookmarks().contains(bookmark)) {
         bm->updateBookmark({pos, name + "Updated"});
         const auto bookmarks = bm->sceneBookmarks();
-        QCOMPARE(bookmarks.contains({pos}), true);
-        const auto updateName = bookmarks.find({pos});
+        QCOMPARE(bookmarks.contains(bookmark), true);
+        const auto updateName = bookmarks.find(bookmark);
         QVERIFY(updateName != bookmarks.end());
         QCOMPARE(updateName->name, name + "Updated");
     }
@@ -83,12 +87,14 @@ void TestBookmarks::sceneBookmarkRemove()
     QFETCH_GLOBAL(QPoint, pos);
     QFETCH_GLOBAL(QString, name);
 
+    const auto bookmark = core::SceneBookmarkData{pos, name};
+
     if (auto* bm = core::SessionManager::bm(); name == "duplicate") {
-        QCOMPARE(bm->sceneBookmarks().contains({pos}), false);
+        QCOMPARE(bm->sceneBookmarks().contains(bookmark), false);
     } else {
-        QCOMPARE(bm->sceneBookmarks().contains({pos}), true);
-        bm->removeBookmarks({{pos, name}});
-        QCOMPARE(bm->sceneBookmarks().contains({pos}), false);
+        QCOMPARE(bm->sceneBookmarks().contains(bookmark), true);
+        bm->removeBookmarks({bookmark});
+        QCOMPARE(bm->sceneBookmarks().contains(bookmark), false);
     }
 }
 

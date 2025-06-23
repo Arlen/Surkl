@@ -125,8 +125,8 @@ void TestTheme::keepAndDiscardPalette()
     const auto keep    = QRandomGenerator::global()->bounded(0, 2) == false; // %50
     const auto discard = QRandomGenerator::global()->bounded(0, 5) == false; // %25
 
-    auto itemCount = [model](const PaletteId& id) -> int {
-        const auto text = QString::fromStdString(id);
+    auto itemCount = [model](const PaletteId& pid) -> int {
+        const auto text = QString::fromStdString(pid);
         return model->findItems(text, Qt::MatchExactly, ThemeManager::PaletteIdColumn)
             .count();
     };

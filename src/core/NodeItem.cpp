@@ -1622,11 +1622,11 @@ void Animator::fastforward(const QSequentialAnimationGroup* seq)
 {
     if (const auto count = seq->animationCount(); count > 0) {
         const auto head  = seq->indexOfAnimation(seq->currentAnimation()) + 1;
-        const auto len   = count - head;
 
 #ifdef TEST_ANIMATIONS
         const auto fast  = 1;
 #else
+        const auto len   = count - head;
         const auto fast  = qMax(10, 125 / qMax(1, len));
 #endif
 
