@@ -29,7 +29,6 @@ GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
     connect(_quadrantButton, &QuadrantButton::quad4Pressed, this, &GraphicsView::focusQuadrant4);
     connect(_quadrantButton, &QuadrantButton::centerPressed, this, &GraphicsView::focusAllQuadrants);
 
-    connect(this, &GraphicsView::deletePressed, scene, &core::FileSystemScene::deleteSelection);
     connect(this, &GraphicsView::sceneBookmarkRequested, scene, &core::FileSystemScene::addSceneBookmark);
 
     _timeline = new QTimeLine(300, this);
@@ -99,10 +98,6 @@ void GraphicsView::enterEvent(QEnterEvent* event)
 void GraphicsView::keyPressEvent(QKeyEvent *event)
 {
     togglePanOrZoom(event->modifiers());
-
-    if (event->key() == Qt::Key_Delete) {
-        emit deletePressed();
-    }
 
     QGraphicsView::keyPressEvent(event);
 }

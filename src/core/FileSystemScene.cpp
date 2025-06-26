@@ -16,6 +16,7 @@
 #include <QPainter>
 #include <QSortFilterProxyModel>
 #include <QUrl>
+#include <QKeyEvent>
 
 #include <ranges>
 
@@ -420,6 +421,15 @@ void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
     p->fillRect(rec, SessionManager::tm()->sceneMidarkColor());
     drawCrosshairs(p, rec);
     drawBorder(p, rec, sceneRect());
+}
+
+void FileSystemScene::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Delete) {
+        deleteSelection();
+    }
+
+    QGraphicsScene::keyPressEvent(event);
 }
 
 void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e)
