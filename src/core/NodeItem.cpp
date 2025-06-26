@@ -863,11 +863,6 @@ QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
     return QGraphicsItem::itemChange(change, value);
 }
 
-void NodeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
-{
-    QGraphicsItem::mousePressEvent(event);
-}
-
 void NodeItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
     if (scene()->mouseGrabberItem() == this) {
