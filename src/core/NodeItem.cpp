@@ -817,8 +817,6 @@ void NodeItem::rotate(Rotation rot)
         return;
     }
 
-    fsScene()->fetchMore(_index);
-
     auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
 
     if (ranges::distance(availableNodes) > 0) {
@@ -831,8 +829,6 @@ void NodeItem::rotatePage(Rotation rot)
     if (!isOpen()) {
         return;
     }
-
-    fsScene()->fetchMore(_index);
 
     auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
     const auto pageSize = ranges::distance(availableNodes);
@@ -865,19 +861,6 @@ QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
     };
 
     return QGraphicsItem::itemChange(change, value);
-}
-
-void NodeItem::keyPressEvent(QKeyEvent *event)
-{
-    const auto mod = event->modifiers() == Qt::ShiftModifier;
-
-    if (event->key() == Qt::Key_A) {
-        if (mod) { rotatePage(Rotation::CCW); }
-        else { rotate(Rotation::CCW); }
-    } else if (event->key() == Qt::Key_D) {
-        if (mod) { rotatePage(Rotation::CW); }
-        else { rotate(Rotation::CW); }
-    }
 }
 
 void NodeItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)

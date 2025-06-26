@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "NodeItem.hpp"
+
 #include <QGraphicsScene>
 
 
@@ -43,7 +45,6 @@ namespace core
         void closeSelectedNodes() const;
         void halfCloseSelectedNodes() const;
         void refreshItems();
-        void deleteSelection();
         void addSceneBookmark(const QPoint& clickPos, const QString& name);
 
     protected:
@@ -57,6 +58,8 @@ namespace core
         void onRowsRemoved(const QModelIndex& parent, int start, int end) const;
 
     private:
+        void deleteSelection();
+        void rotateSelection(Rotation rot, bool page) const;
 
         QFileSystemModel* _model{nullptr};
         QSortFilterProxyModel* _proxyModel{nullptr};

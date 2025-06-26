@@ -363,43 +363,6 @@ void FileSystemScene::refreshItems()
     update();
 }
 
-void FileSystemScene::deleteSelection()
-{
-    using namespace std::placeholders;
-
-    const auto selection = selectedItems();
-
-    /// 1. remove files and folders
-    auto indices = selection
-        | std::views::filter(&asNodeItem)
-        | std::views::transform(&asNodeItem)
-        | asIndex
-        | std::views::transform(std::bind(&QSortFilterProxyModel::mapToSource, _proxyModel, _1))
-        | std::views::filter(&QModelIndex::isValid)
-        ;
-
-    for (auto i : indices) {
-        _model->remove(i);
-    }
-
-
-    /// 2. remove bookmarks
-    auto* bm = SessionManager::bm();
-
-    auto bookmarkItems = selection
-        | std::views::filter([](QGraphicsItem* item)
-            { return qgraphicsitem_cast<SceneBookmarkItem*>(item); })
-        ;
-
-    QList<SceneBookmarkData> data;
-    for (auto* item : bookmarkItems) {
-        data.push_back(SceneBookmarkData(item->scenePos().toPoint(), {}));
-        removeItem(item);
-        delete item;
-    }
-    bm->removeBookmarks(data);
-}
-
 void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& name)
 {
     auto* bm = SessionManager::bm();
@@ -425,8 +388,14 @@ void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
 
 void FileSystemScene::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Delete) {
+    const auto key = event->key();
+
+    if (key == Qt::Key_Delete) {
         deleteSelection();
+    } else if (key == Qt::Key_A) {
+        rotateSelection(Rotation::CCW, event->modifiers() == Qt::ShiftModifier);
+    } else if (key == Qt::Key_D) {
+        rotateSelection(Rotation::CW, event->modifiers() == Qt::ShiftModifier);
     }
 
     QGraphicsScene::keyPressEvent(event);
@@ -484,4 +453,66 @@ void FileSystemScene::onSelectionChange()
     }
 
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
+}
+
+void FileSystemScene::deleteSelection()
+{
+    using namespace std::placeholders;
+
+    const auto selection = selectedItems();
+
+    /// 1. remove files and folders
+    auto indices = selection
+        | std::views::filter(&asNodeItem)
+        | std::views::transform(&asNodeItem)
+        | asIndex
+        | std::views::transform(std::bind(&QSortFilterProxyModel::mapToSource, _proxyModel, _1))
+        | std::views::filter(&QModelIndex::isValid)
+        ;
+
+    for (auto i : indices) {
+        _model->remove(i);
+    }
+
+
+    /// 2. remove bookmarks
+    auto* bm = SessionManager::bm();
+
+    auto bookmarkItems = selection
+        | std::views::filter([](QGraphicsItem* item)
+            { return qgraphicsitem_cast<SceneBookmarkItem*>(item); })
+        ;
+
+    QList<SceneBookmarkData> data;
+    for (auto* item : bookmarkItems) {
+        data.push_back(SceneBookmarkData(item->scenePos().toPoint(), {}));
+        removeItem(item);
+        delete item;
+    }
+    bm->removeBookmarks(data);
+}
+
+void FileSystemScene::rotateSelection(Rotation rot, bool page) const
+{
+    const auto selection = selectedItems();
+
+    /// 1. remove files and folders
+    auto nodes = selection
+        | std::views::filter(&asNodeItem)
+        | std::views::transform(&asNodeItem)
+        ;
+
+    for (auto* n : nodes) {
+        fetchMore(n->index());
+    }
+
+    if (page) {
+        for (auto* n : nodes) {
+            n->rotatePage(rot);
+        }
+    } else {
+        for (auto* n : nodes) {
+            n->rotate(rot);
+        }
+    }
 }
