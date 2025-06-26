@@ -510,12 +510,7 @@ void FileSystemScene::deleteSelection()
 
 void FileSystemScene::rotateSelection(Rotation rot, bool page) const
 {
-    const auto selection = selectedItems();
-
-    auto nodes = selection
-        | std::views::filter(&asNodeItem)
-        | std::views::transform(&asNodeItem)
-        ;
+    auto nodes = selectedItems() | filterNodes;
 
     for (auto* n : nodes) {
         fetchMore(n->index());
