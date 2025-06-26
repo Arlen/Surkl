@@ -401,9 +401,25 @@ void FileSystemScene::keyPressEvent(QKeyEvent *event)
     QGraphicsScene::keyPressEvent(event);
 }
 
-void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e)
+void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
-    return QGraphicsScene::mouseDoubleClickEvent(e);
+    if (auto* node = asNodeItem(itemAt(event->scenePos(), QTransform())); node) {
+        switch (node->nodeType()) {
+            case NodeType::FileNode: {
+                const auto ret = openFile(node);
+                Q_UNUSED(ret);
+            } break;
+            case NodeType::OpenNode:
+                node->closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
+                break;
+            case NodeType::ClosedNode:
+            case NodeType::HalfClosedNode:
+                node->open();
+                break;
+        }
+    }
+
+    return QGraphicsScene::mouseDoubleClickEvent(event);
 }
 
 void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int end) const
@@ -496,7 +512,6 @@ void FileSystemScene::rotateSelection(Rotation rot, bool page) const
 {
     const auto selection = selectedItems();
 
-    /// 1. remove files and folders
     auto nodes = selection
         | std::views::filter(&asNodeItem)
         | std::views::transform(&asNodeItem)

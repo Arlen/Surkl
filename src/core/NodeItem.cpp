@@ -863,26 +863,6 @@ QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
     return QGraphicsItem::itemChange(change, value);
 }
 
-void NodeItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
-{
-    Q_UNUSED(event);
-
-    switch (_nodeType) {
-    case NodeType::FileNode:
-        fsScene()->openFile(this);
-        break;
-    case NodeType::OpenNode:
-        closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
-        break;
-    case NodeType::ClosedNode:
-        open();
-        break;
-    case NodeType::HalfClosedNode:
-        open();
-        break;
-    }
-}
-
 void NodeItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     QGraphicsItem::mousePressEvent(event);

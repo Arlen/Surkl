@@ -50,7 +50,7 @@ namespace core
     protected:
         void drawBackground(QPainter* p, const QRectF& rec) override;
         void keyPressEvent(QKeyEvent *event) override;
-        void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* e) override;
+        void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event) override;
 
     private slots:
         void onSelectionChange();
