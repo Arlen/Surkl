@@ -1,6 +1,7 @@
-#include "src/core/SessionManager.hpp"
 #include "SceneStorage.hpp"
+#include "SurklStyle.hpp"
 #include "db.hpp"
+#include "src/core/SessionManager.hpp"
 
 #include <QApplication>
 #include <QSqlDatabase>
@@ -20,6 +21,8 @@ int main(int argc, char* argv[])
         , core::db::DB_CONFIG.databaseName);
     app->setProperty(core::db::DB_CONNECTION_NAME
         , core::db::DB_CONFIG.connectionName);
+
+    app->setStyle(new gui::SurklStyle());
 
     core::SessionManager::mw()->resize(640*2, 480*2);
     core::SessionManager::mw()->show();
