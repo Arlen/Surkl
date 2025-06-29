@@ -27,6 +27,14 @@ TitleBar::TitleBar(QWidget* parent)
 
     _closeButton = new CloseButton(this);
     layoutA->addWidget(_closeButton);
+
+    constexpr auto size = 22;
+
+    setMaximumHeight(size);
+    _splitButton->setMaximumSize(size, size);
+    _menuButton->setMaximumSize(size, size);
+    _titleButton->setMaximumHeight(size);
+    _closeButton->setMaximumSize(size, size);
 }
 
 void TitleBar::setTitle(const QString& text) const
