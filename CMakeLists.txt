@@ -34,16 +34,21 @@ install(TARGETS surkl
 file(GLOB CORE_SRC_FILES "src/core/*.cpp")
 file(GLOB GUI_SRC_FILES "src/gui/*.cpp")
 file(GLOB GUI_VIEW_SRC_FILES "src/gui/view/*.cpp")
+file(GLOB GUI_WINDOW_SRC_FILES "src/gui/window/*.cpp")
 
 target_sources(surkl PUBLIC ${CORE_SRC_FILES})
 target_sources(surkl PUBLIC ${GUI_SRC_FILES})
 target_sources(surkl PUBLIC ${GUI_VIEW_SRC_FILES})
+target_sources(surkl PUBLIC ${GUI_WINDOW_SRC_FILES})
 
 ## headers
 target_include_directories(surkl PUBLIC "src")
 target_include_directories(surkl PUBLIC "src/core")
 target_include_directories(surkl PUBLIC "src/gui")
 target_include_directories(surkl PUBLIC "src/gui/view")
+target_include_directories(surkl PUBLIC "src/gui/window")
+
+
 
 ## disables all the APIs deprecated before Qt 6.5.0
 target_compile_definitions(surkl PUBLIC QT_DISABLE_DEPRECATED_BEFORE=0x060500)
