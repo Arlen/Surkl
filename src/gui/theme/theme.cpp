@@ -1,7 +1,7 @@
 /// Copyright (C) 2025 Arlen Avakian
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "gui/theme.hpp"
+#include "theme/theme.hpp"
 #include "core/db.hpp"
 
 #include <QApplication>
@@ -14,7 +14,7 @@
 #include <set>
 
 
-using namespace gui;
+using namespace gui::theme;
 
 namespace
 {

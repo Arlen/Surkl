@@ -74,7 +74,7 @@ namespace gui::lds
 }
 
 
-namespace gui
+namespace gui::theme
 {
     enum PaletteIndex
     {
