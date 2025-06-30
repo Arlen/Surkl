@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "theme.hpp"
+#include "theme/theme.hpp"
 
 #include <QWidget>
 
@@ -14,7 +14,7 @@ class QVBoxLayout;
 class QTableView;
 class QButtonGroup;
 
-namespace gui
+namespace gui::theme
 {
     class ThemeSettings final : public QWidget
     {
@@ -45,6 +45,7 @@ namespace gui
         void setupItemWidgets(int start, int end);
         void saveLastApplied(int groupId, bool checked);
 
+        QLabel* _previewLabel{nullptr};
         QPushButton* _applyGenerated{nullptr};
         QButtonGroup* _group{nullptr};
         QTableView* _tv{nullptr};

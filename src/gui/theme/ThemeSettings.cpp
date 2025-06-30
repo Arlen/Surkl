@@ -1,8 +1,8 @@
 /// Copyright (C) 2025 Arlen Avakian
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ThemeSettings.hpp"
-#include "SessionManager.hpp"
+#include "theme/ThemeSettings.hpp"
+#include "core/SessionManager.hpp"
 
 #include <QButtonGroup>
 #include <QFontDatabase>
@@ -14,12 +14,13 @@
 #include <QPushButton>
 #include <QStandardItemModel>
 #include <QTableView>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include <ranges>
 
 
-using namespace gui;
+using namespace gui::theme;
 
 ThemeSettings::ThemeSettings(QWidget *parent)
     : QWidget(parent)
@@ -28,14 +29,15 @@ ThemeSettings::ThemeSettings(QWidget *parent)
     layout->setContentsMargins(4, 2, 4, 2);
     layout->setSpacing(2);
 
-    auto* previewLabel = new QLabel(this);
-    previewLabel->setFixedHeight(32);
-    previewLabel->setFrameShape(QFrame::Panel);
-    previewLabel->setFrameShadow(QFrame::Sunken);
-    connect(this, &ThemeSettings::generated, [previewLabel](const Palette& palette) {
-        previewLabel->setPixmap(paletteToPixmap(palette, previewLabel->size()));
+    _previewLabel = new QLabel(this);
+    _previewLabel->setFrameShape(QFrame::Panel);
+    _previewLabel->setFrameShadow(QFrame::Sunken);
+    _previewLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    _previewLabel->setMaximumHeight(32);
+    connect(this, &ThemeSettings::generated, [this](const Palette& palette) {
+        _previewLabel->setPixmap(paletteToPixmap(palette, _previewLabel->size()));
     });
-    layout->addWidget(previewLabel);
+    layout->addWidget(_previewLabel, 1);
 
     buildRangeLineEdits(layout, "Hue Range", 0, 360, _hsvRange.hue);
     buildRangeLineEdits(layout, "Sat Range", 0, 1,   _hsvRange.sat);
@@ -44,27 +46,37 @@ ThemeSettings::ThemeSettings(QWidget *parent)
     _applyGenerated = new QPushButton(tr("Apply"), this);
     _applyGenerated->setCheckable(true);
     _applyGenerated->hide();
+    _applyGenerated->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    _applyGenerated->setMaximumHeight(26);
     connect(_applyGenerated, &QPushButton::toggled, [this](bool checked) {
         if (checked) { emit generated(_generated); }
     });
 
-    auto* shuffleButton = new QPushButton("Shuffle", this);
+    auto* shuffleButton = new QPushButton(tr("Shuffle"), this);
+    shuffleButton->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    shuffleButton->setMaximumHeight(26);
     connect(shuffleButton, &QPushButton::clicked, this, &ThemeSettings::shuffle);
     shuffleButton->hide();
 
-    auto* prevPermButton = new QPushButton("Prev. Perm.", this);
+    auto* prevPermButton = new QPushButton(tr("Prev. Perm."), this);
+    prevPermButton->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    prevPermButton->setMaximumHeight(26);
     connect(prevPermButton, &QPushButton::clicked, this, &ThemeSettings::prevPermutation);
     prevPermButton->hide();
 
-    auto* nextPermButton = new QPushButton("Next Perm.", this);
+    auto* nextPermButton = new QPushButton(tr("Next Perm."), this);
+    nextPermButton->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    nextPermButton->setMaximumHeight(26);
     connect(nextPermButton, &QPushButton::clicked, this, &ThemeSettings::nextPermutation);
     nextPermButton->hide();
 
-    auto* keepButton = new QPushButton("Keep", this);
+    auto* keepButton = new QPushButton(tr("Keep"), this);
+    keepButton->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    keepButton->setMaximumHeight(26);
     keepButton->hide();
-    connect(keepButton, &QPushButton::clicked, [this, keepButton, previewLabel] {
+    connect(keepButton, &QPushButton::clicked, [this, keepButton] {
         core::SessionManager::tm()->keep(_generated);
-        previewLabel->setPixmap(QPixmap());
+        _previewLabel->setPixmap(QPixmap());
         keepButton->hide();
         _applyGenerated->hide();
     });
@@ -72,22 +84,24 @@ ThemeSettings::ThemeSettings(QWidget *parent)
     connect(keepButton, &QPushButton::clicked, prevPermButton, &QWidget::hide);
     connect(keepButton, &QPushButton::clicked, nextPermButton, &QWidget::hide);
 
-    auto* generateButton = new QPushButton("Generate", this);
+    auto* generateButton = new QPushButton(tr("Generate"), this);
+    generateButton->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    generateButton->setMaximumHeight(26);
     connect(generateButton, &QPushButton::clicked, this, &ThemeSettings::generatePalette);
     connect(generateButton, &QPushButton::clicked, shuffleButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, prevPermButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, nextPermButton, &QWidget::show);
     connect(generateButton, &QPushButton::clicked, keepButton, &QWidget::show);
-    connect(generateButton, &QPushButton::clicked, previewLabel, &QWidget::show);
+    connect(generateButton, &QPushButton::clicked, _previewLabel, &QWidget::show);
 
     auto* hl = new QHBoxLayout();
-    hl->addWidget(_applyGenerated);
-    hl->addSpacerItem(new QSpacerItem(1, 1, QSizePolicy::Expanding));
-    hl->addWidget(shuffleButton);
-    hl->addWidget(prevPermButton);
-    hl->addWidget(nextPermButton);
-    hl->addWidget(keepButton);
-    hl->addWidget(generateButton);
+    hl->addWidget(_applyGenerated, 1);
+    hl->addSpacerItem(new QSpacerItem(1, 0, QSizePolicy::MinimumExpanding));
+    hl->addWidget(shuffleButton, 1);
+    hl->addWidget(prevPermButton, 1);
+    hl->addWidget(nextPermButton, 1);
+    hl->addWidget(keepButton, 1);
+    hl->addWidget(generateButton, 1);
     layout->addLayout(hl);
 
     _group = new QButtonGroup(this);
@@ -106,10 +120,10 @@ ThemeSettings::ThemeSettings(QWidget *parent)
     _tv->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     _tv->horizontalHeader()->setSectionResizeMode(ThemeManager::PreviewColumn, QHeaderView::Stretch);
     _tv->setSelectionMode(QAbstractItemView::NoSelection);
-    layout->addWidget(_tv);
+    _tv->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    layout->addWidget(_tv, 0);
 
     connect(_group, &QButtonGroup::idToggled, this, &ThemeSettings::saveLastApplied);
-
 
     connect(this, &ThemeSettings::generated,
         core::SessionManager::tm(),
@@ -144,13 +158,24 @@ ThemeSettings::ThemeSettings(QWidget *parent)
             }
         }
     });
+
+     QTimer::singleShot(32, [this] {
+         /// TODO: the first time _tv is shown, the Preview column does not have
+         /// correct preview size.  This is the only fix I've tried that works.
+         /// Might need a custom delegate to render the Preview column.
+         setupItemWidgets(0, _tv->model()->rowCount() - 1);
+     });
 }
 
 void ThemeSettings::resizeEvent(QResizeEvent *event)
 {
+    QWidget::resizeEvent(event);
+
     setupItemWidgets(0, _tv->model()->rowCount() - 1);
 
-    QWidget::resizeEvent(event);
+    if (_applyGenerated->isVisible()) {
+        _previewLabel->setPixmap(paletteToPixmap(_generated, _previewLabel->size()));
+    }
 }
 
 void ThemeSettings::hideEvent(QHideEvent* event)
@@ -237,23 +262,29 @@ void ThemeSettings::buildRangeLineEdits(QVBoxLayout* parentLayout, QString name,
     auto* label = new QLabel(name, this);
     label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     label->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-    layout->addWidget(label);
+    label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    label->setMaximumHeight(26);
+    layout->addWidget(label, 1);
 
     auto* p1 = new QLineEdit(this);
     p1->setText(QString::number(min, 'g', 4));
     p1->setClearButtonEnabled(true);
+    p1->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    p1->setMaximumHeight(26);
 
     auto* p2 = new QLineEdit(this);
     p2->setText(QString::number(max, 'g', 4));
     p2->setClearButtonEnabled(true);
+    p2->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    p2->setMaximumHeight(26);
 
     auto* validator = new QDoubleValidator(min, max, 4, this);
     validator->setNotation(QDoubleValidator::StandardNotation);
     validator->setLocale(QLocale::C);
     p1->setValidator(validator);
     p2->setValidator(validator);
-    layout->addWidget(p1);
-    layout->addWidget(p2);
+    layout->addWidget(p1, 2);
+    layout->addWidget(p2, 2);
 
     parentLayout->addLayout(layout);
 
@@ -323,20 +354,19 @@ void ThemeSettings::setupItemWidgets(int start, int end)
     const auto* model = _tv->model();
     auto* tm = core::SessionManager::tm();
 
-
     for (int i = start; i <= end; ++i) {
         const auto idIndex   = model->index(i, ThemeManager::PaletteIdColumn, QModelIndex());
         const auto paletteId = idIndex.data().toString().toStdString();
         const auto& palette  = tm->paletteFromId(paletteId);
 
         /// create or update the preview widget
-        auto previewIndex = model->index(i, ThemeManager::PreviewColumn, QModelIndex());
+        const auto previewIndex = model->index(i, ThemeManager::PreviewColumn);
         QLabel* previewWidget = nullptr;
         if (auto* widget = _tv->indexWidget(previewIndex); widget) {
             previewWidget = qobject_cast<QLabel*>(widget);
             Q_ASSERT(previewWidget);
         } else {
-            previewWidget = new QLabel(this);
+            previewWidget = new QLabel();
             previewWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
             previewWidget->setFrameShape(QFrame::Panel);
             previewWidget->setFrameShadow(QFrame::Plain);
@@ -345,7 +375,7 @@ void ThemeSettings::setupItemWidgets(int start, int end)
         previewWidget->setPixmap(paletteToPixmap(palette, previewWidget->size()));
 
         /// create the Apply widget, if needed.
-        const auto applyIndex = model->index(i, ThemeManager::ApplyColumn, QModelIndex());
+        const auto applyIndex = model->index(i, ThemeManager::ApplyColumn);
         if (const auto* widget = _tv->indexWidget(applyIndex); widget == nullptr) {
             auto* applyButton = new QPushButton(tr("Apply"));
 
@@ -362,7 +392,7 @@ void ThemeSettings::setupItemWidgets(int start, int end)
         }
 
         /// create the Discard widget, if needed.
-        auto discardIndex = model->index(i, ThemeManager::DiscardColum, QModelIndex());
+        const auto discardIndex = model->index(i, ThemeManager::DiscardColum);
         if (const auto* widget = _tv->indexWidget(discardIndex); widget == nullptr) {
             if (!tm->isFactory(paletteId)) {
                 auto* discardWidget = new QPushButton(tr("Discard"));
