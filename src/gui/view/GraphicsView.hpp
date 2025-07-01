@@ -42,7 +42,6 @@ namespace gui::view
         void focusAllQuadrants(); // center
 
     protected:
-        void dragEnterEvent(QDragEnterEvent *event) override;
         void enterEvent(QEnterEvent* event) override;
         void keyPressEvent(QKeyEvent* event) override;
         void keyReleaseEvent(QKeyEvent* event) override;

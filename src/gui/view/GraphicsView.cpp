@@ -34,6 +34,8 @@ GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
     _timeline = new QTimeLine(300, this);
     _timeline->setFrameRange(0, 36);
     _timeline->setEasingCurve(QEasingCurve::OutExpo);
+
+    setAcceptDrops(false);
 }
 
 void GraphicsView::requestSceneBookmark()
@@ -86,15 +88,6 @@ void GraphicsView::focusAllQuadrants()
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
         centerTargetOn(sbm.first(), mapToScene(rect().center()));
     }
-}
-
-// QGraphicsView overrides this, but for window swap to work, we need this to
-// propagate the event to the parent widget.  Calling ignore() does the trick,
-// but if we ever extend GraphicsView to have a feature that requires drag-enter
-// event, then we might need to do something more.
-void GraphicsView::dragEnterEvent(QDragEnterEvent* event)
-{
-    event->ignore();
 }
 
 void GraphicsView::enterEvent(QEnterEvent* event)
