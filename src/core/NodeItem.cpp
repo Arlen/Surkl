@@ -6,7 +6,7 @@
 #include "SceneStorage.hpp"
 #include "SessionManager.hpp"
 #include "layout.hpp"
-#include "theme.hpp"
+#include "gui/theme/theme.hpp"
 
 #include <QDir>
 #include <QGraphicsScene>

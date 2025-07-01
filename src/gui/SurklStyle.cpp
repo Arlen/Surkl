@@ -3,7 +3,7 @@
 
 #include "SurklStyle.hpp"
 #include "core/SessionManager.hpp"
-#include "theme.hpp"
+#include "theme/theme.hpp"
 
 #include <QPainter>
 #include <QStyleOptionRubberBand>

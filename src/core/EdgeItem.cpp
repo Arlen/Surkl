@@ -3,7 +3,7 @@
 
 #include "EdgeItem.hpp"
 #include "SessionManager.hpp"
-#include "theme.hpp"
+#include "gui/theme/theme.hpp"
 
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>

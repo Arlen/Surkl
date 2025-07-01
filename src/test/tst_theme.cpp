@@ -4,7 +4,7 @@
 #include "tst_theme.hpp"
 #include "core/db.hpp"
 #include "core/SessionManager.hpp"
-#include "gui/ThemeSettings.hpp"
+#include "gui/theme/ThemeSettings.hpp"
 
 #include <QRandomGenerator>
 #include <QStandardItemModel>

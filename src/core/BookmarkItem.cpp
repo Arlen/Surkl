@@ -6,7 +6,7 @@
 
 #include "BookmarkItem.hpp"
 #include "SessionManager.hpp"
-#include "theme.hpp"
+#include "gui/theme/theme.hpp"
 
 #include <QGraphicsTextItem>
 #include <QPainter>

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "theme.hpp"
+#include "gui/theme/theme.hpp"
 
 #include <QTest>
 
