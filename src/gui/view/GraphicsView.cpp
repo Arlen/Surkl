@@ -88,6 +88,15 @@ void GraphicsView::focusAllQuadrants()
     }
 }
 
+// QGraphicsView overrides this, but for window swap to work, we need this to
+// propagate the event to the parent widget.  Calling ignore() does the trick,
+// but if we ever extend GraphicsView to have a feature that requires drag-enter
+// event, then we might need to do something more.
+void GraphicsView::dragEnterEvent(QDragEnterEvent* event)
+{
+    event->ignore();
+}
+
 void GraphicsView::enterEvent(QEnterEvent* event)
 {
     togglePanOrZoom(Qt::NoModifier);
@@ -172,9 +181,12 @@ void GraphicsView::configure()
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setDragMode(QGraphicsView::NoDrag);
+    setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+
 
     setMouseTracking(true);
     setTransformationAnchor(QGraphicsView::NoAnchor);
+    setResizeAnchor(QGraphicsView::AnchorViewCenter);
 
     // Setting background color to Qt::NoBrush is needed so that
     // Scene::drawBackground() virtual method gets called.

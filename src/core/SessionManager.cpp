@@ -7,7 +7,7 @@
 #include "bookmark.hpp"
 #include "db.hpp"
 #include "gui/MainWindow.hpp"
-#include "gui/theme.hpp"
+#include "gui/theme/theme.hpp"
 
 #include <QApplication>
 
@@ -31,9 +31,9 @@ SessionManager::~SessionManager()
     delete _mw;
 }
 
-SceneStorage* SessionManager::ss()
+BookmarkManager* SessionManager::bm()
 {
-    return session()->_ss;
+    return session()->_bm;
 }
 
 FileSystemScene* SessionManager::scene()
@@ -41,19 +41,19 @@ FileSystemScene* SessionManager::scene()
     return session()->_sc;
 }
 
-BookmarkManager* SessionManager::bm()
+SceneStorage* SessionManager::ss()
 {
-    return session()->_bm;
-}
-
-gui::ThemeManager* SessionManager::tm()
-{
-    return session()->_tm;
+    return session()->_ss;
 }
 
 gui::MainWindow* SessionManager::mw()
 {
     return session()->_mw;
+}
+
+gui::theme::ThemeManager* SessionManager::tm()
+{
+    return session()->_tm;
 }
 
 void SessionManager::cleanup() const
@@ -68,8 +68,8 @@ void SessionManager::init()
 {
     db::init();
 
-    _tm = new gui::ThemeManager(this);
-    gui::ThemeManager::configure(_tm);
+    _tm = new gui::theme::ThemeManager(this);
+    gui::theme::ThemeManager::configure(_tm);
 
     _bm = new BookmarkManager(this);
     BookmarkManager::configure(_bm);
@@ -83,7 +83,7 @@ void SessionManager::init()
 
     connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);
 
-    connect(_tm, &gui::ThemeManager::themeChanged, _sc, &FileSystemScene::refreshItems);
+    connect(_tm, &gui::theme::ThemeManager::themeChanged, _sc, &FileSystemScene::refreshItems);
 }
 
 SessionManager* SessionManager::session()

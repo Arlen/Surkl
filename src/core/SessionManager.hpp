@@ -4,20 +4,24 @@
 #pragma once
 
 #include <MainWindow.hpp>
-#include <QtCore/QObject>
+
+#include <QObject>
 
 
 namespace gui
 {
-    class ThemeManager;
+    namespace theme
+    {
+        class ThemeManager;
+    }
     class MainWindow;
 }
 
 namespace core
 {
-    class SceneStorage;
-    class FileSystemScene;
     class BookmarkManager;
+    class FileSystemScene;
+    class SceneStorage;
 
     class SessionManager final : public QObject
     {
@@ -26,11 +30,11 @@ namespace core
     public:
         explicit SessionManager(QObject* parent = nullptr);
         ~SessionManager() override;
-        static SceneStorage* ss();
-        static FileSystemScene* scene();
         static BookmarkManager* bm();
-        static gui::ThemeManager* tm();
+        static FileSystemScene* scene();
+        static SceneStorage* ss();
         static gui::MainWindow* mw();
+        static gui::theme::ThemeManager* tm();
 
     private slots:
         void cleanup() const;
@@ -39,10 +43,10 @@ namespace core
         void init();
         static SessionManager* session();
 
-        SceneStorage*      _ss{nullptr};
-        FileSystemScene*   _sc{nullptr};
         BookmarkManager*   _bm{nullptr};
-        gui::ThemeManager* _tm{nullptr};
+        FileSystemScene*   _sc{nullptr};
+        SceneStorage*      _ss{nullptr};
         gui::MainWindow*   _mw{nullptr};
+        gui::theme::ThemeManager* _tm{nullptr};
     };
 }
