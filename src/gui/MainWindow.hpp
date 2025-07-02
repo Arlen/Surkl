@@ -3,30 +3,36 @@
 
 #pragma once
 
+#include "WidgetId.hpp"
+
 #include <QWidget>
 
 
-class QHBoxLayout;
-
-namespace core
-{
-    class FileSystemScene;
-}
-
 namespace gui
 {
-    namespace view
+    class Splitter;
+
+    namespace window
     {
-        class GraphicsView;
+        class Window;
     }
 
-    class MainWindow final : public QWidget
+
+    class MainWindow final : public QWidget, public WidgetId<MainWindow>
     {
     public:
-        explicit MainWindow(core::FileSystemScene* scene, QWidget* parent = nullptr);
+        explicit MainWindow();
+
+        void moveToNewMainWindow(window::Window* source);
+
+        [[nodiscard]] Splitter* splitter() const { return _splitter; }
+
+    protected:
+        void closeEvent(QCloseEvent* event) override;
 
     private:
-        QHBoxLayout* _layout{nullptr};
-        view::GraphicsView* _view{nullptr};
+        void updateTitle();
+
+        Splitter* _splitter{nullptr};
     };
 }

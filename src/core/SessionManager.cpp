@@ -79,7 +79,7 @@ void SessionManager::init()
     _ss = new SceneStorage(this);
     SceneStorage::configure();
 
-    _mw = new gui::MainWindow(_sc);
+    _mw = new gui::MainWindow();
 
     connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);
 
