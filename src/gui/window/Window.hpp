@@ -4,6 +4,7 @@
 #pragma once
 
 #include "RubberBand.hpp"
+#include "WidgetId.hpp"
 
 #include <QPen>
 #include <QPointer>
@@ -34,7 +35,7 @@ namespace gui::window
     };
 
 
-    class Window final : public QWidget
+    class Window final : public QWidget, public WidgetId
     {
         Q_OBJECT
 

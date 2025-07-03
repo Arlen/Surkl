@@ -8,19 +8,21 @@
 
 namespace gui
 {
-    template <class Widget>
     struct WidgetId
     {
-        WidgetId() : _id{_class_id}
+        WidgetId()
         {
-            _class_id++;
+            static qint32 counter{0};
+
+            _id = counter++;
         }
 
-        [[nodiscard]] qint32 widgetId() const { return _id; }
+        [[nodiscard]] qint32 widgetId() const noexcept
+        {
+            return _id;
+        }
 
     private:
-        const qint32 _id{-1};
-
-        inline static qint32 _class_id{0};
+        qint32 _id{-1};
     };
 }

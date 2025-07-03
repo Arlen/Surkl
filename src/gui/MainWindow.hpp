@@ -18,7 +18,7 @@ namespace gui
     }
 
 
-    class MainWindow final : public QWidget, public WidgetId<MainWindow>
+    class MainWindow final : public QWidget, public WidgetId
     {
     public:
         explicit MainWindow();

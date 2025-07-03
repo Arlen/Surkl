@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "WidgetId.hpp"
+
 #include <QSplitter>
 
 
@@ -16,7 +18,7 @@ namespace gui
     class RubberBand;
 
 
-    class Splitter final : public QSplitter
+    class Splitter final : public QSplitter, public WidgetId
     {
         Q_OBJECT
 
