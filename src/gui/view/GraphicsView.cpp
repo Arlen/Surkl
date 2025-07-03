@@ -176,9 +176,8 @@ void GraphicsView::configure()
     setDragMode(QGraphicsView::NoDrag);
     setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
 
-
     setMouseTracking(true);
-    setTransformationAnchor(QGraphicsView::NoAnchor);
+    setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
     setResizeAnchor(QGraphicsView::AnchorViewCenter);
 
     // Setting background color to Qt::NoBrush is needed so that
@@ -210,59 +209,7 @@ void GraphicsView::saveMousePosition(const QPoint& pos)
 
 void GraphicsView::scaleView(qreal factor)
 {
-    setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
-
-    constexpr auto unit         = QRectF(0, 0, 1, 1);
-    constexpr auto zoomInLimit  = QRectF(0, 0, 4, 4);
-    constexpr auto zoomOutLimit = QRectF(0, 0, 0.25, 0.25);
-
-    const auto sx   = factor;
-    const auto sy   = factor;
-    const auto zoom = transform().scale(sx, sy).mapRect(unit).size();
-
-    const auto candidate = QRectF(QPointF(0, 0), zoom);
-
-    if (zoomInLimit.contains(candidate) && candidate.contains(zoomOutLimit)) {
-        /// If a bookmark is selected and it's at one of the corners, then use
-        /// it as an anchor.
-        if (!_zoomAnchor.isNull()) {
-            /// the quadrant test must be performed before scale() operation,
-            /// because the test region is only couple pixels wide.
-
-            auto regionOfInterest = [this](const QPoint& corner) -> QRectF
-            {
-                constexpr auto offset = QPoint(2, 2);
-
-                return mapToScene(QRect(corner - offset, corner + offset)).boundingRect();
-            };
-
-            const auto rec         = rect();
-            const auto bmCenter    = _zoomAnchor.pointAt(0.5);
-            const auto atQuadrant1 = regionOfInterest(rec.bottomLeft()).contains(bmCenter);
-            const auto atQuadrant2 = regionOfInterest(rec.bottomRight()).contains(bmCenter);
-            const auto atQuadrant3 = regionOfInterest(rec.topRight()).contains(bmCenter);
-            const auto atQuadrant4 = regionOfInterest(rec.topLeft()).contains(bmCenter);
-
-            if (atQuadrant1) {
-                scale(sx, sy);
-                focusQuadrant1();
-            } else if (atQuadrant2) {
-                scale(sx, sy);
-                focusQuadrant2();
-            } else if (atQuadrant3) {
-                scale(sx, sy);
-                focusQuadrant3();
-            } else if (atQuadrant4) {
-                scale(sx, sy);
-                focusQuadrant4();
-            } else {
-                scale(sx, sy);
-            }
-        } else {
-            /// otherwise, use the mouse position as anchor.
-            scale(sx, sy);
-        }
-    }
+    scale(factor, factor);
 }
 
 void GraphicsView::zoom()
@@ -374,24 +321,18 @@ void GraphicsView::centerTargetOn(const core::SceneBookmarkItem* bm, const QPoin
     _timeline->start();
 }
 
-void GraphicsView::pickSceneBookmark()
+void GraphicsView::pickSceneBookmark() const
 {
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
         _quadrantButton->setVisible(true);
-        const auto* bookmark = sbm.first();
-        const auto rec = bookmark->mapRectToScene(bookmark->rect());
-        /// (0,0) is a valid bookmark position, but isNull() would return true,
-        /// so use a QLineF.
-        _zoomAnchor = QLineF(rec.bottomLeft(), rec.topRight());
     } else {
         _quadrantButton->setVisible(false);
-        _zoomAnchor = QLineF();
     }
 }
 
 QList<core::SceneBookmarkItem*> GraphicsView::selectedSceneBookmarks() const
 {
-    QList<core::SceneBookmarkItem*>  result;
+    QList<core::SceneBookmarkItem*> result;
 
     for (const auto selection = scene()->selectedItems(); auto* item : selection) {
         if (auto* sbm = qgraphicsitem_cast<core::SceneBookmarkItem*>(item); sbm) {
