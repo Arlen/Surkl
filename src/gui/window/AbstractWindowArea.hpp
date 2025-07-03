@@ -16,9 +16,19 @@ namespace gui::window
         Q_OBJECT
 
     public:
+        enum AreaType
+        {
+            InvalidArea = -1,
+            ViewArea = 0,
+            ThemeArea = 1,
+            /// others...
+        };
+
         explicit AbstractWindowArea(Window *parent);
 
         virtual void setTitleBar(TitleBar *titleBar);
+
+        AreaType areaType() const { return _areaType; }
 
     public slots:
         void switchToView();
@@ -31,5 +41,6 @@ namespace gui::window
         TitleBar *titleBar() const;
 
         TitleBar *_titleBar{nullptr};
+        AreaType _areaType{InvalidArea};
     };
 }

@@ -16,6 +16,8 @@ using namespace gui::view;
 ViewArea::ViewArea(core::FileSystemScene* scene, window::Window *parent)
     : AbstractWindowArea(parent)
 {
+    _areaType = AreaType::ViewArea;
+
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
