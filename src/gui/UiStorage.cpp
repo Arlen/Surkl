@@ -2,16 +2,52 @@
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "UiStorage.hpp"
-#include "core/SessionManager.hpp"
+#include "Splitter.hpp"
 #include "core/db.hpp"
+#include "theme/ThemeArea.hpp"
 #include "view/GraphicsView.hpp"
 #include "view/ViewArea.hpp"
+#include "window/AbstractWindowArea.hpp"
 #include "window/Window.hpp"
 
 #include <QSqlRecord>
 
 
+
 using namespace gui;
+using namespace core;
+
+namespace
+{
+    window::AbstractWindowArea::AreaType getAreaType(const window::Window* win)
+    {
+        Q_ASSERT(win);
+
+        auto result = window::AbstractWindowArea::AreaType::InvalidArea;
+
+        if (qobject_cast<view::ViewArea*>(win->areaWidget())) {
+            result = window::AbstractWindowArea::AreaType::ViewArea;
+        } else if (qobject_cast<theme::ThemeArea*>(win->areaWidget())) {
+            result = window::AbstractWindowArea::AreaType::ThemeArea;
+        }
+
+        return result;
+    }
+
+    qint32 getWindowSize(const window::Window* win)
+    {
+        Q_ASSERT(win);
+
+        if (auto* splitter = qobject_cast<Splitter*>(win->parentWidget())) {
+            if (splitter->orientation() == Qt::Horizontal) {
+                return win->width();
+            }
+            return win->height();
+        }
+
+        return -1;
+    }
+}
 
 UiStorage::UiStorage(QObject* parent)
     : QObject(parent)
@@ -183,8 +219,6 @@ void UiStorage::saveView(const view::GraphicsView* gv)
 {
     Q_ASSERT(gv);
 
-    using namespace core;
-
     if (const auto* va = qobject_cast<view::ViewArea*>(gv->parentWidget())) {
         if (const auto* window = qobject_cast<window::Window*>(va->parentWidget())) {
             if (auto db = db::get(); db.isOpen()) {
@@ -206,11 +240,30 @@ void UiStorage::saveView(const view::GraphicsView* gv)
     }
 }
 
+void UiStorage::saveWindow(const window::Window* win)
+{
+    Q_ASSERT(win);
+
+    if (auto db = db::get(); db.isOpen()) {
+        QSqlQuery q(db);
+
+        const auto id   = win->widgetId();
+        const auto size = getWindowSize(win);
+        const auto type = getAreaType(win);
+
+        if (!q.exec(QString("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
+            .arg(storage::WINDOWS_TABLE)
+            .arg(id)
+            .arg(size)
+            .arg(type))) {
+            qWarning() << db.lastError();
+        }
+    }
+}
+
 void UiStorage::deleteView(const QWidget* widget)
 {
     Q_ASSERT(widget);
-
-    using namespace core;
 
     const view::GraphicsView* gv = qobject_cast<const view::GraphicsView*>(widget);
 

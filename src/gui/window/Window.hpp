@@ -66,6 +66,8 @@ namespace gui::window
 
         void mouseReleaseEvent(QMouseEvent *event) override;
 
+        void resizeEvent(QResizeEvent *event) override;
+
     private slots:
         void activateSplitMode();
 

@@ -5,10 +5,14 @@
 #include "AbstractWindowArea.hpp"
 #include "TitleBar.hpp"
 #include "core/SessionManager.hpp"
+#include "gui/Splitter.hpp"
+#include "gui/UiStorage.hpp"
+#include "theme/ThemeArea.hpp"
 #include "theme/theme.hpp"
 #include "view/ViewArea.hpp"
 
 #include <QDrag>
+#include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
@@ -17,9 +21,9 @@
 #include <QVBoxLayout>
 #include <QtDeprecationMarkers>
 
+
 using namespace gui;
 using namespace gui::window;
-
 
 RubberBandState::RubberBandState(QWidget *parent)
 {
@@ -42,6 +46,8 @@ Window::Window(QWidget *parent)
     setAreaWidget(new view::ViewArea(core::SessionManager::scene(), this));
     setupMenu();
     setAcceptDrops(true);
+
+    core::SessionManager::us()->saveWindow(this);
 }
 
 TitleBar *Window::titleBar() const
@@ -54,9 +60,11 @@ AbstractWindowArea *Window::areaWidget() const
     return _areaWidget;
 }
 
-void Window::moveToNewMainWindow()
+void Window::resizeEvent(QResizeEvent *event)
 {
-    core::SessionManager::mw()->moveToNewMainWindow(this);
+    core::SessionManager::us()->saveWindow(this);
+
+    QWidget::resizeEvent(event);
 }
 
 void Window::dragEnterEvent(QDragEnterEvent *event)
@@ -296,6 +304,8 @@ void Window::setAreaWidget(AbstractWindowArea *widget)
 
     setupMenu();
     layout()->addWidget(_areaWidget);
+
+    core::SessionManager::us()->saveWindow(this);
 }
 
 void Window::setupMenu()

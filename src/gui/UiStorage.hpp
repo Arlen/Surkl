@@ -90,6 +90,8 @@ namespace gui
 
         static void saveView(const view::GraphicsView* gv);
 
+        static void saveWindow(const window::Window* win);
+
         void deleteView(const QWidget* widget);
 
     private:
