@@ -10,6 +10,9 @@
 #include <QTimeLine>
 #include <QVariantAnimation>
 
+#include "SessionManager.hpp"
+#include "UiStorage.hpp"
+
 
 using namespace gui::view;
 
@@ -36,6 +39,8 @@ GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
     _timeline->setEasingCurve(QEasingCurve::OutExpo);
 
     setAcceptDrops(false);
+
+    core::SessionManager::us()->saveView(this);
 }
 
 void GraphicsView::requestSceneBookmark()
@@ -123,6 +128,9 @@ void GraphicsView::mouseMoveEvent(QMouseEvent* event)
     togglePanOrZoom(event->modifiers());
     if (event->modifiers() == Qt::AltModifier && _bookmarkAnimation == nullptr) {
         zoom();
+        core::SessionManager::us()->saveView(this);
+    } else if (event->modifiers() == Qt::ControlModifier) {
+        core::SessionManager::us()->saveView(this);
     }
 
     saveMousePosition(event->pos());
@@ -316,6 +324,7 @@ void GraphicsView::centerTargetOn(const core::SceneBookmarkItem* bm, const QPoin
 
     connect(_timeline, &QTimeLine::finished, [this] {
         disconnect(_timeline, &QTimeLine::valueChanged, nullptr, nullptr);
+        core::SessionManager::us()->saveView(this);
     });
 
     _timeline->start();
