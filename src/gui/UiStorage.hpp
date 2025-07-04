@@ -94,6 +94,8 @@ namespace gui
 
         void deleteView(const QWidget* widget);
 
+        void deleteWindow(const QWidget* widget);
+
     private:
         static void createTable();
 

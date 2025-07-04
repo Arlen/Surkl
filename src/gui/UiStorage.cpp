@@ -265,12 +265,11 @@ void UiStorage::deleteView(const QWidget* widget)
 {
     Q_ASSERT(widget);
 
-    const view::GraphicsView* gv = qobject_cast<const view::GraphicsView*>(widget);
+    const auto* gv = qobject_cast<const view::GraphicsView*>(widget);
 
     if (gv == nullptr) {
         return;
     }
-
 
     if (const auto* va = qobject_cast<view::ViewArea*>(gv->parentWidget())) {
         if (const auto* window = qobject_cast<window::Window*>(va->parentWidget())) {
@@ -286,6 +285,31 @@ void UiStorage::deleteView(const QWidget* widget)
                         qWarning() << db.lastError();
                     }
             }
+        }
+    }
+}
+
+
+void UiStorage::deleteWindow(const QWidget* widget)
+{
+    Q_ASSERT(widget);
+
+    const auto* win = qobject_cast<const window::Window*>(widget);
+
+    if (win == nullptr) {
+        return;
+    }
+
+    if (auto db = db::get(); db.isOpen()) {
+        QSqlQuery q(db);
+
+        const auto id = win->widgetId();
+
+        if (!q.exec(QString("DELETE FROM %1 WHERE %2=%3")
+            .arg(storage::WINDOWS_TABLE)
+            .arg(storage::WINDOW_ID)
+            .arg(id))) {
+            qWarning() << db.lastError();
         }
     }
 }
