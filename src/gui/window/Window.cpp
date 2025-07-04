@@ -39,7 +39,8 @@ Window::Window(QWidget *parent)
     layout->setSpacing(1);
 
     initTitlebar(layout);
-    setWidget(new view::ViewArea(core::SessionManager::scene(), this));
+    setAreaWidget(new view::ViewArea(core::SessionManager::scene(), this));
+    setupMenu();
     setAcceptDrops(true);
 }
 
@@ -48,25 +49,9 @@ TitleBar *Window::titleBar() const
     return _titleBar;
 }
 
-AbstractWindowArea *Window::widget() const
+AbstractWindowArea *Window::areaWidget() const
 {
-    return _widget;
-}
-
-void Window::setWidget(AbstractWindowArea *widget)
-{
-    Q_ASSERT(widget);
-
-    if (_widget) {
-        _widget->deleteLater();
-    }
-
-    _widget = widget;
-    _widget->setParent(this);
-    _widget->setTitleBar(_titleBar);
-    _widget->setSizePolicy(QSizePolicy::MinimumExpanding,
-        QSizePolicy::MinimumExpanding);
-    layout()->addWidget(_widget);
+    return _areaWidget;
 }
 
 void Window::moveToNewMainWindow()
@@ -257,6 +242,23 @@ void Window::closeMe()
     emit closed(this);
 }
 
+void Window::switchToView()
+{
+    setAreaWidget(new view::ViewArea(core::SessionManager::scene(), this));
+    titleBar()->titleButton()->setText("View");
+}
+
+void Window::switchToThemeSettings()
+{
+    setAreaWidget(new theme::ThemeArea(this));
+    titleBar()->titleButton()->setText("Theme Settings");
+}
+
+void Window::moveToNewMainWindow()
+{
+    core::SessionManager::mw()->moveToNewMainWindow(this);
+}
+
 void Window::initTitlebar(QVBoxLayout *layout)
 {
     _titleBar = new TitleBar(this);
@@ -276,6 +278,55 @@ void Window::initTitlebar(QVBoxLayout *layout)
             , &QAbstractButton::pressed
             , this
             , &Window::activateSwapMode);
+}
+
+void Window::setAreaWidget(AbstractWindowArea *widget)
+{
+    Q_ASSERT(widget);
+
+    if (_areaWidget) {
+        _areaWidget->deleteLater();
+    }
+
+    _areaWidget = widget;
+    _areaWidget->setParent(this);
+    _areaWidget->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+
+    setupMenu();
+    layout()->addWidget(_areaWidget);
+}
+
+void Window::setupMenu()
+{
+    Q_ASSERT(_titleBar);
+    Q_ASSERT(_titleBar->menuButton());
+
+    if (auto *button = qobject_cast<QPushButton *>(_titleBar->menuButton())) {
+        auto *menu = new QMenu(this);
+
+        if (qobject_cast<view::ViewArea *>(_areaWidget) == nullptr) {
+            auto *action = new QAction("Switch to View", menu);
+            connect(action, &QAction::triggered, this, &Window::switchToView);
+            menu->addAction(action);
+        }
+
+        if (qobject_cast<theme::ThemeArea *>(_areaWidget) == nullptr) {
+            auto *action = new QAction("Switch to Theme Settings", menu);
+            connect(action, &QAction::triggered, this, &Window::switchToThemeSettings);
+            menu->addAction(action);
+        }
+        menu->addSeparator();
+
+        auto *moveTo = new QAction("Move to New Window");
+        connect(moveTo, &QAction::triggered, this, &Window::moveToNewMainWindow);
+        menu->addAction(moveTo);
+
+        if (button->menu()) {
+            button->menu()->deleteLater();
+        }
+        button->setMenu(menu);
+        button->show();
+    }
 }
 
 int Window::splitterHandleWidth() const

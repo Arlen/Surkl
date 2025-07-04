@@ -9,12 +9,9 @@
 namespace gui::window
 {
     class Window;
-    class TitleBar;
 
     class AbstractWindowArea : public QWidget
     {
-        Q_OBJECT
-
     public:
         enum AreaType
         {
@@ -26,21 +23,14 @@ namespace gui::window
 
         explicit AbstractWindowArea(Window *parent);
 
-        virtual void setTitleBar(TitleBar *titleBar);
+        void setWidget(AreaType typep, QWidget* widget);
 
-        AreaType areaType() const { return _areaType; }
+        [[nodiscard]] QWidget* widget() const { return _widget; }
 
-    public slots:
-        void switchToView();
-
-        void switchToThemeSettings();
-
-        void moveToNewMainWindow();
+        [[nodiscard]] AreaType type() const { return _type; }
 
     protected:
-        TitleBar *titleBar() const;
-
-        TitleBar *_titleBar{nullptr};
-        AreaType _areaType{InvalidArea};
+        QWidget* _widget{nullptr};
+        AreaType _type{InvalidArea};
     };
 }

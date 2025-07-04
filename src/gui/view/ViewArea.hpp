@@ -19,7 +19,5 @@ namespace gui::view
 
     public:
         explicit ViewArea(core::FileSystemScene* scene, window::Window* parent = nullptr);
-
-        void setTitleBar(window::TitleBar* tb) override;
     };
 }

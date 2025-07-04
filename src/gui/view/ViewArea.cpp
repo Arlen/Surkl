@@ -3,11 +3,8 @@
 
 #include "ViewArea.hpp"
 #include "GraphicsView.hpp"
-#include "TitleBar.hpp"
 #include "core/FileSystemScene.hpp"
-#include "core/SessionManager.hpp"
 
-#include <QVBoxLayout>
 #include <QShortcut>
 
 
@@ -16,14 +13,8 @@ using namespace gui::view;
 ViewArea::ViewArea(core::FileSystemScene* scene, window::Window *parent)
     : AbstractWindowArea(parent)
 {
-    _areaType = AreaType::ViewArea;
-
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
-
     auto* view = new GraphicsView(scene, this);
-    layout->addWidget(view);
+    setWidget(AreaType::ViewArea, view);
 
     auto* shortcut        = new QShortcut(QKeySequence(Qt::Key_B), view, view, &GraphicsView::requestSceneBookmark);
     auto* quadShortcut1   = new QShortcut(QKeySequence(Qt::Key_1), view, view, &GraphicsView::focusQuadrant1);
@@ -31,9 +22,8 @@ ViewArea::ViewArea(core::FileSystemScene* scene, window::Window *parent)
     auto* quadShortcut3   = new QShortcut(QKeySequence(Qt::Key_3), view, view, &GraphicsView::focusQuadrant3);
     auto* quadShortcut4   = new QShortcut(QKeySequence(Qt::Key_4), view, view, &GraphicsView::focusQuadrant4);
     auto* allQuadShortcut = new QShortcut(QKeySequence(Qt::Key_5), view, view, &GraphicsView::focusAllQuadrants);
-
-    auto* openShortcut      = new QShortcut(QKeySequence::Open, view, scene, &core::FileSystemScene::openSelectedNodes);
-    auto* closeShortcut     = new QShortcut(QKeySequence::Close, view, scene, &core::FileSystemScene::closeSelectedNodes);
+    auto* openShortcut    = new QShortcut(QKeySequence::Open, view, scene, &core::FileSystemScene::openSelectedNodes);
+    auto* closeShortcut   = new QShortcut(QKeySequence::Close, view, scene, &core::FileSystemScene::closeSelectedNodes);
 
     const QKeySequence closeKeySeq = QKeySequence::Close;
     Q_ASSERT(closeKeySeq.count() > 0);
@@ -51,11 +41,4 @@ ViewArea::ViewArea(core::FileSystemScene* scene, window::Window *parent)
     openShortcut->setContext(Qt::WidgetShortcut);
     closeShortcut->setContext(Qt::WidgetShortcut);
     halfCloseShortcut->setContext(Qt::WidgetShortcut);
-}
-
-void ViewArea::setTitleBar(window::TitleBar* tb)
-{
-    AbstractWindowArea::setTitleBar(tb);
-
-    titleBar()->titleButton()->setText("View");
 }

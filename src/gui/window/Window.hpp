@@ -51,11 +51,7 @@ namespace gui::window
 
         [[nodiscard]] TitleBar *titleBar() const;
 
-        [[nodiscard]] AbstractWindowArea *widget() const;
-
-        void setWidget(AbstractWindowArea *widget);
-
-        void moveToNewMainWindow();
+        [[nodiscard]] AbstractWindowArea *areaWidget() const;
 
     protected:
         void dragEnterEvent(QDragEnterEvent *event) override;
@@ -77,12 +73,22 @@ namespace gui::window
 
         void closeMe();
 
+        void switchToView();
+
+        void switchToThemeSettings();
+
+        void moveToNewMainWindow();
+
     private:
         void initTitlebar(QVBoxLayout *layout);
 
+        void setAreaWidget(AbstractWindowArea *widget);
+
+        void setupMenu();
+
         [[nodiscard]] int splitterHandleWidth() const;
 
-        AbstractWindowArea *_widget{nullptr};
+        AbstractWindowArea *_areaWidget{nullptr};
         TitleBar *_titleBar{nullptr};
         Overlay *_overlay{nullptr};
 

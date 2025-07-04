@@ -14,7 +14,5 @@ namespace gui::theme
 
     public:
         explicit ThemeArea(window::Window* parent = nullptr);
-
-        void setTitleBar(window::TitleBar* tb) override;
     };
 }
