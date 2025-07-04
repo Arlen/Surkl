@@ -7,6 +7,7 @@
 #include "bookmark.hpp"
 #include "db.hpp"
 #include "gui/MainWindow.hpp"
+#include "gui/UiStorage.hpp"
 #include "gui/theme/theme.hpp"
 
 #include <QApplication>
@@ -51,6 +52,11 @@ gui::MainWindow* SessionManager::mw()
     return session()->_mw;
 }
 
+gui::UiStorage* SessionManager::us()
+{
+    return session()->_us;
+}
+
 gui::theme::ThemeManager* SessionManager::tm()
 {
     return session()->_tm;
@@ -78,6 +84,9 @@ void SessionManager::init()
 
     _ss = new SceneStorage(this);
     SceneStorage::configure();
+
+    _us = new gui::UiStorage(this);
+    gui::UiStorage::configure();
 
     _mw = new gui::MainWindow();
 

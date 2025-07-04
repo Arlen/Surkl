@@ -15,6 +15,7 @@ namespace gui
         class ThemeManager;
     }
     class MainWindow;
+    class UiStorage;
 }
 
 namespace core
@@ -34,6 +35,7 @@ namespace core
         static FileSystemScene* scene();
         static SceneStorage* ss();
         static gui::MainWindow* mw();
+        static gui::UiStorage* us();
         static gui::theme::ThemeManager* tm();
 
     private slots:
@@ -47,6 +49,7 @@ namespace core
         FileSystemScene*   _sc{nullptr};
         SceneStorage*      _ss{nullptr};
         gui::MainWindow*   _mw{nullptr};
+        gui::UiStorage*    _us{nullptr};
         gui::theme::ThemeManager* _tm{nullptr};
     };
 }

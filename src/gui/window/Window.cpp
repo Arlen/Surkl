@@ -239,6 +239,8 @@ void Window::activateSwapMode()
 
 void Window::closeMe()
 {
+    core::SessionManager::us()->deleteView(areaWidget()->widget());
+
     emit closed(this);
 }
 
