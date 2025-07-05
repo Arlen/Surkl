@@ -76,6 +76,8 @@ namespace gui::storage
 
 namespace gui
 {
+    class MainWindow;
+
     namespace view
     {
         class GraphicsView;
@@ -93,8 +95,11 @@ namespace gui
         static void saveWindow(const window::Window* win);
 
         void deleteView(const QWidget* widget);
+        static void saveMainWindow(const MainWindow* mw);
 
         void deleteWindow(const QWidget* widget);
+
+        void deleteMainWindow(qint32 id);
 
     private:
         static void createTable();

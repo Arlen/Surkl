@@ -20,6 +20,11 @@ namespace gui
 
     class MainWindow final : public QWidget, public WidgetId
     {
+        Q_OBJECT
+
+    signals:
+        void closed(qint32 id);
+
     public:
         explicit MainWindow();
 
@@ -29,6 +34,9 @@ namespace gui
 
     protected:
         void closeEvent(QCloseEvent* event) override;
+
+    private slots:
+        void onClosed(qint32 id);
 
     private:
         void updateTitle();

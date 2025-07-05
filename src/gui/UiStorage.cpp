@@ -9,6 +9,7 @@
 #include "view/ViewArea.hpp"
 #include "window/AbstractWindowArea.hpp"
 #include "window/Window.hpp"
+#include "MainWindow.hpp"
 
 #include <QSqlRecord>
 
@@ -261,7 +262,26 @@ void UiStorage::saveWindow(const window::Window* win)
     }
 }
 
-void UiStorage::deleteView(const QWidget* widget)
+void UiStorage::saveMainWindow(const MainWindow* mw)
+{
+    Q_ASSERT(mw);
+
+    if (auto db = db::get(); db.isOpen()) {
+        QSqlQuery q(db);
+
+        const auto id   = mw->widgetId();
+        const auto root = mw->splitter()->widgetId();
+
+        if (!q.exec(QString("INSERT OR REPLACE INTO %1 VALUES (%2, %3)")
+            .arg(storage::MAIN_WINDOWS_TABLE)
+            .arg(id)
+            .arg(root))) {
+            qWarning() << db.lastError();
+        }
+    }
+}
+
+void UiStorage::deleteView(qint32 parentId)
 {
     Q_ASSERT(widget);
 
@@ -308,6 +328,20 @@ void UiStorage::deleteWindow(const QWidget* widget)
         if (!q.exec(QString("DELETE FROM %1 WHERE %2=%3")
             .arg(storage::WINDOWS_TABLE)
             .arg(storage::WINDOW_ID)
+            .arg(id))) {
+            qWarning() << db.lastError();
+        }
+    }
+}
+
+void UiStorage::deleteMainWindow(qint32 id)
+{
+    if (auto db = db::get(); db.isOpen()) {
+        QSqlQuery q(db);
+
+        if (!q.exec(QString("DELETE FROM %1 WHERE %2=%3")
+            .arg(storage::MAIN_WINDOWS_TABLE)
+            .arg(storage::MAIN_WINDOW_ID)
             .arg(id))) {
             qWarning() << db.lastError();
         }
