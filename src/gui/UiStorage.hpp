@@ -94,14 +94,23 @@ namespace gui
 
         static void saveWindow(const window::Window* win);
 
-        void deleteView(const QWidget* widget);
         static void saveMainWindow(const MainWindow* mw);
 
-        void deleteWindow(const QWidget* widget);
+        void deleteView(qint32 parentId);
+
+        void deleteView(const QList<qint32>& ids);
+
+        void deleteWindow(qint32 id);
+
+        void deleteWindow(const QList<qint32>& ids);
 
         void deleteMainWindow(qint32 id);
 
+        void deleteMainWindow(const QList<qint32>& ids);
+
     private:
+        void deleteWidget(QLatin1StringView table, QLatin1String key, const QList<qint32>& values);
+
         static void createTable();
 
         void readTable();

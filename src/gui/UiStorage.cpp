@@ -283,66 +283,50 @@ void UiStorage::saveMainWindow(const MainWindow* mw)
 
 void UiStorage::deleteView(qint32 parentId)
 {
-    Q_ASSERT(widget);
-
-    const auto* gv = qobject_cast<const view::GraphicsView*>(widget);
-
-    if (gv == nullptr) {
-        return;
-    }
-
-    if (const auto* va = qobject_cast<view::ViewArea*>(gv->parentWidget())) {
-        if (const auto* window = qobject_cast<window::Window*>(va->parentWidget())) {
-            if (auto db = db::get(); db.isOpen()) {
-                QSqlQuery q(db);
-
-                const auto id = window->widgetId();
-
-                if (!q.exec(QString("DELETE FROM %1 WHERE %2=%3")
-                    .arg(storage::GRAPHICS_VIEWS_TABLE)
-                    .arg(storage::GRAPHICS_VIEW_PARENT)
-                    .arg(id))) {
-                        qWarning() << db.lastError();
-                    }
-            }
-        }
-    }
+    deleteView(QList<qint32>() << parentId);
 }
 
-
-void UiStorage::deleteWindow(const QWidget* widget)
+void UiStorage::deleteView(const QList<qint32>& ids)
 {
-    Q_ASSERT(widget);
+    deleteWidget(storage::GRAPHICS_VIEWS_TABLE, storage::GRAPHICS_VIEW_PARENT, ids);
+}
 
-    const auto* win = qobject_cast<const window::Window*>(widget);
+void UiStorage::deleteWindow(qint32 id)
+{
+    deleteWindow(QList<qint32>() << id);
+}
 
-    if (win == nullptr) {
-        return;
-    }
-
-    if (auto db = db::get(); db.isOpen()) {
-        QSqlQuery q(db);
-
-        const auto id = win->widgetId();
-
-        if (!q.exec(QString("DELETE FROM %1 WHERE %2=%3")
-            .arg(storage::WINDOWS_TABLE)
-            .arg(storage::WINDOW_ID)
-            .arg(id))) {
-            qWarning() << db.lastError();
-        }
-    }
+void UiStorage::deleteWindow(const QList<qint32>& ids)
+{
+    deleteWidget(storage::WINDOWS_TABLE, storage::WINDOW_ID, ids);
 }
 
 void UiStorage::deleteMainWindow(qint32 id)
 {
-    if (auto db = db::get(); db.isOpen()) {
-        QSqlQuery q(db);
+    deleteMainWindow(QList<qint32>() << id);
+}
 
-        if (!q.exec(QString("DELETE FROM %1 WHERE %2=%3")
-            .arg(storage::MAIN_WINDOWS_TABLE)
-            .arg(storage::MAIN_WINDOW_ID)
-            .arg(id))) {
+void UiStorage::deleteMainWindow(const QList<qint32>& ids)
+{
+    deleteWidget(storage::MAIN_WINDOWS_TABLE, storage::MAIN_WINDOW_ID, ids);
+}
+
+void UiStorage::deleteWidget(QLatin1StringView table, QLatin1String key, const QList<qint32>& values)
+{
+    if (auto db = db::get(); db.isOpen()) {
+        db.transaction();
+        QSqlQuery q(db);
+        q.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:value")
+            .arg(table)
+            .arg(key));
+
+        for (auto value : values) {
+            q.bindValue(":value", value);
+            if (!q.exec()) {
+                qWarning() << db.lastError();
+            }
+        }
+        if (!db.commit()) {
             qWarning() << db.lastError();
         }
     }
