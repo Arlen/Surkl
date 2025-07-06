@@ -36,7 +36,7 @@ namespace gui
         void closeEvent(QCloseEvent* event) override;
 
     private slots:
-        void onClosed(qint32 id);
+        void closeSibling(qint32 id);
 
     private:
         void updateTitle();

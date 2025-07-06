@@ -6,6 +6,7 @@
 #include "UiStorage.hpp"
 #include "core/SessionManager.hpp"
 #include "version.hpp"
+#include "view/GraphicsView.hpp"
 #include "window/Window.hpp"
 
 #include <QApplication>
@@ -17,7 +18,7 @@ using namespace gui;
 
 /// The first MainWindow that's created is considered to be the main, and all
 /// the other MainWindows are siblings of the main.  The main is responsible
-/// for delete the siblings from DB when they are closed.
+/// for deleting the siblings from DB when they are closed.
 MainWindow::MainWindow()
 {
     auto* layout = new QHBoxLayout(this);
@@ -32,11 +33,12 @@ MainWindow::MainWindow()
     core::SessionManager::us()->saveMainWindow(this);
 }
 
+/// creates a new sibling.
 void MainWindow::moveToNewMainWindow(window::Window *source)
 {
     if (source) {
         auto* mw = new MainWindow();
-        connect(mw, &MainWindow::closed, this, &MainWindow::onClosed);
+        connect(mw, &MainWindow::closed, mw, &MainWindow::closeSibling);
         Q_ASSERT(mw->splitter());
         Q_ASSERT(mw->splitter()->count() == 1);
         auto* target = qobject_cast<window::Window*>(mw->splitter()->widget(0));
@@ -64,8 +66,21 @@ void MainWindow::closeEvent(QCloseEvent *event)
     }
 }
 
-void MainWindow::onClosed(qint32 id)
+void MainWindow::closeSibling(qint32 id)
 {
+    const auto windows = findChildren<window::Window*>();
+
+    QList<qint32> winIds, viewIds;
+    for (auto* win : windows) {
+        const auto winId = win->widgetId();
+        winIds.push_back(winId);
+        if (qobject_cast<const view::GraphicsView*>(win->areaWidget()->widget())) {
+            viewIds.push_back(winId);
+        }
+    }
+    /// TODO: splitters
+    core::SessionManager::us()->deleteWindow(winIds);
+    core::SessionManager::us()->deleteView(viewIds);
     core::SessionManager::us()->deleteMainWindow(id);
 }
 
