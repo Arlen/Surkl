@@ -233,7 +233,7 @@ void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
         db.transaction();
         QSqlQuery q(db);
 
-        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
+        q.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
             .arg(NODES_TABLE)
 
             .arg(NODE_ID)
@@ -274,11 +274,11 @@ void SceneStorage::consume(const QList<QVariant>& data)
         QSqlQuery q_del(db);
         QSqlQuery q_save(db);
 
-        q_del.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:id")
+        q_del.prepare(QLatin1String("DELETE FROM %1 WHERE %2=:id")
             .arg(NODES_TABLE)
             .arg(NODE_ID));
 
-        q_save.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
+        q_save.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
             .arg(NODES_TABLE)
 
             .arg(NODE_ID)
@@ -325,7 +325,7 @@ void SceneStorage::createTable()
         QSqlQuery q(db);
 
         q.exec(
-            QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
+            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
                             ( %2 TEXT PRIMARY KEY
                             , %3 INTEGER
                             , %4 INTEGER
@@ -353,7 +353,7 @@ QHash<QPersistentModelIndex, QList<NodeData>> SceneStorage::readTable(const File
     QHash<QPersistentModelIndex, QList<NodeData>> graph;
 
     QSqlQuery q(db);
-    q.prepare(QLatin1StringView("SELECT * FROM %1").arg(NODES_TABLE));
+    q.prepare(QLatin1String("SELECT * FROM %1").arg(NODES_TABLE));
 
     if (q.exec()) {
         const auto rec       = q.record();

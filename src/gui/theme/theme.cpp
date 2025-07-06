@@ -51,7 +51,7 @@ void ThemeManager::configure(ThemeManager* tm)
     Colors colors;
     auto ok = false;
 
-    ok = q.prepare(QLatin1StringView("SELECT %1,%2 FROM %3")
+    ok = q.prepare(QLatin1String("SELECT %1,%2 FROM %3")
             .arg(PALETTE_ID)
             .arg(PALETTE_NAME)
             .arg(PALETTES_TABLE));
@@ -70,7 +70,7 @@ void ThemeManager::configure(ThemeManager* tm)
         }
     }
 
-    ok = q.prepare(QLatin1StringView("SELECT %1,%2,%3 FROM %4")
+    ok = q.prepare(QLatin1String("SELECT %1,%2,%3 FROM %4")
             .arg(PALETTE_ID)
             .arg(COLOR_POSITION)
             .arg(COLOR_VALUE)
@@ -343,19 +343,19 @@ void ThemeManager::createTables()
 
     /// CREATE TABLE Palettes (id TEXT, name TEXT)
     q.exec(
-        QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                            ( %2 TEXT NOT NULL PRIMARY KEY
-                            , %3 TEXT NOT NULL))")
+        QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                        ( %2 TEXT NOT NULL PRIMARY KEY
+                        , %3 TEXT NOT NULL))")
             .arg(PALETTES_TABLE)
             .arg(PALETTE_ID)
             .arg(PALETTE_NAME));
 
     /// CREATE TABLE Colors (palette_id TEXT, position INTEGER, value INTEGER)
     q.exec(
-        QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                            ( %2 TEXT NOT NULL
-                            , %3 INTEGER NOT NULL
-                            , %4 INTEGER NOT NULL))")
+        QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                        ( %2 TEXT NOT NULL
+                        , %3 INTEGER NOT NULL
+                        , %4 INTEGER NOT NULL))")
             .arg(COLORS_TABLE)
             .arg(PALETTE_ID)
             .arg(COLOR_POSITION)
@@ -363,9 +363,9 @@ void ThemeManager::createTables()
 
     /// CREATE TABLE ThemeSettings (attr_key TEXT, attr_value TEXT)
     q.exec(
-        QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                            ( %2 TEXT PRIMARY KEY
-                            , %3 TEXT NOT NULL))")
+        QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                        ( %2 TEXT PRIMARY KEY
+                        , %3 TEXT NOT NULL))")
             .arg(THEME_SETTINGS_TABLE)
             .arg(ATTRIBUTE_KEY)
             .arg(ATTRIBUTE_VALUE));
@@ -379,12 +379,12 @@ void ThemeManager::savePalettes(std::ranges::input_range auto&& rg)
         QSqlQuery q1(db);
         QSqlQuery q2(db);
 
-        q1.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3) VALUES(?, ?)")
+        q1.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3) VALUES(?, ?)")
             .arg(PALETTES_TABLE)
             .arg(PALETTE_ID)
             .arg(PALETTE_NAME));
 
-        q2.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2,%3,%4) VALUES(?, ?, ?)")
+        q2.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3,%4) VALUES(?, ?, ?)")
             .arg(COLORS_TABLE)
             .arg(PALETTE_ID)
             .arg(COLOR_POSITION)
@@ -427,11 +427,11 @@ void ThemeManager::deletePalettes(std::ranges::input_range auto&& rg)
         QSqlQuery q1(db);
         QSqlQuery q2(db);
 
-        q1.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:key")
+        q1.prepare(QLatin1String("DELETE FROM %1 WHERE %2=:key")
             .arg(PALETTES_TABLE)
             .arg(PALETTE_ID));
 
-        q2.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:key")
+        q2.prepare(QLatin1String("DELETE FROM %1 WHERE %2=:key")
             .arg(COLORS_TABLE)
             .arg(PALETTE_ID));
 
@@ -453,7 +453,7 @@ void ThemeManager::saveActiveTheme(const std::string& id)
 {
     if (const auto db = core::db::get(); db.isOpen()) {
         QSqlQuery q(db);
-        q.prepare(QLatin1StringView("INSERT OR REPLACE INTO %1 (%2, %3) VALUES(?, ?)")
+        q.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2, %3) VALUES(?, ?)")
             .arg(THEME_SETTINGS_TABLE)
             .arg(ATTRIBUTE_KEY)
             .arg(ATTRIBUTE_VALUE));
@@ -476,7 +476,7 @@ QString ThemeManager::getActiveTheme()
 
     if (const auto db = core::db::get(); db.isOpen()) {
         QSqlQuery q(db);
-        q.prepare(QLatin1StringView("SELECT %2 FROM %3 WHERE %1=:key")
+        q.prepare(QLatin1String("SELECT %2 FROM %3 WHERE %1=:key")
             .arg(ATTRIBUTE_KEY)
             .arg(ATTRIBUTE_VALUE)
             .arg(THEME_SETTINGS_TABLE));

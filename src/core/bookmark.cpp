@@ -12,7 +12,7 @@ void BookmarkManager::configure(BookmarkManager* bm)
     if (auto db = db::get(); db.isOpen()) {
         if (db::doesTableExists(TABLE_NAME)) {
             QSqlQuery q(db);
-            q.prepare(QLatin1StringView("SELECT * FROM %1").arg(TABLE_NAME));
+            q.prepare(QLatin1String("SELECT * FROM %1").arg(TABLE_NAME));
             q.exec();
             const auto rec         = q.record();
             const auto pos_x_index = rec.indexOf(POSITION_X_COL);
@@ -31,11 +31,11 @@ void BookmarkManager::configure(BookmarkManager* bm)
             db.transaction();
             QSqlQuery q(db);
             q.prepare(
-                QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                                    ( %2 INTEGER NOT NULL
-                                    , %3 INTEGER NOT NULL
-                                    , %4 TEXT NOT NULL
-                                    , UNIQUE(%2, %3)))")
+                QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                                ( %2 INTEGER NOT NULL
+                                , %3 INTEGER NOT NULL
+                                , %4 TEXT NOT NULL
+                                , UNIQUE(%2, %3)))")
                 .arg(TABLE_NAME)
                 .arg(POSITION_X_COL)
                 .arg(POSITION_Y_COL)
