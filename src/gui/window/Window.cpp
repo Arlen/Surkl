@@ -9,6 +9,7 @@
 #include "gui/UiStorage.hpp"
 #include "theme/ThemeArea.hpp"
 #include "theme/theme.hpp"
+#include "view/GraphicsView.hpp"
 #include "view/ViewArea.hpp"
 
 #include <QDrag>
@@ -43,7 +44,7 @@ Window::Window(QWidget *parent)
     layout->setSpacing(1);
 
     initTitlebar(layout);
-    setAreaWidget(new view::ViewArea(core::SessionManager::scene(), this));
+    switchToView();
     setupMenu();
     setAcceptDrops(true);
 
@@ -245,10 +246,12 @@ void Window::activateSwapMode()
     }
 }
 
-void Window::closeMe()
+void Window::closeWindow()
 {
-    core::SessionManager::us()->deleteView(areaWidget()->widget());
-    core::SessionManager::us()->deleteWindow(this);
+    if (qobject_cast<const view::GraphicsView*>(areaWidget()->widget())) {
+        core::SessionManager::us()->deleteView(widgetId());
+    }
+    core::SessionManager::us()->deleteWindow(widgetId());
 
     emit closed(this);
 }
@@ -278,7 +281,7 @@ void Window::initTitlebar(QVBoxLayout *layout)
     connect(_titleBar->closeButton()
             , &QAbstractButton::released
             , this
-            , &Window::closeMe);
+            , &Window::closeWindow);
 
     connect(_titleBar->splitButton()
             , &QAbstractButton::pressed

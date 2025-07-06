@@ -73,7 +73,7 @@ namespace gui::window
 
         void activateSwapMode();
 
-        void closeMe();
+        void closeWindow();
 
         void switchToView();
 
