@@ -15,27 +15,28 @@
 namespace gui::storage
 {
     constexpr auto MAIN_WINDOWS_TABLE        = QLatin1String("MainWindows");
-    constexpr auto MAIN_WINDOW_ID            = QLatin1String("id");
+    constexpr auto MAIN_WINDOW_ID            = QLatin1String("mw_id");
     constexpr auto MAIN_WINDOW_ROOT_SPLITTER = QLatin1String("root_splitter");
 
     constexpr auto SPLITTERS_TABLE      = QLatin1String("Splitters");
-    constexpr auto SPLITTER_ID          = QLatin1String("id");
-    //constexpr auto SPLITTER_INDEX       = QLatin1String("index");
-    //constexpr auto SPLITTER_PARENT      = QLatin1String("parent");
+    constexpr auto SPLITTER_ID          = QLatin1String("splitter_id");
+    constexpr auto SPLITTER_SIZE        = QLatin1String("size");
     constexpr auto SPLITTER_ORIENTATION = QLatin1String("orientation");
 
-    constexpr auto SPLITTER_WIDGETS_TABLES = QLatin1String("Splitter%1Widgets");
-    constexpr auto SPLITTER_WIDGET_INDEX   = QLatin1String("widget_index");
-    constexpr auto SPLITTER_WIDGET_ID      = QLatin1String("widget_id");
+    /// a widget is either a Window or a Splitter.
+    /// a widget belongs to a Splitter, and has an index.
+    constexpr auto WIDGETS_TABLE = QLatin1String("Widgets");
+    constexpr auto WIDGET_ID     = QLatin1String("widget_id");
+    constexpr auto WIDGET_INDEX  = QLatin1String("widget_index");
 
+    /// a table to keep track of which Splitter a widget belongs to.
+    /// (widget_id, splitter_id)
+    constexpr auto SPLITTER_WIDGETS_TABLE = QLatin1StringView("SplitterWidgets");
 
     constexpr auto WINDOWS_TABLE = QLatin1String("Windows");
-    constexpr auto WINDOW_ID     = QLatin1String("id");
-    //constexpr auto WINDOW_INDEX  = QLatin1String("index");
-    //constexpr auto WINDOW_PARENT = QLatin1String("parent");
+    constexpr auto WINDOW_ID     = QLatin1String("window_id");
     constexpr auto WINDOW_SIZE   = QLatin1String("size");
     constexpr auto WINDOW_TYPE   = QLatin1String("type");
-
 
     constexpr auto GRAPHICS_VIEWS_TABLE   = QLatin1String("GraphicsViews");
     // the parent Window which contains the ViewArea that contains a GraphicsView widget.

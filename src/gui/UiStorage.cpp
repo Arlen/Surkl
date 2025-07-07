@@ -58,13 +58,14 @@ UiStorage::UiStorage(QObject* parent)
 
 void UiStorage::configure()
 {
+    using namespace core::db;
+
     createTable();
 
-    Q_ASSERT(core::db::doesTableExists(storage::MAIN_WINDOWS_TABLE));
-    Q_ASSERT(core::db::doesTableExists(storage::MAIN_WINDOWS_TABLE));
-    Q_ASSERT(core::db::doesTableExists(storage::MAIN_WINDOWS_TABLE));
-    Q_ASSERT(core::db::doesTableExists(storage::MAIN_WINDOWS_TABLE));
-
+    Q_ASSERT(doesTableExists(storage::MAIN_WINDOWS_TABLE));
+    Q_ASSERT(doesTableExists(storage::SPLITTERS_TABLE));
+    Q_ASSERT(doesTableExists(storage::WINDOWS_TABLE));
+    Q_ASSERT(doesTableExists(storage::GRAPHICS_VIEWS_TABLE));
 }
 
 void UiStorage::createTable()
@@ -74,14 +75,13 @@ void UiStorage::createTable()
 
     if (const auto db = db::get(); db.isOpen()) {
         QSqlQuery q(db);
-        bool ok;
 
-        ok = q.exec(
-            QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                                ( %2 INTEGER
-                                , %3 INTEGER
-                                , UNIQUE(%2)
-                                , UNIQUE(%3)) )")
+        bool ok = q.exec(
+            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 INTEGER
+                            , %3 INTEGER
+                            , UNIQUE(%2)
+                            , UNIQUE(%3)) )")
             .arg(MAIN_WINDOWS_TABLE)
             .arg(MAIN_WINDOW_ID)
             .arg(MAIN_WINDOW_ROOT_SPLITTER));
@@ -89,20 +89,42 @@ void UiStorage::createTable()
         if (!ok) { qWarning() << q.lastError() << q.executedQuery(); }
 
         ok = q.exec(
-            QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                                ( %2 INTEGER PRIMARY KEY
-                                , %3 INTEGER) )")
+            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 INTEGER PRIMARY KEY
+                            , %3 INTEGER
+                            , %4 INTEGER) )")
             .arg(SPLITTERS_TABLE)
             .arg(SPLITTER_ID)
+            .arg(SPLITTER_SIZE)
             .arg(SPLITTER_ORIENTATION));
 
         if (!ok) { qWarning() << q.lastError() << q.executedQuery(); }
 
         ok = q.exec(
-            QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                                ( %2 INTEGER PRIMARY KEY
-                                , %3 INTEGER
-                                , %4 INTEGER) )")
+            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 INTEGER PRIMARY KEY
+                            , %3 INTEGER) )")
+            .arg(WIDGETS_TABLE)
+            .arg(WIDGET_ID)
+            .arg(WIDGET_INDEX));
+
+        if (!ok) { qWarning() << q.lastError() << q.executedQuery(); }
+
+        ok = q.exec(
+            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 INTEGER PRIMARY KEY
+                            , %3 INTEGER) )")
+            .arg(SPLITTER_WIDGETS_TABLE)
+            .arg(WIDGET_ID)
+            .arg(SPLITTER_ID));
+
+        if (!ok) { qWarning() << q.lastError() << q.executedQuery(); }
+
+        ok = q.exec(
+            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 INTEGER PRIMARY KEY
+                            , %3 INTEGER
+                            , %4 INTEGER) )")
             .arg(WINDOWS_TABLE)
             .arg(WINDOW_ID)
             .arg(WINDOW_SIZE)
@@ -111,10 +133,10 @@ void UiStorage::createTable()
         if (!ok) { qWarning() << q.lastError() << q.executedQuery(); }
 
         ok = q.exec(
-            QLatin1StringView(R"(CREATE TABLE IF NOT EXISTS %1
-                                ( %2 INTEGER PRIMARY KEY
-                                , %3 INTEGER
-                                , %4 INTEGER) )")
+            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
+                            ( %2 INTEGER PRIMARY KEY
+                            , %3 INTEGER
+                            , %4 INTEGER) )")
             .arg(GRAPHICS_VIEWS_TABLE)
             .arg(GRAPHICS_VIEW_PARENT)
             .arg(GRAPHICS_VIEW_CENTER_X)
