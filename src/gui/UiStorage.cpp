@@ -250,7 +250,7 @@ void UiStorage::saveView(const view::GraphicsView* gv)
                 const auto id = window->widgetId();
                 const auto center = gv->mapToScene(gv->rect().center());
 
-                if (!q.exec(QString("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
+                if (!q.exec(QLatin1String("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
                     .arg(storage::GRAPHICS_VIEWS_TABLE)
                     .arg(id)
                     .arg(center.x())
@@ -274,13 +274,72 @@ void UiStorage::saveWindow(const window::Window* win)
         const auto size = getWindowSize(win);
         const auto type = getAreaType(win);
 
-        if (!q.exec(QString("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
+        if (!q.exec(QLatin1String("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
             .arg(storage::WINDOWS_TABLE)
             .arg(id)
             .arg(size)
             .arg(type))) {
             qWarning() << db.lastError();
         }
+    }
+}
+
+void UiStorage::saveSplitter(const Splitter* splitter)
+{
+    Q_ASSERT(splitter);
+
+    if (auto db = db::get(); db.isOpen()) {
+        db.transaction();
+        QSqlQuery q(db);
+
+        const auto splitterId  = splitter->widgetId();
+        const auto splitterOri = splitter->orientation();
+
+        if (!q.exec(QLatin1String("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
+            .arg(storage::SPLITTERS_TABLE)
+            .arg(splitterId)
+            .arg(splitterOri == Qt::Horizontal ? splitter->width() : splitter->height())
+            .arg(splitterOri))) {
+            qWarning() << db.lastError();
+        }
+
+       q.prepare(QLatin1String(R"(INSERT OR REPLACE INTO %1 (%2, %3) VALUES(?, ?))")
+           .arg(storage::WIDGETS_TABLE)
+           .arg(storage::WIDGET_ID)
+           .arg(storage::WIDGET_INDEX));
+
+        QList<qint32> widgetIds;
+        for (int i = 0; i < splitter->count(); ++i) {
+            auto* widget = splitter->widget(i);
+            qint32 widgetId = -1;
+            if (const auto* win = qobject_cast<window::Window*>(widget)) {
+                widgetId = win->widgetId();
+            } else if (const auto* sp = qobject_cast<Splitter*>(widget)) {
+                widgetId = sp->widgetId();
+            }
+            Q_ASSERT(widgetId != -1);
+            widgetIds.push_back(widgetId);
+            q.addBindValue(widgetId);
+            q.addBindValue(i);
+            if (!q.exec()) {
+                qWarning() << db.lastError();
+            }
+        }
+
+        q.prepare(QLatin1String(R"(INSERT OR REPLACE INTO %1 (%2, %3) VALUES(?, ?))")
+            .arg(storage::SPLITTER_WIDGETS_TABLE)
+            .arg(storage::WIDGET_ID)
+            .arg(storage::SPLITTER_ID));
+
+        for (const auto widgetId : widgetIds) {
+            q.addBindValue(widgetId);
+            q.addBindValue(splitterId);
+            if (!q.exec()) {
+                qWarning() << db.lastError();
+            }
+        }
+
+        db.commit();
     }
 }
 
@@ -310,7 +369,7 @@ void UiStorage::deleteView(qint32 parentId)
 
 void UiStorage::deleteView(const QList<qint32>& ids)
 {
-    deleteWidget(storage::GRAPHICS_VIEWS_TABLE, storage::GRAPHICS_VIEW_PARENT, ids);
+    deleteFrom(storage::GRAPHICS_VIEWS_TABLE, storage::GRAPHICS_VIEW_PARENT, ids);
 }
 
 void UiStorage::deleteWindow(qint32 id)
@@ -320,7 +379,48 @@ void UiStorage::deleteWindow(qint32 id)
 
 void UiStorage::deleteWindow(const QList<qint32>& ids)
 {
-    deleteWidget(storage::WINDOWS_TABLE, storage::WINDOW_ID, ids);
+    deleteFrom(storage::WINDOWS_TABLE, storage::WINDOW_ID, ids);
+
+    deleteFrom(storage::WIDGETS_TABLE, storage::WIDGET_ID, ids);
+    deleteFrom(storage::SPLITTER_WIDGETS_TABLE, storage::WIDGET_ID, ids);
+}
+
+void UiStorage::deleteSplitter(qint32 id)
+{
+    deleteSplitter(QList<qint32>() << id);
+}
+
+void UiStorage::deleteSplitter(const QList<qint32>& ids)
+{
+    deleteFrom(storage::SPLITTERS_TABLE, storage::SPLITTER_ID, ids);
+
+    QList<qint32> widgetIds;
+    widgetIds << ids;
+
+    if (auto db = db::get(); db.isOpen()) {
+        QSqlQuery q(db);
+
+        q.prepare(QString("SELECT %3 FROM %1 WHERE %2=:id")
+            .arg(storage::SPLITTER_WIDGETS_TABLE)
+            .arg(storage::SPLITTER_ID)
+            .arg(storage::WIDGET_ID));
+
+        bool ok;
+        for (auto id : ids) {
+            q.bindValue(":id", id);
+            if (q.exec()) {
+                auto widgetIdIndex = q.record().indexOf(storage::WIDGET_ID);
+
+                while (q.next()) {
+                    auto widgetId = q.value(widgetIdIndex).toInt(&ok); Q_ASSERT(ok);
+                    widgetIds.push_back(widgetId);
+                }
+            }
+        }
+    }
+
+    deleteFrom(storage::WIDGETS_TABLE, storage::WIDGET_ID, widgetIds);
+    deleteFrom(storage::SPLITTER_WIDGETS_TABLE, storage::WIDGET_ID, widgetIds);
 }
 
 void UiStorage::deleteMainWindow(qint32 id)
@@ -330,15 +430,15 @@ void UiStorage::deleteMainWindow(qint32 id)
 
 void UiStorage::deleteMainWindow(const QList<qint32>& ids)
 {
-    deleteWidget(storage::MAIN_WINDOWS_TABLE, storage::MAIN_WINDOW_ID, ids);
+    deleteFrom(storage::MAIN_WINDOWS_TABLE, storage::MAIN_WINDOW_ID, ids);
 }
 
-void UiStorage::deleteWidget(QLatin1StringView table, QLatin1String key, const QList<qint32>& values)
+void UiStorage::deleteFrom(const QLatin1String& table, const QLatin1String& key, const QList<qint32>& values)
 {
     if (auto db = db::get(); db.isOpen()) {
         db.transaction();
         QSqlQuery q(db);
-        q.prepare(QLatin1StringView("DELETE FROM %1 WHERE %2=:value")
+        q.prepare(QLatin1String("DELETE FROM %1 WHERE %2=:value")
             .arg(table)
             .arg(key));
 

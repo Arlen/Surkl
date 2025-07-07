@@ -66,6 +66,7 @@ namespace gui::storage
     struct Splitter
     {
         //qint32 id;
+        qint32 size;
         qint32 orientation;
         std::unordered_set<qint32> widgets; // IDs of Windows or Splitters.
     };
@@ -78,6 +79,7 @@ namespace gui::storage
 namespace gui
 {
     class MainWindow;
+    class Splitter;
 
     namespace view
     {
@@ -95,6 +97,8 @@ namespace gui
 
         static void saveWindow(const window::Window* win);
 
+        static void saveSplitter(const Splitter* splitter);
+
         static void saveMainWindow(const MainWindow* mw);
 
         void deleteView(qint32 parentId);
@@ -105,12 +109,16 @@ namespace gui
 
         void deleteWindow(const QList<qint32>& ids);
 
+        void deleteSplitter(qint32 id);
+
+        void deleteSplitter(const QList<qint32>& ids);
+
         void deleteMainWindow(qint32 id);
 
         void deleteMainWindow(const QList<qint32>& ids);
 
     private:
-        void deleteWidget(QLatin1StringView table, QLatin1String key, const QList<qint32>& values);
+        void deleteFrom(const QLatin1String& table, const QLatin1String& key, const QList<qint32>& values);
 
         static void createTable();
 
