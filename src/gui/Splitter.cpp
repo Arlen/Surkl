@@ -3,10 +3,9 @@
 
 #include "Splitter.hpp"
 #include "SplitterHandle.hpp"
-#include "window/AbstractWindowArea.hpp"
+#include "UiStorage.hpp"
+#include "core/SessionManager.hpp"
 #include "window/Window.hpp"
-
-#include <QScreen>
 
 
 using namespace gui;
@@ -31,6 +30,10 @@ Splitter::Splitter(qint32 id, Qt::Orientation orientation, QWidget *parent)
     /// to resize the window.
     connect(this, &QSplitter::splitterMoved, [this](int pos, int index) {
         Q_UNUSED(pos)
+        /// First save to DB (this has nothing to do with the comment above,
+        /// just a needed save to DB).
+        core::SessionManager::us()->saveSplitter(this);
+
         handle(index)->hide();
     });
 }
@@ -59,7 +62,7 @@ void Splitter::insertWindow(int index, Window *window)
 /// parent splitter; otherwise, it returns -1.
 int Splitter::row()
 {
-    if (const auto *parent = qobject_cast<Splitter *>(parentWidget()); parent) {
+    if (const auto *parent = qobject_cast<Splitter *>(parentWidget())) {
         return parent->indexOf(this);
     }
 
@@ -118,6 +121,8 @@ void Splitter::splitWindow(const QPoint& pos, Qt::Orientation splitOrientation, 
         /// The only fix I found is this (i.e., hide).  No need to call show()
         /// on it, as the parent Splitter seem to do it.
         handle(indexOf(child))->hide();
+
+        core::SessionManager::us()->saveSplitter(this);
     } else {
         const auto size = splitOrientation == Qt::Horizontal ? pos.x() : pos.y();
 
@@ -140,6 +145,9 @@ void Splitter::splitWindow(const QPoint& pos, Qt::Orientation splitOrientation, 
         /// The only fix I found is this (i.e., hide).  No need to call show()
         /// on it, as the parent Splitter seem to do it.
         splitter->handle(1)->hide();
+
+        core::SessionManager::us()->saveSplitter(this);
+        core::SessionManager::us()->saveSplitter(splitter);
     }
 }
 
@@ -173,7 +181,7 @@ void Splitter::deleteChild(Window *child)
         child->setParent(nullptr);
         setSizes(sz);
     } else if (count() == 2) {
-        if (auto* parentSplitter = qobject_cast<Splitter *>(parentWidget()); parentSplitter) {
+        if (auto* parentSplitter = qobject_cast<Splitter *>(parentWidget())) {
             /// if the splitter is NOT root, then we'll have to transfer
             /// ownership of the orphan child to the parent splitter after the
             /// other child has been deleted.
@@ -183,9 +191,9 @@ void Splitter::deleteChild(Window *child)
             child->deleteLater();
             child->setParent(nullptr);
 
-            if (auto *window = qobject_cast<Window *>(widget(0)); window) {
+            if (auto *window = qobject_cast<Window *>(widget(0))) {
                 parentSplitter->takeOwnershipOf(window, indexOfThisSplitter);
-            } else if (auto* splitter = qobject_cast<Splitter *>(widget(0)); splitter) {
+            } else if (auto* splitter = qobject_cast<Splitter *>(widget(0))) {
                 parentSplitter->takeOwnershipOf(splitter, indexOfThisSplitter);
             }
         } else {
@@ -205,8 +213,8 @@ void Splitter::swap(Window *winA, Window *winB)
     auto *parentB = qobject_cast<Splitter *>(winB->parentWidget());
     Q_ASSERT(parentB);
 
-    auto winAIndex = parentA->indexOf(winA);
-    auto winBIndex = parentB->indexOf(winB);
+    const auto winAIndex = parentA->indexOf(winA);
+    const auto winBIndex = parentB->indexOf(winB);
 
     const auto parentASizes = parentA->sizes();
     const auto parentBSizes = parentB->sizes();
@@ -215,9 +223,11 @@ void Splitter::swap(Window *winA, Window *winB)
     parentB->insertWindow(winBIndex, winA);
 
     parentA->setSizes(parentASizes);
+    core::SessionManager::us()->saveSplitter(parentA);
 
     if (parentA != parentB) {
         parentB->setSizes(parentBSizes);
+        core::SessionManager::us()->saveSplitter(parentB);
     }
 }
 
@@ -249,12 +259,14 @@ void Splitter::takeOwnershipOf(Window *orphanWindow, int childSplitterIndex)
     const auto sz = sizes();
     auto childSplitter = qobject_cast<Splitter *>(widget(childSplitterIndex));
     Q_ASSERT(childSplitter->count() == 1);
+    core::SessionManager::us()->deleteSplitter(childSplitter->widgetId());
     childSplitter->setParent(nullptr);
     childSplitter->deleteLater();
 
     insertWidget(childSplitterIndex, orphanWindow);
     connectWindowToThisSplitter(orphanWindow);
     setSizes(sz);
+    core::SessionManager::us()->saveSplitter(this);
 }
 
 /// This function is a more complicated version of takeOwnershipOf(). it takes
@@ -289,14 +301,20 @@ void Splitter::takeOwnershipOf(Splitter *orphanSplitter, int childSplitterIndex)
             insertWidget(i, childOfOrphanSplitter);
         }
         Q_ASSERT(orphanSplitter->count() == 0);
+        core::SessionManager::us()->deleteSplitter(qobject_cast<Splitter*>(toBeDeletedChild)->widgetId());
         toBeDeletedChild->setParent(nullptr);
         toBeDeletedChild->deleteLater();
 
+        core::SessionManager::us()->deleteSplitter(orphanSplitter->widgetId());
         orphanSplitter->setParent(nullptr);
         orphanSplitter->deleteLater();
         setSizes(newSizes);
     } else {
+        if (auto* sp = qobject_cast<Splitter*>(widget(childSplitterIndex))) {
+            core::SessionManager::us()->deleteSplitter(sp->widgetId());
+        }
         widget(childSplitterIndex)->deleteLater();
         insertWidget(childSplitterIndex, orphanSplitter);
     }
+    core::SessionManager::us()->saveSplitter(this);
 }

@@ -78,10 +78,14 @@ void MainWindow::closeSibling(qint32 id)
             viewIds.push_back(winId);
         }
     }
-    /// TODO: splitters
     core::SessionManager::us()->deleteWindow(winIds);
     core::SessionManager::us()->deleteView(viewIds);
     core::SessionManager::us()->deleteMainWindow(id);
+
+    auto splitters = findChildren<Splitter*>()
+        | std::views::transform(&Splitter::widgetId)
+        | std::ranges::to<QList<qint32>>();
+    core::SessionManager::us()->deleteSplitter(splitters);
 }
 
 void MainWindow::updateTitle()
