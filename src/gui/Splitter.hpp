@@ -29,18 +29,13 @@ namespace gui
 
         explicit Splitter(Qt::Orientation orientation, QWidget *parent = nullptr);
 
-        explicit Splitter(qint32 id, Qt::Orientation orientation, QWidget *parent = nullptr);
-
         void addWindow(window::Window *window);
 
         void insertWindow(int index, window::Window *window);
 
-        [[nodiscard]] qint32 id() const { return _id; }
+        void addWindow();
 
         int row();
-
-        Splitter* splitWindowAsSplitter(const QPoint& pos, Qt::Orientation splitOrientation, window::Window *child
-            , qint32 newSplitterId);
 
     public slots:
         void splitWindow(const QPoint& pos, Qt::Orientation splitOrientation, window::Window *child);
@@ -53,15 +48,12 @@ namespace gui
         QSplitterHandle *createHandle() override;
 
     private:
-        [[nodiscard]] window::Window *createEmptyWindow() const;
+        [[nodiscard]] window::Window *createWindow() const;
 
         void connectWindowToThisSplitter(const window::Window *child) const;
 
         void takeOwnershipOf(window::Window *orphanWindow, int childSplitterIndex);
 
         void takeOwnershipOf(Splitter *orphanSplitter, int childSplitterIndex);
-
-        /// the UI id used in persistent UI
-        qint32 _id;
     };
 }

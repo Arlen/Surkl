@@ -12,18 +12,11 @@ using namespace gui;
 using namespace gui::window;
 
 Splitter::Splitter(Qt::Orientation orientation, QWidget *parent)
-    : Splitter(-1, orientation, parent)
-{
-}
-
-Splitter::Splitter(qint32 id, Qt::Orientation orientation, QWidget *parent)
     : QSplitter(orientation, parent)
-    , _id(id)
 {
     setHandleWidth(7);
     setOpaqueResize(false);
     setChildrenCollapsible(false);
-    addWindow(createEmptyWindow());
 
     /// See the FIX comment in Splitter::splitWindow.
     /// This is a similar fix, except for when just moving the SplitterHandle
@@ -58,6 +51,11 @@ void Splitter::insertWindow(int index, Window *window)
     }
 }
 
+void Splitter::addWindow()
+{
+    addWindow(createWindow());
+}
+
 /// If the parent widget is another splitter, returns the index into that
 /// parent splitter; otherwise, it returns -1.
 int Splitter::row()
@@ -67,31 +65,6 @@ int Splitter::row()
     }
 
     return -1;
-}
-
-/// This is almost the exact same code as 'splitWindow' else statement.  It
-/// exists to accommodate MainWindow when reloading the UI and the splitter
-/// id needs to be set externally during a split operation.
-Splitter *Splitter::splitWindowAsSplitter(const QPoint& pos, Qt::Orientation splitOrientation, Window *child,
-                                          qint32 newSplitterId)
-{
-    Q_ASSERT(newSplitterId != -1);
-    const auto widgetsSizes = sizes();
-    const auto childIndex   = indexOf(child);
-    Q_ASSERT(childIndex != -1);
-    Q_ASSERT(orientation() != splitOrientation);
-
-    auto* splitter = new Splitter(newSplitterId, splitOrientation);
-    const auto size = splitOrientation == Qt::Horizontal ? pos.x() : pos.y();
-
-    splitter->addWindow(child);
-    insertWidget(childIndex, splitter);
-    setSizes(widgetsSizes);
-    splitter->moveSplitter(size, 1);
-
-    splitter->handle(1)->hide();
-
-    return splitter;
 }
 
 void Splitter::splitWindow(const QPoint& pos, Qt::Orientation splitOrientation, Window *child)
@@ -105,7 +78,7 @@ void Splitter::splitWindow(const QPoint& pos, Qt::Orientation splitOrientation, 
         const auto leftOrTopSize = orientation() == Qt::Vertical ? pos.y() : pos.x();
         widgetsSizes[childIndex] = leftOrTopSize;
         widgetsSizes.insert(childIndex + 1, childSize - leftOrTopSize - handleWidth());
-        insertWindow(indexOf(child), createEmptyWindow());
+        insertWindow(indexOf(child), createWindow());
         setSizes(widgetsSizes);
 
         /// FIX: This is a fix to a minor bug where the correct cursor is not
@@ -236,7 +209,7 @@ QSplitterHandle *Splitter::createHandle()
     return new SplitterHandle(orientation(), this);
 }
 
-Window *Splitter::createEmptyWindow() const
+Window *Splitter::createWindow() const
 {
     auto* win = new Window();
 
