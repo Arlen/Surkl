@@ -8,8 +8,8 @@
 #include <QObject>
 #include <QPoint>
 
+#include <map>
 #include <unordered_map>
-#include <unordered_set>
 
 
 namespace gui::storage
@@ -25,6 +25,7 @@ namespace gui::storage
 
     /// a widget is either a Window or a Splitter.
     /// a widget belongs to a Splitter, and has an index.
+    /// Root Splitters that belong to a MainWindow are not included in this table.
     constexpr auto WIDGETS_TABLE = QLatin1String("Widgets");
     constexpr auto WIDGET_ID     = QLatin1String("widget_id");
     constexpr auto WIDGET_INDEX  = QLatin1String("widget_index");
@@ -45,34 +46,41 @@ namespace gui::storage
     constexpr auto GRAPHICS_VIEW_CENTER_X = QLatin1String("center_x");
     constexpr auto GRAPHICS_VIEW_CENTER_Y = QLatin1String("center_y");
 
+    using MainWindowId = qint32;
+    using SplitterId = qint32;
     using WindowId = qint32;
+    using WidgetId = qint32; /// a Window or a Splitter.
 
     struct View
     {
-        //qint32 parent;
         QPoint center;
     };
     using Views = std::unordered_map<WindowId, QPoint>;
 
     struct Window
     {
-        //qint32 id;
         qint32 size;
-        //qint32 type;
         window::AbstractWindowArea::AreaType type;
     };
     using Windows = std::unordered_map<WindowId, Window>;
 
     struct Splitter
     {
-        //qint32 id;
         qint32 size;
         qint32 orientation;
-        std::unordered_set<qint32> widgets; // IDs of Windows or Splitters.
+        std::map<qint32, WidgetId> widgets;
     };
+    using Splitters = std::unordered_map<SplitterId, Splitter>;
 
-    using Splitters = std::unordered_map<qint32, Splitter>;
-    using MainWindows = std::unordered_map<qint32, qint32>;
+    using MainWindows = std::map<MainWindowId, SplitterId>;
+
+    struct UiState
+    {
+        Views views;
+        Windows windows;
+        Splitters splitters;
+        MainWindows mws;
+    };
 }
 
 
@@ -90,6 +98,8 @@ namespace gui
     {
     public:
         explicit UiStorage(QObject* parent = nullptr);
+
+        static storage::UiState load();
 
         static void configure();
 
@@ -122,6 +132,6 @@ namespace gui
 
         static void createTable();
 
-        void readTable();
+        static void readTable(storage::UiState& state);
     };
 }

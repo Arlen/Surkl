@@ -146,95 +146,128 @@ void UiStorage::createTable()
     }
 }
 
-void UiStorage::readTable()
+storage::UiState UiStorage::load()
+{
+    storage::UiState state;
+
+    readTable(state);
+
+    return state;
+}
+
+
+void UiStorage::readTable(storage::UiState& state)
 {
     using namespace gui::storage;
 
     const auto db = core::db::get();
 
-    if (!db.isOpen()) {
-        return; // {};
-    }
+    if (!db.isOpen()) { return; }
     bool ok;
 
     QSqlQuery q(db);
-    Views views;
-    Windows windows;
-    Splitters splitters;
-    MainWindows mainWindows;
 
-    q.prepare(QLatin1StringView("SELECT * FROM %1").arg(GRAPHICS_VIEWS_TABLE));
+    q.prepare(QLatin1String("SELECT * FROM %1").arg(GRAPHICS_VIEWS_TABLE));
 
     if (q.exec()) {
         const auto rec = q.record();
-        const auto parentIndex = rec.indexOf(GRAPHICS_VIEW_PARENT);
-        const auto cxIndex = rec.indexOf(GRAPHICS_VIEW_CENTER_X);
-        const auto cyIndex = rec.indexOf(GRAPHICS_VIEW_CENTER_Y);
+        const auto parentIdx = rec.indexOf(GRAPHICS_VIEW_PARENT);
+        const auto cxIdx     = rec.indexOf(GRAPHICS_VIEW_CENTER_X);
+        const auto cyIdx     = rec.indexOf(GRAPHICS_VIEW_CENTER_Y);
 
         while (q.next()) {
-            const auto parent = q.value(parentIndex).toInt(&ok); Q_ASSERT(ok);
-            const auto cx = q.value(cxIndex).toInt(&ok); Q_ASSERT(ok);
-            const auto cy = q.value(cyIndex).toInt(&ok); Q_ASSERT(ok);
-            Q_ASSERT(!views.contains(parent));
-            views[parent] = QPoint(cx, cy);
+            const auto parent = q.value(parentIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto cx = q.value(cxIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto cy = q.value(cyIdx).toInt(&ok); Q_ASSERT(ok);
+            Q_ASSERT(!state.views.contains(parent));
+            state.views[parent] = QPoint(cx, cy);
         }
     }
 
-    q.prepare(QLatin1StringView("SELECT * FROM %1").arg(WINDOWS_TABLE));
+    q.prepare(QLatin1String("SELECT * FROM %1").arg(WINDOWS_TABLE));
 
     if (q.exec()) {
         const auto rec = q.record();
-        const auto idIndex   = rec.indexOf(WINDOW_ID);
-        const auto sizeIndex = rec.indexOf(WINDOW_SIZE);
-        const auto typeIndex = rec.indexOf(WINDOW_TYPE);
+        const auto windowIdIdx = rec.indexOf(WINDOW_ID);
+        const auto sizeIdx     = rec.indexOf(WINDOW_SIZE);
+        const auto typeIdx     = rec.indexOf(WINDOW_TYPE);
 
         while (q.next()) {
-            const auto id   = q.value(idIndex).toInt(&ok); Q_ASSERT(ok);
-            const auto size = q.value(sizeIndex).toInt(&ok); Q_ASSERT(ok);
-            const auto type = q.value(typeIndex).toInt(&ok); Q_ASSERT(ok);
-            Q_ASSERT(!windows.contains(id));
-            windows[id] = storage::Window{size, static_cast<window::AbstractWindowArea::AreaType>(type)};
+            const auto id   = q.value(windowIdIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto size = q.value(sizeIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto type = q.value(typeIdx).toInt(&ok); Q_ASSERT(ok);
+            Q_ASSERT(!state.windows.contains(id));
+            state.windows[id] = storage::Window{size, static_cast<window::AbstractWindowArea::AreaType>(type)};
         }
     }
 
-    q.prepare(QLatin1StringView("SELECT * FROM %1").arg(SPLITTERS_TABLE));
+    q.prepare(QLatin1String("SELECT * FROM %1").arg(SPLITTERS_TABLE));
 
     if (q.exec()) {
         const auto rec = q.record();
-        const auto idIndex  = rec.indexOf(SPLITTER_ID);
-        const auto oriIndex = rec.indexOf(SPLITTER_ORIENTATION);
+        const auto splitterIdIdx   = rec.indexOf(SPLITTER_ID);
+        const auto sizeIdx = rec.indexOf(SPLITTER_SIZE);
+        const auto oriIdx  = rec.indexOf(SPLITTER_ORIENTATION);
 
         while (q.next()) {
-            const auto id  = q.value(idIndex).toInt(&ok); Q_ASSERT(ok);
-            const auto ori = q.value(oriIndex).toInt(&ok); Q_ASSERT(ok);
+            const auto id   = q.value(splitterIdIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto size = q.value(sizeIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto ori  = q.value(oriIdx).toInt(&ok); Q_ASSERT(ok);
             const auto orientation = static_cast<Qt::Orientation>(ori);
-            Q_ASSERT(!splitters.contains(id));
+            Q_ASSERT(!state.splitters.contains(id));
             Q_ASSERT(orientation == Qt::Horizontal || orientation == Qt::Vertical);
-            splitters[id] = storage::Splitter{orientation};
+            state.splitters[id] = storage::Splitter{size, orientation};
         }
     }
 
-    q.prepare(QLatin1StringView("SELECT * FROM %1").arg(MAIN_WINDOWS_TABLE));
+    q.prepare(QLatin1String("SELECT * FROM %1").arg(MAIN_WINDOWS_TABLE));
 
     if (q.exec()) {
         const auto rec = q.record();
-        const auto idIndex           = rec.indexOf(MAIN_WINDOW_ID);
-        const auto rootSplitterIndex = rec.indexOf(MAIN_WINDOW_ROOT_SPLITTER);
+        const auto idIdx       = rec.indexOf(MAIN_WINDOW_ID);
+        const auto splitterIdx = rec.indexOf(MAIN_WINDOW_ROOT_SPLITTER);
 
         while (q.next()) {
-            const auto id           = q.value(idIndex).toInt(&ok); Q_ASSERT(ok);
-            const auto rootSplitter = q.value(rootSplitterIndex).toInt(&ok); Q_ASSERT(ok);
-            Q_ASSERT(!mainWindows.contains(id));
-            mainWindows[id] = rootSplitter;
+            const auto id       = q.value(idIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto splitter = q.value(splitterIdx).toInt(&ok); Q_ASSERT(ok);
+            Q_ASSERT(!state.mws.contains(id));
+            state.mws[id] = splitter;
         }
     }
 
-    for (const auto& sp : splitters) {
-        const auto table = QString(SPLITTER_WIDGETS_TABLES).arg(sp.first);
-         q.prepare(QLatin1StringView("SELECT * FROM %1").arg(table));
+    q.prepare(QLatin1String("SELECT * FROM %1").arg(WIDGETS_TABLE));
+    std::unordered_map<storage::WidgetId, qint32> widget_indices;
 
-        ///
+    if (q.exec()) {
+        const auto rec = q.record();
+        const auto widgetIdIdx    = rec.indexOf(WIDGET_ID);
+        const auto widgetIndexIdx = rec.indexOf(WIDGET_INDEX);
 
+        while (q.next()) {
+            const auto id    = q.value(widgetIdIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto index = q.value(widgetIndexIdx).toInt(&ok); Q_ASSERT(ok);
+            Q_ASSERT(!widget_indices.contains(id));
+            widget_indices[id] = index;
+        }
+    }
+
+    q.prepare(QLatin1String("SELECT * FROM %1").arg(SPLITTER_WIDGETS_TABLE));
+    std::unordered_map<storage::WidgetId, storage::SplitterId> splitter_widgets;
+
+    if (q.exec()) {
+        const auto rec = q.record();
+        const auto widgetIdIdx   = rec.indexOf(WIDGET_ID);
+        const auto splitterIdIdx = rec.indexOf(SPLITTER_ID);
+
+        while (q.next()) {
+            const auto widgetId   = q.value(widgetIdIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto splitterId = q.value(splitterIdIdx).toInt(&ok); Q_ASSERT(ok);
+            Q_ASSERT(widget_indices.contains(widgetId));
+            Q_ASSERT(state.splitters.contains(splitterId));
+            const auto index = widget_indices[widgetId];
+            Q_ASSERT(!state.splitters[widgetId].widgets.contains(index));
+            state.splitters[splitterId].widgets.insert({index, widgetId});
+        }
     }
 }
 
@@ -298,7 +331,7 @@ void UiStorage::saveSplitter(const Splitter* splitter)
         if (!q.exec(QLatin1String("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
             .arg(storage::SPLITTERS_TABLE)
             .arg(splitterId)
-            .arg(splitterOri == Qt::Horizontal ? splitter->width() : splitter->height())
+            .arg(splitterOri == Qt::Horizontal ? splitter->height() : splitter->width())
             .arg(splitterOri))) {
             qWarning() << db.lastError();
         }
