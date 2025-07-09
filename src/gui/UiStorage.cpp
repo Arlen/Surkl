@@ -53,7 +53,29 @@ namespace
 UiStorage::UiStorage(QObject* parent)
     : QObject(parent)
 {
+    _saveViewConnection = connect
+        ( this
+        , qOverload<const view::GraphicsView*>(&UiStorage::stateChanged)
+        , this
+        , &saveView);
 
+    _saveWindowConnection = connect
+        ( this
+        , qOverload<const window::Window*>(&UiStorage::stateChanged)
+        , this
+        , &saveWindow);
+
+    _saveSplitterConnection = connect
+        ( this
+        , qOverload<const Splitter*>(&UiStorage::stateChanged)
+        , this
+        , &saveSplitter);
+
+    _saveMainWindowConnection = connect
+        ( this
+        , qOverload<const MainWindow*>(&UiStorage::stateChanged)
+        , this
+        , &saveMainWindow);
 }
 
 void UiStorage::configure()

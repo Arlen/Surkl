@@ -96,6 +96,17 @@ namespace gui
 
     class UiStorage final : public QObject
     {
+        Q_OBJECT
+
+    signals:
+        void stateChanged(const view::GraphicsView* gv);
+
+        void stateChanged(const window::Window* win);
+
+        void stateChanged(const Splitter* splitter);
+
+        void stateChanged(const MainWindow* mw);
+
     public:
         explicit UiStorage(QObject* parent = nullptr);
 
@@ -103,6 +114,7 @@ namespace gui
 
         static void configure();
 
+    private slots:
         static void saveView(const view::GraphicsView* gv);
 
         static void saveWindow(const window::Window* win);
@@ -111,6 +123,7 @@ namespace gui
 
         static void saveMainWindow(const MainWindow* mw);
 
+    public:
         void deleteView(qint32 parentId);
 
         void deleteView(const QList<qint32>& ids);
@@ -133,5 +146,10 @@ namespace gui
         static void createTable();
 
         static void readTable(storage::UiState& state);
+
+        QMetaObject::Connection _saveViewConnection;
+        QMetaObject::Connection _saveWindowConnection;
+        QMetaObject::Connection _saveSplitterConnection;
+        QMetaObject::Connection _saveMainWindowConnection;
     };
 }
