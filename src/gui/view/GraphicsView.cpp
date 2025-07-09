@@ -34,13 +34,18 @@ GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
 
     connect(this, &GraphicsView::sceneBookmarkRequested, scene, &core::FileSystemScene::addSceneBookmark);
 
+    connect(this
+        , &GraphicsView::stateChanged
+        , core::SessionManager::us()
+        , qOverload<const GraphicsView*>(&UiStorage::stateChanged));
+
     _timeline = new QTimeLine(300, this);
     _timeline->setFrameRange(0, 36);
     _timeline->setEasingCurve(QEasingCurve::OutExpo);
 
     setAcceptDrops(false);
 
-    core::SessionManager::us()->saveView(this);
+    emit stateChanged(this);
 }
 
 void GraphicsView::requestSceneBookmark()
@@ -128,9 +133,9 @@ void GraphicsView::mouseMoveEvent(QMouseEvent* event)
     togglePanOrZoom(event->modifiers());
     if (event->modifiers() == Qt::AltModifier && _bookmarkAnimation == nullptr) {
         zoom();
-        core::SessionManager::us()->saveView(this);
+        emit stateChanged(this);
     } else if (event->modifiers() == Qt::ControlModifier) {
-        core::SessionManager::us()->saveView(this);
+        emit stateChanged(this);
     }
 
     saveMousePosition(event->pos());
@@ -324,7 +329,7 @@ void GraphicsView::centerTargetOn(const core::SceneBookmarkItem* bm, const QPoin
 
     connect(_timeline, &QTimeLine::finished, [this] {
         disconnect(_timeline, &QTimeLine::valueChanged, nullptr, nullptr);
-        core::SessionManager::us()->saveView(this);
+        emit stateChanged(this);
     });
 
     _timeline->start();

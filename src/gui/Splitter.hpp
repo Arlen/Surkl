@@ -22,6 +22,9 @@ namespace gui
     {
         Q_OBJECT
 
+    signals:
+        void stateChanged(const Splitter*);
+
     public:
         Splitter() = delete;
 

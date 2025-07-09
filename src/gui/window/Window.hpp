@@ -46,6 +46,8 @@ namespace gui::window
 
         void swapRequested(Window *alpha, Window *beta);
 
+        void stateChanged(const Window*);
+
     public:
         explicit Window(QWidget *parent = nullptr);
 

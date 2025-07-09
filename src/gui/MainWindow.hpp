@@ -25,6 +25,8 @@ namespace gui
     signals:
         void closed(qint32 id);
 
+        void stateChanged(const MainWindow*);
+
     public:
         explicit MainWindow();
 

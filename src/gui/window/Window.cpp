@@ -48,7 +48,12 @@ Window::Window(QWidget *parent)
     setupMenu();
     setAcceptDrops(true);
 
-    core::SessionManager::us()->saveWindow(this);
+    connect(this
+        , &Window::stateChanged
+        , core::SessionManager::us()
+        , qOverload<const Window*>(&UiStorage::stateChanged));
+
+    emit stateChanged(this);
 }
 
 TitleBar *Window::titleBar() const
@@ -64,6 +69,7 @@ AbstractWindowArea *Window::areaWidget() const
 void Window::resizeEvent(QResizeEvent *event)
 {
     core::SessionManager::us()->saveWindow(this);
+    emit stateChanged(this);
 
     QWidget::resizeEvent(event);
 }
@@ -309,7 +315,7 @@ void Window::setAreaWidget(AbstractWindowArea *widget)
     setupMenu();
     layout()->addWidget(_areaWidget);
 
-    core::SessionManager::us()->saveWindow(this);
+    emit stateChanged(this);
 }
 
 void Window::setupMenu()

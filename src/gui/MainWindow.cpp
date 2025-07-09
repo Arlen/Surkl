@@ -30,7 +30,12 @@ MainWindow::MainWindow()
 
     updateTitle();
 
-    core::SessionManager::us()->saveMainWindow(this);
+    connect(this
+        , &MainWindow::stateChanged
+        , core::SessionManager::us()
+        , qOverload<const MainWindow*>(&UiStorage::stateChanged));
+
+    emit stateChanged(this);
 }
 
 /// creates a new sibling.

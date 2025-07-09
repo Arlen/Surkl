@@ -29,6 +29,7 @@ namespace gui::view
     signals:
         void deletePressed();
         void sceneBookmarkRequested(const QPoint& pos, const QString& name);
+        void stateChanged(const GraphicsView*);
 
     public:
         explicit GraphicsView(core::FileSystemScene* scene, QWidget* parent = nullptr);
