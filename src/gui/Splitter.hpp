@@ -38,6 +38,8 @@ namespace gui
 
         void addWindow();
 
+        Splitter* addSplitter();
+
         int row();
 
     public slots:

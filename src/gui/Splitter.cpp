@@ -63,6 +63,17 @@ void Splitter::addWindow()
     addWindow(createWindow());
 }
 
+Splitter* Splitter::addSplitter()
+{
+    auto* splitter = new Splitter(orientation() == Qt::Horizontal ? Qt::Vertical : Qt::Horizontal);
+
+    addWidget(splitter);
+    emit stateChanged(this);
+
+    return splitter;
+}
+
+
 /// If the parent widget is another splitter, returns the index into that
 /// parent splitter; otherwise, it returns -1.
 int Splitter::row()
@@ -106,6 +117,7 @@ void Splitter::splitWindow(const QPoint& pos, Qt::Orientation splitOrientation, 
 
         auto* splitter = new Splitter(splitOrientation);
         splitter->addWindow(child);
+        splitter->addWindow();
         insertWidget(childIndex, splitter);
         setSizes(widgetsSizes);
         splitter->moveSplitter(size, 1);
