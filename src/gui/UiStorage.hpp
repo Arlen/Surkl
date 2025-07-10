@@ -117,9 +117,9 @@ namespace gui
     public:
         explicit UiStorage(QObject* parent = nullptr);
 
-        static storage::UiState load();
+        storage::UiState load();
 
-        static void configure();
+        void configure();
 
     private slots:
         static void saveView(const view::GraphicsView* gv);
@@ -147,10 +147,12 @@ namespace gui
 
         void deleteMainWindow(const QList<qint32>& ids);
 
+        void clearTables();
+
     private:
         void deleteFrom(const QLatin1String& table, const QLatin1String& key, const QList<qint32>& values);
 
-        static void createTable();
+        static void createTables();
 
         static void readTable(storage::UiState& state);
 

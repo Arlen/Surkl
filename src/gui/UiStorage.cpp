@@ -82,7 +82,7 @@ void UiStorage::configure()
 {
     using namespace core::db;
 
-    createTable();
+    createTables();
 
     Q_ASSERT(doesTableExists(storage::MAIN_WINDOWS_TABLE));
     Q_ASSERT(doesTableExists(storage::SPLITTERS_TABLE));
@@ -90,7 +90,7 @@ void UiStorage::configure()
     Q_ASSERT(doesTableExists(storage::GRAPHICS_VIEWS_TABLE));
 }
 
-void UiStorage::createTable()
+void UiStorage::createTables()
 {
     using namespace core;
     using namespace gui::storage;
@@ -497,6 +497,23 @@ void UiStorage::deleteMainWindow(qint32 id)
 void UiStorage::deleteMainWindow(const QList<qint32>& ids)
 {
     deleteFrom(storage::MAIN_WINDOWS_TABLE, storage::MAIN_WINDOW_ID, ids);
+}
+
+void UiStorage::clearTables()
+{
+    using namespace gui::storage;
+
+    if (auto db = db::get(); db.isOpen()) {
+        db.transaction();
+
+        QSqlQuery q(db);
+        q.exec(QLatin1String("DELETE FROM %1").arg(MAIN_WINDOWS_TABLE));
+        q.exec(QLatin1String("DELETE FROM %1").arg(SPLITTERS_TABLE));
+        q.exec(QLatin1String("DELETE FROM %1").arg(WIDGET_INDICES_TABLE));
+        q.exec(QLatin1String("DELETE FROM %1").arg(SPLITTER_WIDGETS_TABLE));
+        q.exec(QLatin1String("DELETE FROM %1").arg(GRAPHICS_VIEWS_TABLE));
+        db.commit();
+    }
 }
 
 void UiStorage::deleteFrom(const QLatin1String& table, const QLatin1String& key, const QList<qint32>& values)
