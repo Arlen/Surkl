@@ -507,11 +507,12 @@ void UiStorage::clearTables()
         db.transaction();
 
         QSqlQuery q(db);
+        q.exec(QLatin1String("DELETE FROM %1").arg(GRAPHICS_VIEWS_TABLE));
         q.exec(QLatin1String("DELETE FROM %1").arg(MAIN_WINDOWS_TABLE));
         q.exec(QLatin1String("DELETE FROM %1").arg(SPLITTERS_TABLE));
-        q.exec(QLatin1String("DELETE FROM %1").arg(WIDGET_INDICES_TABLE));
         q.exec(QLatin1String("DELETE FROM %1").arg(SPLITTER_WIDGETS_TABLE));
-        q.exec(QLatin1String("DELETE FROM %1").arg(GRAPHICS_VIEWS_TABLE));
+        q.exec(QLatin1String("DELETE FROM %1").arg(WIDGET_INDICES_TABLE));
+        q.exec(QLatin1String("DELETE FROM %1").arg(WINDOWS_TABLE));
         db.commit();
     }
 }
