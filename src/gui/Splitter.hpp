@@ -52,6 +52,8 @@ namespace gui
     protected:
         QSplitterHandle *createHandle() override;
 
+        void resizeEvent(QResizeEvent *event) override;
+
     private:
         [[nodiscard]] window::Window *createWindow() const;
 

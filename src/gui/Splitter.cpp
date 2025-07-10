@@ -227,6 +227,14 @@ QSplitterHandle *Splitter::createHandle()
     return new SplitterHandle(orientation(), this);
 }
 
+void Splitter::resizeEvent(QResizeEvent *event)
+{
+    emit stateChanged(this);
+
+    QSplitter::resizeEvent(event);
+}
+
+
 Window *Splitter::createWindow() const
 {
     auto* win = new Window();
