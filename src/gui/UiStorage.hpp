@@ -16,6 +16,8 @@ namespace gui::storage
 {
     constexpr auto MAIN_WINDOWS_TABLE        = QLatin1String("MainWindows");
     constexpr auto MAIN_WINDOW_ID            = QLatin1String("mw_id");
+    constexpr auto MAIN_WINDOW_WIDTH         = QLatin1String("mw_w");
+    constexpr auto MAIN_WINDOW_HEIGHT        = QLatin1String("mw_h");
     constexpr auto MAIN_WINDOW_ROOT_SPLITTER = QLatin1String("root_splitter");
 
     constexpr auto SPLITTERS_TABLE      = QLatin1String("Splitters");
@@ -26,9 +28,9 @@ namespace gui::storage
     /// a widget is either a Window or a Splitter.
     /// a widget belongs to a Splitter, and has an index.
     /// Root Splitters that belong to a MainWindow are not included in this table.
-    constexpr auto WIDGETS_TABLE = QLatin1String("Widgets");
-    constexpr auto WIDGET_ID     = QLatin1String("widget_id");
-    constexpr auto WIDGET_INDEX  = QLatin1String("widget_index");
+    constexpr auto WIDGET_INDICES_TABLE = QLatin1String("WidgetIndices");
+    constexpr auto WIDGET_ID            = QLatin1String("widget_id");
+    constexpr auto WIDGET_INDEX         = QLatin1String("widget_index");
 
     /// a table to keep track of which Splitter a widget belongs to.
     /// (widget_id, splitter_id)
@@ -72,7 +74,12 @@ namespace gui::storage
     };
     using Splitters = std::unordered_map<SplitterId, Splitter>;
 
-    using MainWindows = std::map<MainWindowId, SplitterId>;
+    struct MainWindow
+    {
+        QSize size;
+        SplitterId spId;
+    };
+    using MainWindows = std::map<MainWindowId, MainWindow>;
 
     struct UiState
     {
