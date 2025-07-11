@@ -10,19 +10,21 @@ namespace gui
 {
     struct WidgetId
     {
+        using ValueType = qint32;
+
         WidgetId()
         {
-            static qint32 counter{0};
+            static ValueType counter{0};
 
             _id = counter++;
         }
 
-        [[nodiscard]] qint32 widgetId() const noexcept
+        [[nodiscard]] ValueType widgetId() const noexcept
         {
             return _id;
         }
 
     private:
-        qint32 _id{-1};
+        ValueType _id{-1};
     };
 }
