@@ -20,21 +20,6 @@ using namespace core;
 
 namespace
 {
-    window::AbstractWindowArea::AreaType getAreaType(const window::Window* win)
-    {
-        Q_ASSERT(win);
-
-        auto result = window::AbstractWindowArea::AreaType::InvalidArea;
-
-        if (qobject_cast<view::ViewArea*>(win->areaWidget())) {
-            result = window::AbstractWindowArea::AreaType::ViewArea;
-        } else if (qobject_cast<theme::ThemeArea*>(win->areaWidget())) {
-            result = window::AbstractWindowArea::AreaType::ThemeArea;
-        }
-
-        return result;
-    }
-
     qint32 getWindowSize(const window::Window* win)
     {
         Q_ASSERT(win);
@@ -335,7 +320,7 @@ void UiStorage::saveWindow(const window::Window* win)
 
         const auto id   = win->widgetId();
         const auto size = getWindowSize(win);
-        const auto type = getAreaType(win);
+        const auto type = win->areaWidget()->type();
 
         if (!q.exec(QLatin1String("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
             .arg(storage::WINDOWS_TABLE)
