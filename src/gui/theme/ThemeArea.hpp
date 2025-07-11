@@ -14,5 +14,7 @@ namespace gui::theme
 
     public:
         explicit ThemeArea(window::Window* parent = nullptr);
+
+        AreaType type() const override;
     };
 }

@@ -10,7 +10,12 @@ using namespace gui::theme;
 ThemeArea::ThemeArea(window::Window *parent)
     : AbstractWindowArea(parent)
 {
-    setWidget(AreaType::ThemeArea, new ThemeSettings(this));
+    setWidget(new ThemeSettings(this));
 
     setFocusPolicy(Qt::StrongFocus);
+}
+
+gui::window::AbstractWindowArea::AreaType ThemeArea::type() const
+{
+    return AreaType::ThemeArea;
 }

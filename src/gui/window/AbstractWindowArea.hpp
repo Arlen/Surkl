@@ -15,22 +15,22 @@ namespace gui::window
     public:
         enum AreaType
         {
-            InvalidArea = -1,
             ViewArea = 0,
-            ThemeArea = 1,
+            ThemeArea,
             /// others...
+
+            InvalidArea,
         };
 
         explicit AbstractWindowArea(Window *parent);
 
-        void setWidget(AreaType typep, QWidget* widget);
+        void setWidget(QWidget* widget);
 
         [[nodiscard]] QWidget* widget() const { return _widget; }
 
-        [[nodiscard]] AreaType type() const { return _type; }
+        [[nodiscard]] virtual AreaType type() const = 0;
 
     protected:
         QWidget* _widget{nullptr};
-        AreaType _type{InvalidArea};
     };
 }

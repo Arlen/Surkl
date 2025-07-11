@@ -15,11 +15,10 @@ AbstractWindowArea::AbstractWindowArea(Window *parent)
 
 }
 
-void AbstractWindowArea::setWidget(AreaType type, QWidget* widget)
+void AbstractWindowArea::setWidget(QWidget* widget)
 {
     Q_ASSERT(widget);
     Q_ASSERT(_widget == nullptr);
-    Q_ASSERT(type != AreaType::InvalidArea);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -27,6 +26,4 @@ void AbstractWindowArea::setWidget(AreaType type, QWidget* widget)
 
     _widget = widget;
     layout->addWidget(_widget);
-
-    _type = type;
 }

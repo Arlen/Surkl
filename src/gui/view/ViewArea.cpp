@@ -14,7 +14,7 @@ ViewArea::ViewArea(core::FileSystemScene* scene, window::Window *parent)
     : AbstractWindowArea(parent)
 {
     auto* view = new GraphicsView(scene, this);
-    setWidget(AreaType::ViewArea, view);
+    setWidget(view);
 
     auto* shortcut        = new QShortcut(QKeySequence(Qt::Key_B), view, view, &GraphicsView::requestSceneBookmark);
     auto* quadShortcut1   = new QShortcut(QKeySequence(Qt::Key_1), view, view, &GraphicsView::focusQuadrant1);
@@ -41,4 +41,9 @@ ViewArea::ViewArea(core::FileSystemScene* scene, window::Window *parent)
     openShortcut->setContext(Qt::WidgetShortcut);
     closeShortcut->setContext(Qt::WidgetShortcut);
     halfCloseShortcut->setContext(Qt::WidgetShortcut);
+}
+
+gui::window::AbstractWindowArea::AreaType ViewArea::type() const
+{
+    return AreaType::ViewArea;
 }
