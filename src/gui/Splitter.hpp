@@ -36,7 +36,7 @@ namespace gui
 
         void insertWindow(int index, window::Window *window);
 
-        void addWindow();
+        window::Window* addWindow();
 
         Splitter* addSplitter();
 

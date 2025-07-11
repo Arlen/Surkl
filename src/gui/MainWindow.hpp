@@ -28,7 +28,11 @@ namespace gui
         void stateChanged(const MainWindow*);
 
     public:
-        explicit MainWindow();
+        MainWindow();
+
+        explicit MainWindow(Splitter* splitter);
+
+        static MainWindow* loadUi();
 
         void moveToNewMainWindow(window::Window* source);
 
@@ -37,11 +41,13 @@ namespace gui
     protected:
         void closeEvent(QCloseEvent* event) override;
 
+        void resizeEvent(QResizeEvent *event) override;
+
     private slots:
-        void closeSibling(qint32 id);
+        void deleteFromDb(qint32 idOfMainWindow);
 
     private:
-        void updateTitle();
+        void setTitle();
 
         Splitter* _splitter{nullptr};
     };

@@ -13,22 +13,68 @@
 #include <QCloseEvent>
 #include <QHBoxLayout>
 
+#include <set>
+#include <stack>
+
 
 using namespace gui;
 
+namespace
+{
+    auto getMainWindows()
+    {
+        auto isMainWindow = [](QWidget* widget) -> bool {
+            return qobject_cast<MainWindow*>(widget) != nullptr;
+        };
+
+        auto asMainWindow = [](QWidget* widget) {
+            return qobject_cast<MainWindow*>(widget);
+        };
+
+        auto cmp = [](const MainWindow* alpha, const MainWindow* beta) -> bool {
+            return alpha->widgetId() < beta->widgetId();
+        };
+
+        auto result = QApplication::topLevelWidgets()
+            | std::views::filter(isMainWindow)
+            | std::views::transform(asMainWindow)
+            | std::ranges::to<QList<MainWindow*>>()
+            ;
+
+        std::ranges::sort(result, cmp);
+
+        return result;
+    }
+
+    MainWindow* factoryDefault()
+    {
+        auto* mw = new MainWindow();
+        mw->splitter()->addWindow();
+        mw->resize(640*2, 480*2);
+
+        return mw;
+    }
+}
+
 /// The first MainWindow that's created is considered to be the main, and all
-/// the other MainWindows are siblings of the main.  The main is responsible
-/// for deleting the siblings from DB when they are closed.
+/// the other MainWindows are siblings of the main.
 MainWindow::MainWindow()
+    : MainWindow(new Splitter(Qt::Horizontal))
+{
+
+}
+
+MainWindow::MainWindow(Splitter* splitter)
+    : _splitter(splitter)
 {
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    _splitter = new Splitter(Qt::Horizontal, this);
+    _splitter->setParent(this);
     layout->addWidget(_splitter);
 
-    updateTitle();
+    setTitle();
 
     connect(this
         , &MainWindow::stateChanged
@@ -38,12 +84,96 @@ MainWindow::MainWindow()
     emit stateChanged(this);
 }
 
+MainWindow* MainWindow::loadUi()
+{
+    auto state = core::SessionManager::us()->load();
+
+    core::SessionManager::us()->clearTables();
+
+    struct SplitterNode
+    {
+        Splitter* splitter{nullptr};
+        storage::SplitterId spId{-1};
+    };
+
+    struct SplitterSizes
+    {
+        Splitter* splitter{nullptr};
+        QList<int> sizes;
+    };
+
+    std::map<WidgetId::ValueType, MainWindow*> mainWindows;
+
+    for (const auto [mwSize, spId] : state.mws | std::views::values) {
+        auto* mw = new MainWindow();
+        mw->resize(mwSize);
+
+        std::vector<SplitterSizes> L;
+        std::stack<SplitterNode> S;
+        S.push({mw->splitter(), spId});
+
+        while (!S.empty()) {
+            auto [splitter, spId] = S.top(); S.pop();
+
+            if (!state.splitters.contains(spId)) {
+                continue;
+            }
+
+            QList<qint32> childSizes;
+            for (auto [childIndex, childId] : state.splitters[spId].widgets) {
+                Q_ASSERT(childIndex == splitter->count());
+                if (state.windows.contains(childId)) {
+                    auto* win = splitter->addWindow();
+                    childSizes.push_back(state.windows[childId].size);
+                    if (state.windows[childId].type == window::AbstractWindowArea::ThemeArea) {
+                        win->switchToThemeSettings();
+                    }
+                } else if (state.splitters.contains(childId)) {
+                    auto* childSplitter = splitter->addSplitter();
+                    const auto childSplitterSize = state.splitters[childId].size;
+                    childSizes.push_back(childSplitterSize);
+                    S.push({childSplitter, childId});
+                } else {
+                    Q_ASSERT(false);
+                }
+            }
+            state.splitters.erase(spId);
+
+            Q_ASSERT(splitter->count() == childSizes.count());
+            L.push_back({splitter, childSizes});
+        }
+
+        for (const auto& [splitter, sizes] : L) {
+            splitter->setSizes(sizes);
+        }
+
+        if (mw->splitter()->count() == 0) {
+            mw->splitter()->addWindow();
+        }
+
+        mw->show();
+        Q_ASSERT(!mainWindows.contains(mw->widgetId()));
+        mainWindows[mw->widgetId()] = mw;
+    }
+
+    if (mainWindows.empty()) {
+        return factoryDefault();
+    }
+
+    for (auto [id, sibling] : mainWindows | std::views::drop(1)) {
+        connect(sibling, &MainWindow::closed, sibling, &MainWindow::deleteFromDb);
+    }
+
+    return mainWindows.begin()->second;
+}
+
 /// creates a new sibling.
 void MainWindow::moveToNewMainWindow(window::Window *source)
 {
     if (source) {
         auto* mw = new MainWindow();
-        connect(mw, &MainWindow::closed, mw, &MainWindow::closeSibling);
+        mw->splitter()->addWindow();
+        connect(mw, &MainWindow::closed, mw, &MainWindow::deleteFromDb);
         Q_ASSERT(mw->splitter());
         Q_ASSERT(mw->splitter()->count() == 1);
         auto* target = qobject_cast<window::Window*>(mw->splitter()->widget(0));
@@ -58,52 +188,58 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     QWidget::closeEvent(event);
 
-    if (widgetId() == 0) {
+    if (auto mainWindows = getMainWindows(); mainWindows.front() == this) {
         /// disconnect all siblings so that they aren't deleted from DB.
-        for (auto xs = QApplication::topLevelWidgets(); auto* x : xs) {
-            if (auto* mw = qobject_cast<MainWindow*>(x)) {
-                disconnect(mw, &MainWindow::closed, nullptr, nullptr);
-            }
+        mainWindows.takeFirst();
+        for (auto* mw : mainWindows) {
+            disconnect(mw, &MainWindow::closed, nullptr, nullptr);
+            mw->deleteLater();
         }
         qApp->quit();
     } else {
+        Q_ASSERT(mainWindows.indexOf(this) != -1);
         emit closed(widgetId());
     }
 }
 
-void MainWindow::closeSibling(qint32 id)
+void MainWindow::resizeEvent(QResizeEvent *event)
 {
-    const auto windows = findChildren<window::Window*>();
+    stateChanged(this);
 
-    QList<qint32> winIds, viewIds;
-    for (auto* win : windows) {
-        const auto winId = win->widgetId();
-        winIds.push_back(winId);
-        if (qobject_cast<const view::GraphicsView*>(win->areaWidget()->widget())) {
-            viewIds.push_back(winId);
-        }
-    }
-    core::SessionManager::us()->deleteWindow(winIds);
-    core::SessionManager::us()->deleteView(viewIds);
-    core::SessionManager::us()->deleteMainWindow(id);
-
-    auto splitters = findChildren<Splitter*>()
-        | std::views::transform(&Splitter::widgetId)
-        | std::ranges::to<QList<qint32>>();
-    core::SessionManager::us()->deleteSplitter(splitters);
+    QWidget::resizeEvent(event);
 }
 
-void MainWindow::updateTitle()
+void MainWindow::deleteFromDb(qint32 idOfMainWindow)
 {
-    QSet<const MainWindow*> mainWindows;
+    const auto idsOfViewParents = findChildren<window::Window*>()
+        | std::views::filter(
+            [](const window::Window* win) -> bool {
+                return win->areaWidget()->type() == window::AbstractWindowArea::ViewArea;
+            })
+        | std::views::transform(&window::Window::widgetId)
+        | std::ranges::to<QList<WidgetId::ValueType>>()
+        ;
 
-    for (const auto topLevel = QApplication::topLevelWidgets(); const auto* widget : topLevel) {
-        if (const auto* mw = qobject_cast<const MainWindow*>(widget)) {
-            mainWindows.insert(mw);
-        }
-    }
+    const auto idsOfWindows = findChildren<window::Window*>()
+        | std::views::transform(&window::Window::widgetId)
+        | std::ranges::to<QList<WidgetId::ValueType>>()
+        ;
 
+    const auto idsOfSplitters = findChildren<Splitter*>()
+        | std::views::transform(&Splitter::widgetId)
+        | std::ranges::to<QList<WidgetId::ValueType>>()
+        ;
+
+    auto* us = core::SessionManager::us();
+    us->deleteWindow(idsOfWindows);
+    us->deleteView(idsOfViewParents);
+    us->deleteSplitter(idsOfSplitters);
+    us->deleteMainWindow(idOfMainWindow);
+}
+
+void MainWindow::setTitle()
+{
     setWindowTitle(QString("Surkl %1 @ Window %2")
         .arg(version())
-        .arg(mainWindows.size()));
+        .arg(getMainWindows().size()));
 }

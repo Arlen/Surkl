@@ -58,9 +58,13 @@ void Splitter::insertWindow(int index, Window *window)
     }
 }
 
-void Splitter::addWindow()
+Window* Splitter::addWindow()
 {
-    addWindow(createWindow());
+    auto* win = createWindow();
+
+    addWindow(win);
+
+    return win;
 }
 
 Splitter* Splitter::addSplitter()

@@ -77,6 +77,7 @@ namespace gui::window
 
         void closeWindow();
 
+    public slots:
         void switchToView();
 
         void switchToThemeSettings();
