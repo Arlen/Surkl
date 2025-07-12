@@ -75,7 +75,13 @@ ThemeSettings::ThemeSettings(QWidget *parent)
     keepButton->setMaximumHeight(26);
     keepButton->hide();
     connect(keepButton, &QPushButton::clicked, [this, keepButton] {
-        core::SessionManager::tm()->keep(_generated);
+
+        Palette result;
+        /// apply permutation, if any.
+        for (auto [i, pi] : std::ranges::views::enumerate(_permutation)) {
+            result[i] = _generated[pi];
+        }
+        core::SessionManager::tm()->keep(result);
         _previewLabel->setPixmap(QPixmap());
         keepButton->hide();
         _applyGenerated->hide();
