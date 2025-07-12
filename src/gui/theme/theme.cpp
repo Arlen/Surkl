@@ -207,6 +207,7 @@ Palette ThemeManager::generatePalette(const HsvRange& range)
 
 void ThemeManager::keep(const Palette &palette)
 {
+    saveActiveTheme(idFromPalette(palette));
     setActivePalette(palette);
 
     savePalettes(std::ranges::single_view{addPalette(palette)});
