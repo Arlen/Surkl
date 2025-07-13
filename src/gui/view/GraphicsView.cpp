@@ -222,7 +222,19 @@ void GraphicsView::saveMousePosition(const QPoint& pos)
 
 void GraphicsView::scaleView(qreal factor)
 {
-    scale(factor, factor);
+    constexpr auto unit         = QRectF(0, 0, 1, 1);
+    constexpr auto zoomInLimit  = QRectF(0, 0, 4, 4);
+    constexpr auto zoomOutLimit = QRectF(0, 0, 0.25, 0.25);
+
+    const auto sx   = factor;
+    const auto sy   = factor;
+    const auto zoom = transform().scale(sx, sy).mapRect(unit).size();
+
+    const auto candidate = QRectF(QPointF(0, 0), zoom);
+
+    if (zoomInLimit.contains(candidate) && candidate.contains(zoomOutLimit)) {
+        scale(sx, sy);
+    }
 }
 
 void GraphicsView::zoom()
