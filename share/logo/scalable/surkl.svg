@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="45.1556mm" height="45.1556mm"
+ viewBox="0 0 128 128"
+ xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.2" baseProfile="tiny">
+<title>Surkl logo</title>
+<desc>a circle and eight digits of pi</desc>
+<defs>
+</defs>
+<g fill="none" stroke="black" stroke-width="1" fill-rule="evenodd" stroke-linecap="square" stroke-linejoin="bevel" >
+
+<g fill="none" stroke="#d2d2d2" stroke-opacity="1" stroke-width="16" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(1,0,0,1,0,0)"
+font-family="Noto Sans" font-size="10" font-weight="400" font-style="normal" 
+>
+<circle cx="64" cy="64" r="56"/>
+</g>
+
+<g fill="none" stroke="#202020" stroke-opacity="1" stroke-dasharray="20.3105,6.77018,6.77018,6.77018,27.0807,6.77018,6.77018,6.77018,33.8509,6.77018,60.9316,6.77018,13.5404,6.77018,40.6211,6.77018" stroke-dashoffset="0" stroke-width="16" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="2" transform="matrix(1,0,0,1,0,0)"
+font-family="Noto Sans" font-size="10" font-weight="400" font-style="normal" 
+>
+<path vector-effect="none" fill-rule="evenodd" d="M120,64 C120,33.0721 94.9279,8 64,8 C33.0721,8 8,33.0721 8,64 C8,94.9279 33.0721,120 64,120 "/>
+</g>
+
+<g fill="none" stroke="#202020" stroke-opacity="1" stroke-dasharray="6.77018,6.77018" stroke-dashoffset="0" stroke-width="16" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="2" transform="matrix(1,0,0,1,0,0)"
+font-family="Noto Sans" font-size="10" font-weight="400" font-style="normal" 
+>
+<path vector-effect="none" fill-rule="evenodd" d="M64,120 C92.6155,120 116.218,98.5369 119.588,70.831 "/>
+</g>
+</g>
+</svg>
