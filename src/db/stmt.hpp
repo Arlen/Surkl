@@ -8,6 +8,7 @@
 
 using namespace Qt::Literals::StringLiterals;
 
+/// used in core/bookmark.cpp
 namespace stmt::bm
 {
     constexpr auto TABLE_NAME     = "SceneBookmarks"_L1;
@@ -15,40 +16,41 @@ namespace stmt::bm
     constexpr auto POSITION_Y_COL = "position_y"_L1;
     constexpr auto NAME_COL       = "name"_L1;
 
-    constexpr auto CREATE_TABLE = R"(CREATE TABLE IF NOT EXISTS %1
-                                     ( %2 INTEGER NOT NULL
-                                     , %3 INTEGER NOT NULL
-                                     , %4 TEXT NOT NULL
-                                     , UNIQUE(%2, %3) )
-                                    )"_L1;
+    constexpr auto CREATE_TABLE_STMT
+        = R"(CREATE TABLE IF NOT EXISTS %1
+             ( %2 INTEGER NOT NULL
+             , %3 INTEGER NOT NULL
+             , %4 TEXT NOT NULL
+             , UNIQUE(%2, %3) )
+            )"_L1;
 
-    constexpr auto SELECT_PALETTE  = "SELECT * FROM %1"_L1;
-    constexpr auto INSERT_SCENE_BM = "INSERT OR REPLACE INTO %1 ( %2, %3, %4 ) VALUES ( ?, ?, ? )"_L1;
-    constexpr auto DELETE_SCENE_BM = "DELETE FROM %1 WHERE %2=? AND %3=?"_L1;
+    constexpr auto SELECT_STMT = "SELECT * FROM %1"_L1;
+    constexpr auto INSERT_STMT = "INSERT OR REPLACE INTO %1 ( %2, %3, %4 ) VALUES ( ?, ?, ? )"_L1;
+    constexpr auto DELETE_STMT = "DELETE FROM %1 WHERE %2=? AND %3=?"_L1;
 
 
     static const auto CREATE_SCENE_BOOKMARKS_TABLE
-        = CREATE_TABLE.arg(TABLE_NAME)
+        = CREATE_TABLE_STMT.arg(TABLE_NAME)
             .arg(POSITION_X_COL)
             .arg(POSITION_Y_COL)
             .arg(NAME_COL);
 
     static const auto SELECT_ALL_PALETTES
-        = SELECT_PALETTE.arg(TABLE_NAME);
+        = SELECT_STMT.arg(TABLE_NAME);
 
     static const auto INSERT_BM
-        = INSERT_SCENE_BM.arg(TABLE_NAME)
+        = INSERT_STMT.arg(TABLE_NAME)
             .arg(POSITION_X_COL)
             .arg(POSITION_Y_COL)
             .arg(NAME_COL);
 
     static const auto DELETE_BM
-        = DELETE_SCENE_BM.arg(TABLE_NAME)
+        = DELETE_STMT.arg(TABLE_NAME)
             .arg(POSITION_X_COL)
             .arg(POSITION_Y_COL);
 }
 
-
+/// used in core/SceneStorage.cpp
 namespace stmt::scene
 {
     constexpr auto NODES_TABLE = "Nodes"_L1;
@@ -59,17 +61,44 @@ namespace stmt::scene
     constexpr auto NODE_YPOS   = "node_ypos"_L1;
     constexpr auto EDGE_LEN    = "edge_len"_L1;
 
-    constexpr auto CREATE_TABLE = R"(CREATE TABLE IF NOT EXISTS %1
-                                     ( %2 TEXT PRIMARY KEY
-                                     , %3 INTEGER
-                                     , %4 INTEGER
-                                     , %5 REAL
-                                     , %6 REAL
-                                     , %7 REAL)
-                                    )"_L1;
-    constexpr auto SELECT_NODE = "SELECT * FROM %1"_L1;
-    constexpr auto INSERT_NODE = "INSERT OR REPLACE INTO %1 ( %2, %3, %4, %5, %6, %7 ) VALUES ( ?, ?, ?, ?, ?, ? )"_L1;
-    constexpr auto DELETE_NODE = "DELETE FROM %1 WHERE %2=:id"_L1;
+    constexpr auto CREATE_TABLE_STMT
+        = R"(CREATE TABLE IF NOT EXISTS %1
+             ( %2 TEXT PRIMARY KEY
+             , %3 INTEGER
+             , %4 INTEGER
+             , %5 REAL
+             , %6 REAL
+             , %7 REAL)
+            )"_L1;
+
+    constexpr auto SELECT_STMT = "SELECT * FROM %1"_L1;
+    constexpr auto INSERT_STMT = "INSERT OR REPLACE INTO %1 ( %2, %3, %4, %5, %6, %7 ) VALUES ( ?, ?, ?, ?, ?, ? )"_L1;
+    constexpr auto DELETE_STMT = "DELETE FROM %1 WHERE %2=?"_L1;
+
+    static const auto CREATE_NODES_TABLE
+        = CREATE_TABLE_STMT.arg(NODES_TABLE)
+            .arg(NODE_ID)
+            .arg(NODE_TYPE)
+            .arg(FIRST_ROW)
+            .arg(NODE_XPOS)
+            .arg(NODE_YPOS)
+            .arg(EDGE_LEN);
+
+    static const auto SELECT_ALL_NODES
+        = SELECT_STMT.arg(NODES_TABLE);
+
+    static const auto INSERT_NODE
+        = INSERT_STMT.arg(NODES_TABLE)
+            .arg(NODE_ID)
+            .arg(NODE_TYPE)
+            .arg(FIRST_ROW)
+            .arg(NODE_XPOS)
+            .arg(NODE_YPOS)
+            .arg(EDGE_LEN);
+
+    static const auto DELETE_NODE
+        = DELETE_STMT.arg(NODES_TABLE)
+            .arg(NODE_ID);
 }
 
 namespace stmt::theme

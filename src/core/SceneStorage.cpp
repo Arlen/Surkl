@@ -6,6 +6,7 @@
 #include "NodeItem.hpp"
 #include "SessionManager.hpp"
 #include "db.hpp"
+#include "db/stmt.hpp"
 
 #include <QDir>
 #include <QSqlRecord>
@@ -54,7 +55,7 @@ void SceneStorage::configure()
 {
     createTable();
 
-    Q_ASSERT(core::db::doesTableExists(NODES_TABLE));
+    Q_ASSERT(core::db::doesTableExists(stmt::scene::NODES_TABLE));
 }
 
 void SceneStorage::deleteNode(const NodeItem *node)
@@ -233,15 +234,7 @@ void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
         db.transaction();
         QSqlQuery q(db);
 
-        q.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
-            .arg(NODES_TABLE)
-
-            .arg(NODE_ID)
-            .arg(NODE_TYPE)
-            .arg(FIRST_ROW)
-            .arg(NODE_XPOS)
-            .arg(NODE_YPOS)
-            .arg(EDGE_LEN));
+        q.prepare(stmt::scene::INSERT_NODE);
 
         for (auto* node : nodes) {
             Q_ASSERT(node != nullptr);
@@ -271,43 +264,32 @@ void SceneStorage::consume(const QList<QVariant>& data)
 {
     if (auto db = db::get(); db.isOpen()) {
         db.transaction();
-        QSqlQuery q_del(db);
-        QSqlQuery q_save(db);
+        QSqlQuery qDel(db);
+        QSqlQuery qIns(db);
 
-        q_del.prepare(QLatin1String("DELETE FROM %1 WHERE %2=:id")
-            .arg(NODES_TABLE)
-            .arg(NODE_ID));
-
-        q_save.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3,%4,%5,%6,%7) VALUES(?, ?, ?, ?, ?, ?)")
-            .arg(NODES_TABLE)
-
-            .arg(NODE_ID)
-            .arg(NODE_TYPE)
-            .arg(FIRST_ROW)
-            .arg(NODE_XPOS)
-            .arg(NODE_YPOS)
-            .arg(EDGE_LEN));
+        qDel.prepare(stmt::scene::DELETE_NODE);
+        qIns.prepare(stmt::scene::INSERT_NODE);
 
         for (const auto& d : data) {
             if (d.canConvert<DeleteData>()) {
                 const auto [id] = d.value<DeleteData>();
 
-                q_del.bindValue(":id", id);
+                qDel.addBindValue(id);
 
-                if (!q_del.exec()) {
-                    qWarning() << q_del.lastError();
+                if (!qDel.exec()) {
+                    qWarning() << qDel.lastError();
                 }
             } else if (d.canConvert<SaveData>()) {
                 const auto [id, nodeType, firstRow, pos, length] = d.value<SaveData>();
 
-                q_save.addBindValue(id);
-                q_save.addBindValue(nodeType);
-                q_save.addBindValue(firstRow);
-                q_save.addBindValue(pos.x());
-                q_save.addBindValue(pos.y());
-                q_save.addBindValue(length);
+                qIns.addBindValue(id);
+                qIns.addBindValue(nodeType);
+                qIns.addBindValue(firstRow);
+                qIns.addBindValue(pos.x());
+                qIns.addBindValue(pos.y());
+                qIns.addBindValue(length);
 
-                if (!q_save.exec()) {
+                if (!qIns.exec()) {
                     qWarning() << db.lastError();
                 }
             }
@@ -324,21 +306,9 @@ void SceneStorage::createTable()
     if (const auto db = db::get(); db.isOpen()) {
         QSqlQuery q(db);
 
-        q.exec(
-            QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
-                            ( %2 TEXT PRIMARY KEY
-                            , %3 INTEGER
-                            , %4 INTEGER
-                            , %5 REAL
-                            , %6 REAL
-                            , %7 REAL))")
-                .arg(NODES_TABLE)
-                .arg(NODE_ID)
-                .arg(NODE_TYPE)
-                .arg(FIRST_ROW)
-                .arg(NODE_XPOS)
-                .arg(NODE_YPOS)
-                .arg(EDGE_LEN));
+        if (!q.exec(stmt::scene::CREATE_NODES_TABLE)) {
+            qWarning() << "failed to create nodes table" << q.lastError();
+        }
     }
 }
 
@@ -353,16 +323,16 @@ QHash<QPersistentModelIndex, QList<NodeData>> SceneStorage::readTable(const File
     QHash<QPersistentModelIndex, QList<NodeData>> graph;
 
     QSqlQuery q(db);
-    q.prepare(QLatin1String("SELECT * FROM %1").arg(NODES_TABLE));
+    q.prepare(stmt::scene::SELECT_ALL_NODES);
 
     if (q.exec()) {
         const auto rec       = q.record();
-        const auto idIndex   = rec.indexOf(NODE_ID);
-        const auto typeIndex = rec.indexOf(NODE_TYPE);
-        const auto rowIndex  = rec.indexOf(FIRST_ROW);
-        const auto xposIndex = rec.indexOf(NODE_XPOS);
-        const auto yposIndex = rec.indexOf(NODE_YPOS);
-        const auto lenIndex  = rec.indexOf(EDGE_LEN);
+        const auto idIndex   = rec.indexOf(stmt::scene::NODE_ID);
+        const auto typeIndex = rec.indexOf(stmt::scene::NODE_TYPE);
+        const auto rowIndex  = rec.indexOf(stmt::scene::FIRST_ROW);
+        const auto xposIndex = rec.indexOf(stmt::scene::NODE_XPOS);
+        const auto yposIndex = rec.indexOf(stmt::scene::NODE_YPOS);
+        const auto lenIndex  = rec.indexOf(stmt::scene::EDGE_LEN);
         auto ok = false;
 
         while (q.next()) {
