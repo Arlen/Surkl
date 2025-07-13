@@ -32,12 +32,14 @@ install(TARGETS surkl
 
 ## source files
 file(GLOB CORE_SRC_FILES "src/core/*.cpp")
+file(GLOB DB_SRC_FILES "src/db/*.cpp")
 file(GLOB GUI_SRC_FILES "src/gui/*.cpp")
 file(GLOB GUI_THEME_SRC_FILES "src/gui/theme/*.cpp")
 file(GLOB GUI_VIEW_SRC_FILES "src/gui/view/*.cpp")
 file(GLOB GUI_WINDOW_SRC_FILES "src/gui/window/*.cpp")
 
 target_sources(surkl PUBLIC ${CORE_SRC_FILES})
+target_sources(surkl PUBLIC ${DB_SRC_FILES})
 target_sources(surkl PUBLIC ${GUI_SRC_FILES})
 target_sources(surkl PUBLIC ${GUI_THEME_SRC_FILES})
 target_sources(surkl PUBLIC ${GUI_VIEW_SRC_FILES})
@@ -46,6 +48,7 @@ target_sources(surkl PUBLIC ${GUI_WINDOW_SRC_FILES})
 ## headers
 target_include_directories(surkl PUBLIC "src")
 target_include_directories(surkl PUBLIC "src/core")
+target_include_directories(surkl PUBLIC "src/db")
 target_include_directories(surkl PUBLIC "src/gui")
 target_include_directories(surkl PUBLIC "src/gui/theme")
 target_include_directories(surkl PUBLIC "src/gui/view")

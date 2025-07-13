@@ -1,3 +1,6 @@
+/// Copyright (C) 2025 Arlen Avakian
+/// SPDX-License-Identifier: GPL-3.0-or-later
+
 #pragma once
 
 #include <QObject>
@@ -31,11 +34,6 @@ namespace core
         Q_OBJECT
 
     public:
-        static constexpr auto TABLE_NAME     = QLatin1StringView("SceneBookmarks");
-        static constexpr auto POSITION_X_COL = QLatin1StringView("position_x");
-        static constexpr auto POSITION_Y_COL = QLatin1StringView("position_y");
-        static constexpr auto NAME_COL       = QLatin1StringView("name");
-
         static void configure(BookmarkManager* tm);
         static void saveToDatabase(BookmarkManager* tm);
 
