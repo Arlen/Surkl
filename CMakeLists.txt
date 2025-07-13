@@ -8,13 +8,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -fsanitize=addres
 
 
 ### The main app
-find_package(Qt6 COMPONENTS REQUIRED Widgets Gui Core Sql Test)
+find_package(Qt6 COMPONENTS REQUIRED Widgets Gui Core Svg Sql Test)
 qt6_standard_project_setup()
 
 set(SOURCES main.cpp)
 qt6_add_executable(surkl ${SOURCES})
 
-target_link_libraries(surkl PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui Qt6::Sql)
+target_link_libraries(surkl PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui Qt6::Svg Qt6::Sql)
 set_property(TARGET surkl PROPERTY AUTOMOC ON)
 
 ## set install directory.  not sure what this does exactly besides copying the
