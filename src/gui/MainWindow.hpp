@@ -32,6 +32,8 @@ namespace gui
 
         explicit MainWindow(Splitter* splitter);
 
+        [[nodiscard]] static MainWindow* first();
+
         static MainWindow* loadUi();
 
         void moveToNewMainWindow(window::Window* source);

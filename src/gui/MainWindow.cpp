@@ -84,6 +84,15 @@ MainWindow::MainWindow(Splitter* splitter)
     emit stateChanged(this);
 }
 
+MainWindow* MainWindow::first()
+{
+    if (const auto mws = getMainWindows(); !mws.isEmpty()) {
+        return mws.first();
+    }
+
+    return nullptr;
+}
+
 MainWindow* MainWindow::loadUi()
 {
     auto state = core::SessionManager::us()->load();
@@ -239,7 +248,6 @@ void MainWindow::deleteFromDb(qint32 idOfMainWindow)
 
 void MainWindow::setTitle()
 {
-    setWindowTitle(QString("Surkl %1 @ Window %2")
-        .arg(version())
+    setWindowTitle(QString("@ Window %1")
         .arg(getMainWindows().size()));
 }
