@@ -9,4 +9,12 @@
 namespace gui
 {
     QPixmap createLogo(int size);
+
+    void exportLogoPNG(int size, const QString& path);
+
+    void exportLogoSVG(const QString& path);
+
+    void exportLogo(const QString& path);
+
+    void drawLogo(QPainter* p, const QRect& rec);
 }
