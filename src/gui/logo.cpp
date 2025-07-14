@@ -87,9 +87,7 @@ void gui::exportLogo(const QString& path)
 
 void gui::drawLogo(QPainter* p, const QRect& region)
 {
-    const auto* tm = core::SessionManager::tm();
-
-    constexpr auto palette = tm->factory();
+    constexpr auto palette = theme::ThemeManager::factory();
     constexpr auto color1  = palette[theme::PaletteIndex::SCENE_LIGHT_COLOR];
     constexpr auto color2  = palette[theme::PaletteIndex::SCENE_DARK_COLOR];
     constexpr auto space   = 1.0;
