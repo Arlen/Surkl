@@ -35,7 +35,7 @@ namespace
             QApplication::applicationDisplayName(),
             QApplication::applicationVersion(),
             buildInfo(),
-            wrapBr(wrapBr(R"(&#9888; currently under development; expect bugs and missing features! &#9888;)")),
+            wrapBr(wrapBr(R"(&#9888; Currently in development. Expect bugs and missing features! &#9888;)")),
 
             wrapBr(R"(Copyright (C) 2025 <a href="https://github.com/Arlen/"> Arlen Avakian </a>)"),
 
