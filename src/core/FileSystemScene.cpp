@@ -403,8 +403,8 @@ void FileSystemScene::keyPressEvent(QKeyEvent *event)
 
 void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
-    if (auto* node = asNodeItem(itemAt(event->scenePos(), QTransform())); node) {
-        switch (node->nodeType()) {
+    if (auto* item = itemAt(event->scenePos(), QTransform())) {
+        switch (auto* node = asNodeItem(item); node->nodeType()) {
             case NodeType::FileNode: {
                 const auto ret = openFile(node);
                 Q_UNUSED(ret);
