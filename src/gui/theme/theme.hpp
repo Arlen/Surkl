@@ -139,18 +139,6 @@ namespace gui::theme
     {
         Q_OBJECT
 
-        static constexpr auto PALETTES_TABLE = QLatin1StringView("Palettes");
-        static constexpr auto COLORS_TABLE   = QLatin1StringView("Colors");
-        static constexpr auto PALETTE_ID     = QLatin1StringView("palette_id");
-        static constexpr auto PALETTE_NAME   = QLatin1StringView("name");
-        static constexpr auto COLOR_POSITION = QLatin1StringView("position");
-        static constexpr auto COLOR_VALUE    = QLatin1StringView("value");
-
-        static constexpr auto THEME_SETTINGS_TABLE = QLatin1StringView("ThemeSettings");
-        static constexpr auto ATTRIBUTE_KEY        = QLatin1StringView("attr_key");
-        static constexpr auto ATTRIBUTE_VALUE      = QLatin1StringView("attr_value");
-        static constexpr auto ACTIVE_THEME_KEY     = QLatin1StringView("active_theme");
-
     public:
         enum ModelColumn
         {

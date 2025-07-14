@@ -3,6 +3,7 @@
 
 #include "theme/theme.hpp"
 #include "core/db.hpp"
+#include "db/stmt.hpp"
 
 #include <QApplication>
 #include <QPalette>
@@ -38,8 +39,8 @@ void ThemeManager::configure(ThemeManager* tm)
     using namespace std::ranges;
 
     createTables();
-    Q_ASSERT(core::db::doesTableExists(PALETTES_TABLE));
-    Q_ASSERT(core::db::doesTableExists(COLORS_TABLE));
+    Q_ASSERT(core::db::doesTableExists(stmt::theme::PALETTES_TABLE));
+    Q_ASSERT(core::db::doesTableExists(stmt::theme::COLORS_TABLE));
 
     const auto db = core::db::get();
     if (!db.isOpen()) {
@@ -51,42 +52,35 @@ void ThemeManager::configure(ThemeManager* tm)
     Colors colors;
     auto ok = false;
 
-    ok = q.prepare(QLatin1String("SELECT %1,%2 FROM %3")
-            .arg(PALETTE_ID)
-            .arg(PALETTE_NAME)
-            .arg(PALETTES_TABLE));
+    ok = q.prepare(stmt::theme::SELECT_PALETTES);
     Q_ASSERT(ok);
 
     if (q.exec()) {
-        const auto rec       = q.record();
-        const auto idIndex   = rec.indexOf(PALETTE_ID);
-        const auto nameIndex = rec.indexOf(PALETTE_NAME);
+        const auto rec     = q.record();
+        const auto idIdx   = rec.indexOf(stmt::theme::PALETTE_ID);
+        const auto nameIdx = rec.indexOf(stmt::theme::PALETTE_NAME);
 
         while (q.next())
         {
-            const auto id   = q.value(idIndex).toString().toStdString();
-            const auto name = q.value(nameIndex).toString().toStdString();
+            const auto id   = q.value(idIdx).toString().toStdString();
+            const auto name = q.value(nameIdx).toString().toStdString();
             palettes[id]    = name;
         }
     }
 
-    ok = q.prepare(QLatin1String("SELECT %1,%2,%3 FROM %4")
-            .arg(PALETTE_ID)
-            .arg(COLOR_POSITION)
-            .arg(COLOR_VALUE)
-            .arg(COLORS_TABLE));
+    ok = q.prepare(stmt::theme::SELECT_COLORS);
     Q_ASSERT(ok);
 
     if (q.exec()) {
-        const auto rec      = q.record();
-        const auto idIndex  = rec.indexOf(PALETTE_ID);
-        const auto posIndex = rec.indexOf(COLOR_POSITION);
-        const auto valIndex = rec.indexOf(COLOR_VALUE);
+        const auto rec    = q.record();
+        const auto idIdx  = rec.indexOf(stmt::theme::PALETTE_ID);
+        const auto posIdx = rec.indexOf(stmt::theme::COLOR_POSITION);
+        const auto valIdx = rec.indexOf(stmt::theme::COLOR_VALUE);
 
         while (q.next()) {
-            const auto id    = q.value(idIndex).toString().toStdString();
-            const auto pos   = q.value(posIndex).toInt(&ok);
-            const auto value = q.value(valIndex).value<QColor>();
+            const auto id    = q.value(idIdx).toString().toStdString();
+            const auto pos   = q.value(posIdx).toInt(&ok);
+            const auto value = q.value(valIdx).value<QColor>();
             const auto posi  = qBound(0, pos, static_cast<int>(PaletteIndexSize));
 
             Q_ASSERT(ok);
@@ -343,33 +337,13 @@ void ThemeManager::createTables()
     QSqlQuery q(db);
 
     /// CREATE TABLE Palettes (id TEXT, name TEXT)
-    q.exec(
-        QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
-                        ( %2 TEXT NOT NULL PRIMARY KEY
-                        , %3 TEXT NOT NULL))")
-            .arg(PALETTES_TABLE)
-            .arg(PALETTE_ID)
-            .arg(PALETTE_NAME));
+    q.exec(stmt::theme::CREATE_PALETTES_TABLE);
 
     /// CREATE TABLE Colors (palette_id TEXT, position INTEGER, value INTEGER)
-    q.exec(
-        QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
-                        ( %2 TEXT NOT NULL
-                        , %3 INTEGER NOT NULL
-                        , %4 INTEGER NOT NULL))")
-            .arg(COLORS_TABLE)
-            .arg(PALETTE_ID)
-            .arg(COLOR_POSITION)
-            .arg(COLOR_VALUE));
+    q.exec(stmt::theme::CREATE_COLORS_TABLE);
 
     /// CREATE TABLE ThemeSettings (attr_key TEXT, attr_value TEXT)
-    q.exec(
-        QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
-                        ( %2 TEXT PRIMARY KEY
-                        , %3 TEXT NOT NULL))")
-            .arg(THEME_SETTINGS_TABLE)
-            .arg(ATTRIBUTE_KEY)
-            .arg(ATTRIBUTE_VALUE));
+    q.exec(stmt::theme::CREATE_SETTINGS_TABLE);
 }
 
 /// takes a range of PaletteIds.
@@ -380,16 +354,8 @@ void ThemeManager::savePalettes(std::ranges::input_range auto&& rg)
         QSqlQuery q1(db);
         QSqlQuery q2(db);
 
-        q1.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3) VALUES(?, ?)")
-            .arg(PALETTES_TABLE)
-            .arg(PALETTE_ID)
-            .arg(PALETTE_NAME));
-
-        q2.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2,%3,%4) VALUES(?, ?, ?)")
-            .arg(COLORS_TABLE)
-            .arg(PALETTE_ID)
-            .arg(COLOR_POSITION)
-            .arg(COLOR_VALUE));
+        q1.prepare(stmt::theme::INSERT_PALETTES);
+        q2.prepare(stmt::theme::INSERT_COLORS);
 
         for (const auto& id : rg) {
             Q_ASSERT(_palettes.contains(id));
@@ -428,17 +394,12 @@ void ThemeManager::deletePalettes(std::ranges::input_range auto&& rg)
         QSqlQuery q1(db);
         QSqlQuery q2(db);
 
-        q1.prepare(QLatin1String("DELETE FROM %1 WHERE %2=:key")
-            .arg(PALETTES_TABLE)
-            .arg(PALETTE_ID));
-
-        q2.prepare(QLatin1String("DELETE FROM %1 WHERE %2=:key")
-            .arg(COLORS_TABLE)
-            .arg(PALETTE_ID));
+        q1.prepare(stmt::theme::DELETE_PALETTES);
+        q2.prepare(stmt::theme::DELETE_COLORS);
 
         for (const auto& id : rg) {
-            q1.bindValue(":key", QString::fromStdString(id));
-            q2.bindValue(":key", QString::fromStdString(id));
+            q1.addBindValue(QString::fromStdString(id));
+            q2.addBindValue(QString::fromStdString(id));
             const auto ok1 = q1.exec();
             const auto ok2 = q2.exec();
             Q_ASSERT(ok1 && ok2);
@@ -454,12 +415,8 @@ void ThemeManager::saveActiveTheme(const std::string& id)
 {
     if (const auto db = core::db::get(); db.isOpen()) {
         QSqlQuery q(db);
-        q.prepare(QLatin1String("INSERT OR REPLACE INTO %1 (%2, %3) VALUES(?, ?)")
-            .arg(THEME_SETTINGS_TABLE)
-            .arg(ATTRIBUTE_KEY)
-            .arg(ATTRIBUTE_VALUE));
-
-        q.addBindValue(ACTIVE_THEME_KEY);
+        q.prepare(stmt::theme::INSERT_ATTRIBUTE);
+        q.addBindValue(stmt::theme::ACTIVE_THEME_KEY);
         q.addBindValue(QString::fromStdString(id));
 
         if (!q.exec()) {
@@ -477,18 +434,14 @@ QString ThemeManager::getActiveTheme()
 
     if (const auto db = core::db::get(); db.isOpen()) {
         QSqlQuery q(db);
-        q.prepare(QLatin1String("SELECT %2 FROM %3 WHERE %1=:key")
-            .arg(ATTRIBUTE_KEY)
-            .arg(ATTRIBUTE_VALUE)
-            .arg(THEME_SETTINGS_TABLE));
-
-        q.bindValue(":key", ACTIVE_THEME_KEY);
+        q.prepare(stmt::theme::SELECT_ATTRIBUTE);
+        q.addBindValue(stmt::theme::ACTIVE_THEME_KEY);
 
         if (q.exec()) {
-            const auto rec = q.record();
-            const auto val = rec.indexOf(ATTRIBUTE_VALUE);
+            const auto rec    = q.record();
+            const auto valIdx = rec.indexOf(stmt::theme::ATTRIBUTE_VALUE);
             if (q.next()) {
-                active = q.value(val).toString();
+                active = q.value(valIdx).toString();
             }
         }
     }
