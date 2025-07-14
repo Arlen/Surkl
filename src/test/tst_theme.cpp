@@ -14,6 +14,7 @@
 
 using namespace core;
 using namespace gui;
+using namespace gui::theme;
 
 void TestTheme::initTestCase()
 {

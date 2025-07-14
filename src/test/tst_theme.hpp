@@ -37,5 +37,5 @@ private slots:
 private:
     void generateRandomPalettes(int N);
 
-    gui::Colors _keptColors;
+    gui::theme::Colors _keptColors;
 };

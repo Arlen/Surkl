@@ -73,16 +73,22 @@ foreach(ts ${TEST_SOURCES})
     #Add compile target
     qt6_add_executable(${test_name} ${ts})
     #add_test(NAME ${test_name} COMMAND ${test_name})
-    target_link_libraries(${test_name} PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui Qt6::Sql Qt6::Test)
+    target_link_libraries(${test_name} PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui Qt6::Svg Qt6::Sql Qt6::Test)
 
     target_sources(${test_name} PUBLIC ${CORE_SRC_FILES})
+    target_sources(${test_name} PUBLIC ${DB_SRC_FILES})
     target_sources(${test_name} PUBLIC ${GUI_SRC_FILES})
+    target_sources(${test_name} PUBLIC ${GUI_THEME_SRC_FILES})
     target_sources(${test_name} PUBLIC ${GUI_VIEW_SRC_FILES})
+    target_sources(${test_name} PUBLIC ${GUI_WINDOW_SRC_FILES})
 
     target_include_directories(${test_name} PUBLIC "src")
     target_include_directories(${test_name} PUBLIC "src/core")
+    target_include_directories(${test_name} PUBLIC "src/db")
     target_include_directories(${test_name} PUBLIC "src/gui")
+    target_include_directories(${test_name} PUBLIC "src/gui/theme")
     target_include_directories(${test_name} PUBLIC "src/gui/view")
+    target_include_directories(${test_name} PUBLIC "src/gui/window")
 
     target_compile_definitions(${test_name} PRIVATE TEST_ANIMATIONS=1)
 endforeach(ts)
