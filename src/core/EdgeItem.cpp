@@ -177,6 +177,34 @@ void EdgeItem::adjust()
     }
 }
 
+void EdgeItem::adjustSourceTo(const QPointF& pos)
+{
+    Q_ASSERT(scene());
+    Q_ASSERT(_state == ActiveState);
+
+    const auto recA     = source()->boundingRect();
+    const auto recB     = target()->boundingRect();
+    const auto centerB  = recB.center();
+    const auto pA       = mapFromScene(pos);
+    const auto pB       = mapFromItem(target(), centerB);
+    const auto segment  = QLineF(pA, pB);
+    const auto diameter = (recA.width() + recB.width()) / 2;
+
+    if (const auto len = segment.length(); len > diameter) {
+        const auto lenInv = 1.0 / len;
+        const auto t1 = 0.0;
+        const auto t2 = 1.0 - recB.width() * 0.5 * lenInv;
+        const auto p1 = segment.pointAt(t1);
+        const auto p2 = segment.pointAt(t2);
+
+        setLine(QLineF(p1, p2));
+        _lineWithMargin = shrinkLine(line(), EDGE_TEXT_MARGIN_P1, EDGE_TEXT_MARGIN_P2);
+
+        _label->alignToAxis(lineWithMargin());
+        _label->updatePos();
+    }
+}
+
 /// CollapsedState is only used when a source node is in HalfClosed state. The
 /// target node is disabled and hidden, but the edge remains visible and
 /// disabled. The edge is set up as a tick mark for a HalfClosed source node,
@@ -241,7 +269,7 @@ void EdgeItem::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidg
 
     const auto p1 = line().p1();
     const auto uv = line().unitVector();
-    const auto v2 = QPointF(uv.dx(), uv.dy()) * 3.0;
+    const auto v2 = QPointF(uv.dx(), uv.dy()) * 5.0;
 
     p->setBrush(Qt::NoBrush);
     p->setPen(QPen(tm->openNodeLightColor(), EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));

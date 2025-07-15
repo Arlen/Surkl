@@ -36,6 +36,7 @@ namespace  core
         explicit EdgeItem(QGraphicsItem* source = nullptr, QGraphicsItem* target = nullptr);
         void setText(const QString& text) const;
         void adjust();
+        void adjustSourceTo(const QPointF& pos);
         void setState(State state);
         void paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
         QPainterPath shape() const override;
