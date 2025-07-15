@@ -113,6 +113,8 @@ EdgeItem::EdgeItem(QGraphicsItem* source, QGraphicsItem* target)
     Q_ASSERT(source != nullptr);
     Q_ASSERT(target != nullptr);
 
+    setAcceptHoverEvents(true);
+
     _label = new EdgeLabelItem(this);
 
     setAcceptedMouseButtons(Qt::LeftButton);
@@ -161,7 +163,7 @@ void EdgeItem::adjust()
     /// line from the very edge of an Node to the very edge of the other
     /// Node, while accounting for the pen width.
     if (const auto len = segment.length(); len > diameter) {
-        const auto lenInv    = 1.0 / len;
+        const auto lenInv = 1.0 / len;
         const auto t1 = recA.width() * 0.5 * lenInv;
         const auto t2 = 1.0 - recB.width() * 0.5 * lenInv;
         const auto p1 = segment.pointAt(t1);
@@ -217,28 +219,32 @@ void EdgeItem::paint(QPainter *p, const QStyleOptionGraphicsItem * option, QWidg
 
     const auto* tm = SessionManager::tm();
 
-    if (qAbs(line().dx()) <= 1 && qAbs(line().dy()) <= 1) {
-        /// nodes are too close to draw any edges.
-        return;
-    }
-
     p->setRenderHint(QPainter::Antialiasing);
-    p->setPen(QPen(option->state & QStyle::State_Selected
-            ? tm->edgeLightColor()
-            : tm->edgeColor()
-        , EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
-    p->drawLine(line());
+    p->setBrush(Qt::NoBrush);
 
     if (_state == CollapsedState) {
+        p->setPen(QPen(tm->edgeColor(), EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
+        p->drawLine(line());
         return;
     }
+
+    auto pen = QPen(tm->edgeColor(), EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap);
+
+    if (option->state & QStyle::State_Selected) {
+        pen.setColor(tm->edgeLightColor());
+    } else if (option->state & QStyle::State_MouseOver) {
+        pen.setColor(tm->edgeMidlightColor());
+    }
+
+    p->setPen(pen);
+    p->drawLine(line());
 
     const auto p1 = line().p1();
     const auto uv = line().unitVector();
     const auto v2 = QPointF(uv.dx(), uv.dy()) * 3.0;
 
     p->setBrush(Qt::NoBrush);
-    p->setPen(QPen(tm->openNodeLightColor(), EDGE_WIDTH, Qt::SolidLine, Qt::SquareCap));
+    p->setPen(QPen(tm->openNodeLightColor(), EDGE_WIDTH, Qt::SolidLine, Qt::FlatCap));
     p->drawLine(QLineF(p1, p1 + v2));
 }
 
@@ -256,7 +262,8 @@ QPainterPath EdgeItem::shape() const
 
     QPainterPathStroker ps;
     ps.setCapStyle(pen().capStyle());
-    ps.setWidth(pen().widthF());
+    /// make the width a little wider to make edge selection easier.
+    ps.setWidth(pen().widthF()*4);
     ps.setJoinStyle(pen().joinStyle());
     ps.setMiterLimit(pen().miterLimit());
 

@@ -99,6 +99,7 @@ namespace gui::theme
         NODE_FILE_COLOR,
 
         EDGE_LIGHT_COLOR,
+        EDGE_MIDLIGHT_COLOR,
         EDGE_COLOR,
         EDGE_TEXT_COLOR,
 
@@ -172,6 +173,7 @@ namespace gui::theme
             result[NODE_FILE_MIDLIGHT_COLOR]   = { 128, 128, 128, 255 };
             result[NODE_FILE_COLOR]            = {   8,   8,   8, 255 };
             result[EDGE_LIGHT_COLOR]           = {  96,  96,  96, 255 };
+            result[EDGE_MIDLIGHT_COLOR]        = {  48,  48,  48, 255 };
             result[EDGE_COLOR]                 = {   8,   8,   8, 255 };
             result[EDGE_TEXT_COLOR]            = { 220, 220, 220, 255 };
 
@@ -233,6 +235,8 @@ namespace gui::theme
 
         const QColor& edgeLightColor() const
             { return _active[EDGE_LIGHT_COLOR]; }
+        const QColor& edgeMidlightColor() const
+            { return _active[EDGE_MIDLIGHT_COLOR]; }
         const QColor& edgeColor() const
             { return _active[EDGE_COLOR]; }
         const QColor& edgeTextColor() const
