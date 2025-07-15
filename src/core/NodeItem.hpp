@@ -238,19 +238,19 @@ namespace  core
         return !node->isDir() || node->isClosed();
     };
 
-    inline auto asTargetNodes
+    inline auto asTargetNode
         = std::views::transform(&EdgeItem::target)
         | std::views::transform(&asNodeItem)
         ;
 
     inline auto asFilesOrClosedTargetNodes
-        = asTargetNodes
+        = asTargetNode
         | std::views::filter([](const NodeItem* node)
             { return !node->isDir() || node->isClosed(); })
         ;
 
     inline auto asNotClosedTargetNodes
-        = asTargetNodes
+        = asTargetNode
         | std::views::filter(&NodeItem::isDir)
         | std::views::filter(std::not_fn(&NodeItem::isClosed))
         ;
@@ -267,7 +267,7 @@ namespace  core
         ;
 
     inline auto asTargetNodeIndex
-        = asTargetNodes
+        = asTargetNode
         | asIndex
         ;
 }

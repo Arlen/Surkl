@@ -35,7 +35,7 @@ namespace
     auto allSorted = [](const core::NodeItem* parent)
     {
         auto rows = parent->childEdges()
-            | core::asTargetNodes
+            | core::asTargetNode
             | core::asIndexRow
             ;
 
@@ -45,7 +45,7 @@ namespace
     auto hasUniqueChildren = [](const core::NodeItem* parent)
     {
         const auto rows = parent->childEdges()
-            | core::asTargetNodes | core::asIndexRow
+            | core::asTargetNode | core::asIndexRow
             ;
 
         return (rows | ranges::to<std::vector>()).size() ==
@@ -278,7 +278,7 @@ void TestNodeItem::verifyNames(core::NodeItem* node, const QDir& dir)
 {
     QCOMPARE(node->childEdges().empty(), dir.isEmpty());
 
-    for (const auto* child : node->childEdges() | core::asTargetNodes) {
+    for (const auto* child : node->childEdges() | core::asTargetNode) {
         QVERIFY(dir.exists(child->name()));
         QCOMPARE(child->index().data().toString(), child->name());
         QCOMPARE(child->parentEdge()->label()->text(), child->name());
@@ -288,7 +288,7 @@ void TestNodeItem::verifyNames(core::NodeItem* node, const QDir& dir)
 void TestNodeItem::verifyIndices(const core::NodeItem* node)
 {
     const auto indices = node->childEdges()
-        | core::asTargetNodes
+        | core::asTargetNode
         | core::asIndexRow
         | ranges::to<std::unordered_set>()
         ;
@@ -316,7 +316,7 @@ void TestNodeItem::doRandomRotations(core::NodeItem* node, const QPair<qreal, qr
 void TestNodeItem::randomOpen(const core::NodeItem* node, int count)
 {
     auto candidates = node->childEdges()
-        | core::asTargetNodes
+        | core::asTargetNode
         | views::filter(&core::NodeItem::isDir)
         | views::filter(std::not_fn(&core::NodeItem::isOpen))
         | ranges::to<std::vector>()
@@ -336,7 +336,7 @@ void TestNodeItem::randomOpen(const core::NodeItem* node, int count)
 void TestNodeItem::randomClose(const core::NodeItem* node, int count)
 {
     auto candidates = node->childEdges()
-        | core::asTargetNodes
+        | core::asTargetNode
         | views::filter(&core::NodeItem::isDir)
         | views::filter(std::not_fn(&core::NodeItem::isClosed))
         | ranges::to<std::vector>()
@@ -356,7 +356,7 @@ void TestNodeItem::randomClose(const core::NodeItem* node, int count)
 void TestNodeItem::closeAll(core::NodeItem* node)
 {
     auto notClosed = node->childEdges()
-        | core::asTargetNodes
+        | core::asTargetNode
         | views::filter(&core::NodeItem::isDir)
         | views::filter(std::not_fn(&core::NodeItem::isClosed));
 

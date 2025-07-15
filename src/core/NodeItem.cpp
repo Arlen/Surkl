@@ -538,10 +538,10 @@ void NodeItem::unload(int start, int end)
     Q_UNUSED(start);
     Q_UNUSED(end);
 
-    auto all = _childEdges | asTargetNodes;
+    auto targetNodes = _childEdges | asTargetNode;
 
     /// 1. close all invalid nodes that are not closed.
-    for (auto* node : all) {
+    for (auto* node : targetNodes) {
         if (!node->index().isValid() && (node->isOpen() || node->isHalfClosed())) {
             /// This is close() without the internalRotationAfterClose();
             node->_knot->hide();
@@ -688,7 +688,7 @@ QPainterPath NodeItem::shape() const
 
 bool NodeItem::hasOpenOrHalfClosedChild() const
 {
-    const auto children = _childEdges | asTargetNodes;
+    const auto children = _childEdges | asTargetNode;
 
     return ranges::any_of(children, [](auto* item) -> bool
     {
@@ -1044,7 +1044,7 @@ void NodeItem::repositionAfterClose(EdgeItem* closed)
     }
 
     const auto usedRows = allButClosedEdge
-        | asTargetNodes | asIndexRow
+        | asTargetNode | asIndexRow
         | ranges::to<std::unordered_set>();
 
     auto isGap = [](const QPersistentModelIndex& lhs, const QPersistentModelIndex& rhs)
@@ -1324,7 +1324,7 @@ void core::adjustAllEdges(const NodeItem* node)
 
 void core::updateAllChildNodes(const NodeItem* node)
 {
-    for (auto* child : node->childEdges() | asTargetNodes) {
+    for (auto* child : node->childEdges() | asTargetNode) {
         child->update();
     }
 }
