@@ -478,6 +478,8 @@ void FileSystemScene::onSelectionChange()
                 })
             | std::ranges::to<QList>();
         SessionManager::ib()->setMsgR(gatherStats(indices));
+    } else {
+        SessionManager::ib()->clear();
     }
 
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
