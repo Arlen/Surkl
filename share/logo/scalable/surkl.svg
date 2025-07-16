@@ -14,16 +14,16 @@ font-family="Noto Sans" font-size="10" font-weight="400" font-style="normal"
 <circle cx="64" cy="64" r="56"/>
 </g>
 
-<g fill="none" stroke="#202020" stroke-opacity="1" stroke-dasharray="20.3105,6.77018,6.77018,6.77018,27.0807,6.77018,6.77018,6.77018,33.8509,6.77018,60.9316,6.77018,13.5404,6.77018,40.6211,6.77018" stroke-dashoffset="0" stroke-width="16" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="2" transform="matrix(1,0,0,1,0,0)"
+<g fill="none" stroke="#202020" stroke-opacity="1" stroke-dasharray="20.845,6.94834,6.94834,6.94834,27.7934,6.94834,6.94834,6.94834,34.7417,6.94834,62.5351,6.94834,13.8967,6.94834,41.69,0" stroke-dashoffset="0" stroke-width="16" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="2" transform="matrix(1,0,0,1,0,0)"
 font-family="Noto Sans" font-size="10" font-weight="400" font-style="normal" 
 >
 <path vector-effect="none" fill-rule="evenodd" d="M120,64 C120,33.0721 94.9279,8 64,8 C33.0721,8 8,33.0721 8,64 C8,94.9279 33.0721,120 64,120 "/>
 </g>
 
-<g fill="none" stroke="#202020" stroke-opacity="1" stroke-dasharray="6.77018,6.77018" stroke-dashoffset="0" stroke-width="16" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="2" transform="matrix(1,0,0,1,0,0)"
+<g fill="none" stroke="#202020" stroke-opacity="1" stroke-dasharray="3.47417,3.47417" stroke-dashoffset="0" stroke-width="16" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="2" transform="matrix(1,0,0,1,0,0)"
 font-family="Noto Sans" font-size="10" font-weight="400" font-style="normal" 
 >
-<path vector-effect="none" fill-rule="evenodd" d="M64,120 C92.6155,120 116.218,98.5369 119.588,70.831 "/>
+<path vector-effect="none" fill-rule="evenodd" d="M65.8541,119.97 C94.9113,119.025 118.372,95.943 119.919,67.0417 "/>
 </g>
 </g>
 </svg>
