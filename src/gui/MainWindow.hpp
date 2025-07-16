@@ -8,8 +8,11 @@
 #include <QWidget>
 
 
+class QPushButton;
+
 namespace gui
 {
+    class InfoBar;
     class Splitter;
 
     namespace window
@@ -40,6 +43,8 @@ namespace gui
 
         [[nodiscard]] Splitter* splitter() const { return _splitter; }
 
+        [[nodiscard]] InfoBar* infoBar() const { return _infoBar; }
+
     protected:
         void closeEvent(QCloseEvent* event) override;
 
@@ -52,5 +57,7 @@ namespace gui
         void setTitle();
 
         Splitter* _splitter{nullptr};
+        InfoBar* _infoBar{nullptr};
+        QPushButton* _showInfoBar{nullptr};
     };
 }

@@ -47,6 +47,11 @@ SceneStorage* SessionManager::ss()
     return session()->_ss;
 }
 
+gui::InfoBar* SessionManager::ib()
+{
+    return mw()->infoBar();
+}
+
 gui::MainWindow* SessionManager::mw()
 {
     return session()->_mw;

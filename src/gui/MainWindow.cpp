@@ -2,6 +2,7 @@
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "MainWindow.hpp"
+#include "InfoBar.hpp"
 #include "Splitter.hpp"
 #include "UiStorage.hpp"
 #include "core/SessionManager.hpp"
@@ -11,7 +12,8 @@
 
 #include <QApplication>
 #include <QCloseEvent>
-#include <QHBoxLayout>
+#include <QPushButton>
+#include <QVBoxLayout>
 
 #include <set>
 #include <stack>
@@ -67,12 +69,24 @@ MainWindow::MainWindow()
 MainWindow::MainWindow(Splitter* splitter)
     : _splitter(splitter)
 {
-    auto* layout = new QHBoxLayout(this);
+    auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
     _splitter->setParent(this);
     layout->addWidget(_splitter);
+
+    _showInfoBar = new QPushButton(this);
+    _showInfoBar->setFixedSize(48, 12);
+    _showInfoBar->hide();
+
+    _infoBar = new InfoBar(this);
+    layout->addWidget(_infoBar);
+
+    connect(_infoBar, &InfoBar::hidden, _showInfoBar, &QPushButton::show);
+    connect(_showInfoBar, &QPushButton::pressed, _showInfoBar, &QPushButton::hide);
+    connect(_showInfoBar, &QPushButton::pressed, _infoBar, &QWidget::show);
+
 
     setTitle();
 
@@ -214,6 +228,9 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     stateChanged(this);
+
+    const auto pos = rect().bottomRight();
+    _showInfoBar->move(pos - QPoint(_showInfoBar->width(), _showInfoBar->height()));
 
     QWidget::resizeEvent(event);
 }

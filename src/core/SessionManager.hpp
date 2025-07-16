@@ -16,6 +16,7 @@ namespace gui
     }
     class MainWindow;
     class UiStorage;
+    class InfoBar;
 }
 
 namespace core
@@ -34,6 +35,7 @@ namespace core
         static BookmarkManager* bm();
         static FileSystemScene* scene();
         static SceneStorage* ss();
+        static gui::InfoBar* ib();
         static gui::MainWindow* mw();
         static gui::UiStorage* us();
         static gui::theme::ThemeManager* tm();
