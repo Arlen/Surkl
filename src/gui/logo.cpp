@@ -104,7 +104,7 @@ void gui::drawLogo(QPainter* p, const QRect& region)
         << 5.0 << space
         << 9.0 << space
         << 2.0 << space
-        << 6.0 << space;
+        << 6.0 << 0.0;
 
     const auto patternLen = std::ranges::fold_left(pattern, 0.0, std::plus{}) * penW;
 
@@ -113,6 +113,7 @@ void gui::drawLogo(QPainter* p, const QRect& region)
     path.arcTo(rec, 0, 270);
 
     const auto scale = path.length() / patternLen;
+    const auto apl   = 270.0 / path.length();
 
     std::ranges::transform(pattern.begin(), pattern.end(), pattern.begin(),
         [scale](qreal x) { return x * scale; });
@@ -132,10 +133,11 @@ void gui::drawLogo(QPainter* p, const QRect& region)
     p->setPen(pen);
     p->drawPath(path);
 
-    pen.setDashPattern(QList<qreal>() << 1.0*scale << space*scale);
+    pen.setDashPattern(QList<qreal>() << 0.5*scale << 0.5*scale);
     p->setPen(pen);
     path.clear();
-    path.arcMoveTo(rec, 270);
-    path.arcTo(rec, 270, 83);
+
+    path.arcMoveTo(rec, 271 + apl*scale*2.0);
+    path.arcTo(rec, 271 + apl*scale*2.0, 85);
     p->drawPath(path);
 }
