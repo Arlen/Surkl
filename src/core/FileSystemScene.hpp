@@ -60,6 +60,7 @@ namespace core
     private:
         void deleteSelection();
         void rotateSelection(Rotation rot, bool page) const;
+        QString gatherStats(const QModelIndexList& indices) const;
 
         QFileSystemModel* _model{nullptr};
         QSortFilterProxyModel* _proxyModel{nullptr};

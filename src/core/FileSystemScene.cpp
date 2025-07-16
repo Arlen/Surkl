@@ -9,6 +9,7 @@
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
 #include "gui/theme.hpp"
+#include "gui/InfoBar.hpp"
 
 #include <QDesktopServices>
 #include <QFileSystemModel>
@@ -468,6 +469,17 @@ void FileSystemScene::onSelectionChange()
         }
     }
 
+    if (selectedNodes.size() > 0) {
+        const auto indices = selectedNodes
+            | asIndex
+            | std::views::transform(
+                [this](const QPersistentModelIndex& i) {
+                    return _proxyModel->mapToSource(i);
+                })
+            | std::ranges::to<QList>();
+        SessionManager::ib()->setMsgR(gatherStats(indices));
+    }
+
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
 }
 
@@ -525,4 +537,77 @@ void FileSystemScene::rotateSelection(Rotation rot, bool page) const
             n->rotate(rot);
         }
     }
+}
+
+QString FileSystemScene::gatherStats(const QModelIndexList& indices) const
+{
+    auto locale = QLocale::system();
+
+    if (indices.size() == 1) {
+        const auto& fi = _model->fileInfo(indices.first());
+        if (fi.isDir()) {
+            auto dir = fi.dir();
+            dir.setFilter(QDir::NoDotAndDotDot | QDir::AllEntries);
+            dir.cd(fi.baseName());
+
+            return QString("\"%1\" selected (containing %2 items)")
+                        .arg(fi.fileName())
+                        .arg(dir.count());
+        } else {
+            return QString("\"%1\" selected (%2)")
+                        .arg(fi.fileName())
+                        .arg(locale.formattedDataSize(fi.size()));
+        }
+    }
+
+    qint64 selectedFolders = 0;
+    qint64 folderCount = 0;
+    qint64 selectedItems = 0;
+    qint64 fileBytes = 0;
+
+    auto dir = QDir();
+    dir.setFilter(QDir::NoDotAndDotDot | QDir::AllEntries);
+
+    for (const auto& index : indices) {
+        if (const auto& fi = _model->fileInfo(index); fi.isDir()) {
+            selectedFolders++;
+            dir.setPath(fi.absoluteFilePath());
+            folderCount += dir.count();
+        } else {
+            selectedItems++;
+            fileBytes += fi.size();
+        }
+    }
+
+    const auto comma         = selectedFolders && selectedItems ? ", " : "";
+    const auto other         = selectedItems ? "other" : "";
+    const auto aTotalOf      = selectedFolders > 1 ? "a total of" : "";
+    const auto folder        = selectedFolders > 1 ? "folders" : "folder";
+    const auto folderItems   = folderCount == 1 ? "item" : "items";
+    const auto fileItems     = selectedItems == 1 ? "item" : "items";
+    const auto formattedSize = locale.formattedDataSize(fileBytes);
+
+    qDebug() << selectedFolders << selectedItems;
+
+    auto msg = QString();
+    if (selectedFolders > 0) {
+        msg += QString("%1 %2 selected (containing %3 %4 %5)")
+                    .arg(selectedFolders)
+                    .arg(folder)
+                    .arg(aTotalOf)
+                    .arg(folderCount)
+                    .arg(folderItems);
+    }
+
+    msg += comma;
+
+    if (selectedItems > 0) {
+        msg += QString("%1 %2 %3 selected (%4)")
+                .arg(selectedItems)
+                .arg(other)
+                .arg(fileItems)
+                .arg(formattedSize);
+    }
+
+    return msg;
 }
