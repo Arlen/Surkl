@@ -15,7 +15,7 @@
 
 int main(int argc, char* argv[])
 {
-    QScopedPointer app(new QApplication(argc, argv));
+    auto* app = new QApplication(argc, argv);
 
     QApplication::setApplicationName("surkl");
 
