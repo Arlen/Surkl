@@ -50,7 +50,8 @@ SceneBookmarkItem::SceneBookmarkItem(const QPoint& pos, const QString& name)
 
     _name = new QGraphicsSimpleTextItem(this);
     _name->setText(name);
-    _name->setPos(QPointF(0, 32));
+    const auto cx = boundingRect().center().x();
+    _name->setPos(QPointF(cx - _name->boundingRect().width()/2, 32));
     _name->hide();
 }
 
