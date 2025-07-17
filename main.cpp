@@ -18,8 +18,12 @@ int main(int argc, char* argv[])
     auto* app = new QApplication(argc, argv);
 
     QApplication::setApplicationName("surkl");
+    QApplication::setApplicationDisplayName("Surkl");
+    QApplication::setApplicationVersion(version());
 
-    std::println("Surkl {},", version().toStdString());
+    std::println("{} {},",
+        QApplication::applicationDisplayName().toStdString(),
+        QApplication::applicationVersion().toStdString());
     std::println("Copyright (C) 2025 Arlen Avakian");
 
     if (!QSqlDatabase::drivers().contains("QSQLITE"))
