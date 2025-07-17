@@ -8,6 +8,19 @@
 
 namespace gui::view
 {
+    class TriggerButton final : public QPushButton
+    {
+    public:
+        explicit TriggerButton(const QString& text, Qt::Alignment alignment, QWidget* parent = nullptr);
+
+    protected:
+        void paintEvent(QPaintEvent *event) override;
+
+    private:
+        Qt::Alignment _alignment;
+    };
+
+
     class QuadrantButton final : public QWidget
     {
         Q_OBJECT
