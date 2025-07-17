@@ -61,7 +61,7 @@ namespace
 AboutDialog::AboutDialog()
     : QDialog(gui::MainWindow::first())
 {
-    setWindowTitle(QString("About %1").arg(QGuiApplication::applicationDisplayName()));
+    setWindowTitle(QString("About %1").arg(QApplication::applicationDisplayName()));
 
     auto* mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(8);
