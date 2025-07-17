@@ -3,7 +3,8 @@ project(Surkl)
 
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -fsanitize=address -fsanitize=undefined")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -fsanitize=undefined")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -fsanitize=address")
 
 
 
@@ -17,18 +18,7 @@ qt6_add_executable(surkl ${SOURCES})
 target_link_libraries(surkl PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui Qt6::Svg Qt6::Sql)
 set_property(TARGET surkl PROPERTY AUTOMOC ON)
 
-## set install directory.  not sure what this does exactly besides copying the
-## binary excutable to that directory.
-if(NOT DEFINED SURKL_INSTALL_DIR)
-    set(SURKL_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/install")
-endif()
-set(SURKL_INSTALL_DIR "${SURKL_INSTALL_DIR}/bin/")
 
-install(TARGETS surkl
-        RUNTIME DESTINATION "${SURKL_INSTALL_DIR}"
-        BUNDLE DESTINATION  "${SURKL_INSTALL_DIR}"
-        LIBRARY DESTINATION "${SURKL_INSTALL_DIR}"
-)
 
 ## source files
 file(GLOB CORE_SRC_FILES "src/core/*.cpp")
@@ -55,10 +45,14 @@ target_include_directories(surkl PUBLIC "src/gui/view")
 target_include_directories(surkl PUBLIC "src/gui/window")
 
 
+## LTO
+include(CheckIPOSupported)
+check_ipo_supported(RESULT IPOSupported OUTPUT error)
 
-## disables all the APIs deprecated before Qt 6.5.0
-target_compile_definitions(surkl PUBLIC QT_DISABLE_DEPRECATED_BEFORE=0x060500)
-
+if (IPOSupported)
+    message(STATUS "IPO enabled")
+    set_property(TARGET surkl PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
 
 
 ### Testing
