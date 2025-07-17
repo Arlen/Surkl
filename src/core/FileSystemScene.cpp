@@ -406,23 +406,25 @@ void FileSystemScene::keyPressEvent(QKeyEvent *event)
 
 void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
+    QGraphicsScene::mouseDoubleClickEvent(event);
+
     if (auto* item = itemAt(event->scenePos(), QTransform())) {
-        switch (auto* node = asNodeItem(item); node->nodeType()) {
-            case NodeType::FileNode: {
-                const auto ret = openFile(node);
-                Q_UNUSED(ret);
-            } break;
-            case NodeType::OpenNode:
-                node->closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
-                break;
-            case NodeType::ClosedNode:
-            case NodeType::HalfClosedNode:
-                node->open();
-                break;
+        if (auto* node = asNodeItem(item)) {
+            switch (node->nodeType()) {
+                case NodeType::FileNode: {
+                    const auto ret = openFile(node);
+                    Q_UNUSED(ret);
+                } break;
+                case NodeType::OpenNode:
+                    node->closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
+                    break;
+                case NodeType::ClosedNode:
+                case NodeType::HalfClosedNode:
+                    node->open();
+                    break;
+            }
         }
     }
-
-    return QGraphicsScene::mouseDoubleClickEvent(event);
 }
 
 void FileSystemScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
