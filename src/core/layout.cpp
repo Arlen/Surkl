@@ -69,8 +69,11 @@ Ngon core::guideLines(const NodeItem* node, int sides, bool ignoreGrabber)
         ;
 
     if (!ignoreGrabber) {
-        if (const auto* mg = node->scene()->mouseGrabberItem(); mg)
-        { excludedItems.push_back(mg); }
+        if (auto* mg = node->scene()->mouseGrabberItem(); mg != node) {
+            if (qgraphicsitem_cast<NodeItem*>(mg)) {
+                excludedItems.push_back(mg);
+            }
+        }
     }
     excludedItems.push_back(node->parentEdge()->source());
     excludedItems.push_back(node->knot());
