@@ -21,6 +21,7 @@ InfoBar::InfoBar(QWidget *parent)
     auto* lineEdit = new QLineEdit(this);
     lineEdit->setFrame(false);
     lineEdit->setReadOnly(true);
+    lineEdit->setTextMargins(4, 0, 4, 0);
     layout->addWidget(lineEdit);
 
     auto* button = new QPushButton(this);

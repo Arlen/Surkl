@@ -1,23 +1,25 @@
 /// Copyright (C) 2025 Arlen Avakian
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "EdgeItem.hpp"
 #include "FileSystemScene.hpp"
 #include "BookmarkItem.hpp"
+#include "EdgeItem.hpp"
 #include "GraphicsView.hpp"
 #include "NodeItem.hpp"
 #include "SessionManager.hpp"
 #include "bookmark.hpp"
-#include "gui/theme.hpp"
 #include "gui/InfoBar.hpp"
+#include "gui/theme/theme.hpp"
 
 #include <QDesktopServices>
 #include <QFileSystemModel>
 #include <QGraphicsSceneMouseEvent>
+#include <QKeyEvent>
+#include <QMetaEnum>
+#include <QMimeData>
 #include <QPainter>
 #include <QSortFilterProxyModel>
 #include <QUrl>
-#include <QKeyEvent>
 
 #include <ranges>
 
@@ -423,6 +425,74 @@ void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
     return QGraphicsScene::mouseDoubleClickEvent(event);
 }
 
+void FileSystemScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+{
+    if (event->buttons() & Qt::LeftButton) {
+        for (const auto pos = event->scenePos(); auto* edge : _selectedEdges) {
+            edge->adjustSourceTo(pos);
+            edge->target()->update();
+        }
+    }
+
+    QGraphicsScene::mouseMoveEvent(event);
+}
+
+void FileSystemScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
+{
+    auto performDropAction = [&] {
+        auto destination = items(event->scenePos()) | filterNodes | std::views::take(1);
+
+        if (destination.empty()) { return; }
+
+        const auto* destinationNode = destination.front();
+
+        const auto sourceIndices = _selectedEdges
+            | asTargetNodeIndex
+            | std::views::transform(
+                [this](const QModelIndex& i) {
+                    return _proxyModel->mapToSource(i);
+                })
+            | std::ranges::to<QModelIndexList>();
+
+        if (sourceIndices.empty()) { return; }
+
+        const auto* sourceData = _model->mimeData(sourceIndices);
+
+        if (!sourceData) { return; }
+
+        const auto destinationIndex = _proxyModel->mapToSource(destinationNode->index());
+
+        auto action = Qt::MoveAction;
+        if (event->modifiers() == Qt::ControlModifier) {
+            action = Qt::CopyAction;
+        } else if (event->modifiers() & Qt::ControlModifier && event->modifiers() & Qt::ShiftModifier) {
+            action = Qt::LinkAction;
+        }
+
+        /// TODO: dropMimeData does not support directory copy.
+        if (_model->dropMimeData(sourceData, action, -1, -1, destinationIndex)) {
+            adjustAllEdges(destinationNode);
+        } else {
+            const auto actionName =
+                QString(QMetaEnum::fromType<decltype(action)>().valueToKey(action))
+                    .remove("Action");
+            SessionManager::ib()->setTimedMsgL(QString("%1 failed!").arg(actionName), 3000);
+        }
+    };
+
+    if (event->button() & Qt::LeftButton && !_selectedEdges.isEmpty()) {
+
+        performDropAction();
+
+        for (auto* edge : _selectedEdges) {
+            edge->adjust();
+            edge->target()->update();
+        }
+    }
+
+    QGraphicsScene::mouseReleaseEvent(event);
+}
+
 void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int end) const
 {
     for (const auto _items = items(); auto* node : _items | filterNodes) {
@@ -454,19 +524,22 @@ void FileSystemScene::onSelectionChange()
 {
     disconnect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
 
-    const auto selected = selectedItems();
-    const auto nodes    = std::ranges::to<std::vector>(selected | filterNodes);
-    const auto edges    = std::ranges::to<std::vector>(selected | filterEdges);
+    const auto selection     = selectedItems();
+    const auto selectedNodes = std::ranges::to<QList>(selection | filterNodes);
+    const auto selectedEdges = std::ranges::to<QList>(selection | filterEdges);
+
+    _selectedEdges.clear();
 
     /// for now, give nodes priority over edges.
-    if ((!nodes.empty() && !edges.empty()) || edges.empty()) {
-        for (auto* edge : edges) {
+    if ((!selectedNodes.empty() && !selectedEdges.empty()) || selectedEdges.empty()) {
+        for (auto* edge : selectedEdges) {
             edge->setSelected(false);
         }
     } else {
-        for (auto* node : nodes) {
+        for (auto* node : selectedNodes) {
             node->setSelected(false);
         }
+        _selectedEdges = selectedEdges;
     }
 
     if (selectedNodes.size() > 0) {

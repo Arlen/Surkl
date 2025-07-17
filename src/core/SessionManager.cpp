@@ -6,6 +6,7 @@
 #include "SceneStorage.hpp"
 #include "bookmark.hpp"
 #include "db.hpp"
+#include "gui/InfoBar.hpp"
 #include "gui/MainWindow.hpp"
 #include "gui/UiStorage.hpp"
 #include "gui/theme/theme.hpp"

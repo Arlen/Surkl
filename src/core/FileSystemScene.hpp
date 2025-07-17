@@ -51,6 +51,8 @@ namespace core
         void drawBackground(QPainter* p, const QRectF& rec) override;
         void keyPressEvent(QKeyEvent *event) override;
         void mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event) override;
+        void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
+        void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
     private slots:
         void onSelectionChange();
@@ -64,5 +66,7 @@ namespace core
 
         QFileSystemModel* _model{nullptr};
         QSortFilterProxyModel* _proxyModel{nullptr};
+
+        QList<EdgeItem*> _selectedEdges;
     };
 }
