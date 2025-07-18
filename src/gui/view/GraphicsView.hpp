@@ -69,7 +69,7 @@ namespace gui::view
         void drawBookmarkingCursorAnimation(QPainter& p) const;
         void centerTargetOn(const core::SceneBookmarkItem* bm, const QPointF& target);
 
-        void pickSceneBookmark() const;
+        void toggleQuadrantButton() const;
         QList<core::SceneBookmarkItem*> selectedSceneBookmarks() const;
 
         QVariantAnimation* _bookmarkAnimation{nullptr};

@@ -21,7 +21,7 @@ GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
 {
     configure();
 
-    connect(scene, &QGraphicsScene::selectionChanged, this, &GraphicsView::pickSceneBookmark);
+    connect(scene, &QGraphicsScene::selectionChanged, this, &GraphicsView::toggleQuadrantButton);
 
     _quadrantButton = new QuadrantButton(this);
     _quadrantButton->hide();
@@ -347,7 +347,7 @@ void GraphicsView::centerTargetOn(const core::SceneBookmarkItem* bm, const QPoin
     _timeline->start();
 }
 
-void GraphicsView::pickSceneBookmark() const
+void GraphicsView::toggleQuadrantButton() const
 {
     if (const auto sbm = selectedSceneBookmarks(); sbm.size() == 1) {
         _quadrantButton->setVisible(true);
