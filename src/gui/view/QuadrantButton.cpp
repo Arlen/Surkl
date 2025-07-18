@@ -16,7 +16,7 @@ TriggerButton::TriggerButton(const QString& text, Qt::Alignment alignment, QWidg
     : QPushButton(text, parent)
     , _alignment(alignment)
 {
-
+    setFocusPolicy(Qt::FocusPolicy::NoFocus);
 }
 
 void TriggerButton::paintEvent(QPaintEvent* event)
