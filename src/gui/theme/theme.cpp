@@ -193,7 +193,7 @@ Palette ThemeManager::generatePalette(const HsvRange& range)
     sortByGroups(result, std::index_sequence<SCENE_SHADOW_COLOR, SCENE_DARK_COLOR, SCENE_MIDARK_COLOR, SCENE_COLOR, SCENE_MIDLIGHT_COLOR, SCENE_LIGHT_COLOR>{});
     sortByGroups(result, std::index_sequence<NODE_CLOSED_DARK_COLOR, NODE_CLOSED_MIDARK_COLOR, NODE_CLOSED_COLOR, NODE_CLOSED_MIDLIGHT_COLOR>{});
     sortByGroups(result, std::index_sequence<NODE_OPEN_COLOR, NODE_OPEN_MIDLIGHT_COLOR, NODE_OPEN_LIGHT_COLOR>{});
-    sortByGroups(result, std::index_sequence<NODE_FILE_COLOR, NODE_FILE_MIDLIGHT_COLOR, NODE_FILE_LIGHT_COLOR>{});
+    sortByGroups(result, std::index_sequence<NODE_FILE_DARK_COLOR, NODE_FILE_MIDARK_COLOR, NODE_FILE_COLOR, NODE_FILE_MIDLIGHT_COLOR, NODE_FILE_LIGHT_COLOR>{});
     sortByGroups(result, std::index_sequence<EDGE_COLOR, EDGE_MIDLIGHT_COLOR, EDGE_LIGHT_COLOR>{});
 
     return result;

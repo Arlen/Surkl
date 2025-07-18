@@ -97,6 +97,8 @@ namespace gui::theme
         NODE_FILE_LIGHT_COLOR,
         NODE_FILE_MIDLIGHT_COLOR,
         NODE_FILE_COLOR,
+        NODE_FILE_MIDARK_COLOR,
+        NODE_FILE_DARK_COLOR,
 
         EDGE_LIGHT_COLOR,
         EDGE_MIDLIGHT_COLOR,
@@ -171,7 +173,9 @@ namespace gui::theme
             result[NODE_CLOSED_DARK_COLOR]     = {   8,   8,   8, 255 };
             result[NODE_FILE_LIGHT_COLOR]      = { 220, 220, 220, 255 };
             result[NODE_FILE_MIDLIGHT_COLOR]   = { 128, 128, 128, 255 };
-            result[NODE_FILE_COLOR]            = {   8,   8,   8, 255 };
+            result[NODE_FILE_COLOR]            = {  64,  64,  64, 255 };
+            result[NODE_FILE_MIDARK_COLOR]     = {  32,  32,  32, 255 };
+            result[NODE_FILE_DARK_COLOR]       = {   8,   8,   8, 255 };
             result[EDGE_LIGHT_COLOR]           = {  96,  96,  96, 255 };
             result[EDGE_MIDLIGHT_COLOR]        = {  48,  48,  48, 255 };
             result[EDGE_COLOR]                 = {   8,   8,   8, 255 };
@@ -232,6 +236,10 @@ namespace gui::theme
             { return _active[NODE_FILE_MIDLIGHT_COLOR]; }
         const QColor& fileNodeColor() const
             { return _active[NODE_FILE_COLOR]; }
+        const QColor& fileNodeMidarkColor() const
+            { return _active[NODE_FILE_MIDARK_COLOR]; }
+        const QColor& fileNodeDarkColor() const
+            { return _active[NODE_FILE_DARK_COLOR]; }
 
         const QColor& edgeLightColor() const
             { return _active[EDGE_LIGHT_COLOR]; }

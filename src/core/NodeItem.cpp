@@ -199,10 +199,14 @@ namespace
         const auto* tm   = SessionManager::tm();
         const auto shape = node->shape();
 
-        if (option->state & QStyle::State_MouseOver) {
+        p->setBrush(tm->fileNodeDarkColor());
+        auto sizeColor = tm->fileNodeLightColor();
+
+        if (option->state & QStyle::State_Selected) {
             p->setBrush(tm->fileNodeMidlightColor());
-        } else {
-            p->setBrush(tm->fileNodeColor());
+            sizeColor = tm->fileNodeDarkColor();
+        } else if (option->state & QStyle::State_MouseOver) {
+            p->setBrush(tm->fileNodeMidarkColor());
         }
         p->setPen(Qt::NoPen);
         p->drawPath(shape);
@@ -231,7 +235,7 @@ namespace
                 path.lineTo(p1);
                 path.lineTo(p1 + rhsDxy * (i+1.5));
 
-                p->setPen(QPen(tm->fileNodeLightColor(), i+1, Qt::SolidLine, Qt::SquareCap, Qt::BevelJoin));
+                p->setPen(QPen(sizeColor, i+1, Qt::SolidLine, Qt::SquareCap, Qt::BevelJoin));
                 p->drawPath(path);
 
                 t += (i+4) * axisLen;
@@ -243,7 +247,7 @@ namespace
                 path.lineTo(p1);
                 path.lineTo(p1 + rhsDxy * (full+1.5) * rem);
 
-                p->setPen(QPen(tm->fileNodeLightColor(), full+1, Qt::SolidLine, Qt::SquareCap, Qt::BevelJoin));
+                p->setPen(QPen(sizeColor, full+1, Qt::SolidLine, Qt::SquareCap, Qt::BevelJoin));
                 p->drawPath(path);
             }
         }
