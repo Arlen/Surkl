@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <deque>
 #include <vector>
 
 #include <QLineF>
@@ -15,17 +14,26 @@ namespace core
 {
     class NodeItem;
 
-    using Ngon = std::deque<QLineF>;
+    struct Side
+    {
+        QLineF edge;
+        QLineF norm;
+    };
 
-    constexpr Ngon makeNgon(int sides, qreal startAngle = 0.0);
+    using Ngon = std::vector<Side>;
+    using NgonVector = std::vector<Ngon>;
 
-    constexpr QLineF lineOf(const QGraphicsItem* a, const QGraphicsItem* b);
+    QLineF lineOf(const QGraphicsItem* a, const QGraphicsItem* b);
 
-    constexpr std::vector<QLineF> linesOf(const QGraphicsItem* a, const std::vector<const QGraphicsItem*>& items);
+    Ngon getNgon(int n);
 
-    Ngon guideLines(const NodeItem* node);
+    Ngon makeNgon(int n, qreal startAngle = 0);
 
-    Ngon guideLines(const NodeItem* node, int sides, bool ignoreGrabber = false);
+    NgonVector makeNgons(int N);
 
-    Ngon guideLines(const NodeItem* node, int sides, const std::vector<const QGraphicsItem*>& excluded);
+    QLineF getNgonSideNorm(int i, int n);
+
+    Ngon getGuides(const NodeItem* node, const QGraphicsItem* ignore = nullptr);
+
+    Ngon getGuides(const NodeItem* node, int sides, const std::vector<const QGraphicsItem*>& fixed);
 }

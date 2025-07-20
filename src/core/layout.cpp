@@ -4,7 +4,6 @@
 #include "layout.hpp"
 #include "NodeItem.hpp"
 
-#include <QGraphicsScene>
 #include <QtMath>
 
 #include <ranges>
@@ -12,7 +11,15 @@
 
 using namespace core;
 
-constexpr Ngon core::makeNgon(int n, qreal startAngle)
+QLineF core::lineOf(const QGraphicsItem* a, const QGraphicsItem* b)
+{
+    return QLineF(QPointF(0, 0), a->mapFromItem(b, QPointF(0, 0)));
+}
+
+/// make a Ngon with 'n' sides, and with the first side perpendicular to a line
+/// with an angle 'startAngle' that goes through the center.
+/// zero angle is at 3 o'clock.
+Ngon core::makeNgon(int n, qreal startAngle)
 {
     n = std::max(1, n);
 
@@ -20,94 +27,89 @@ constexpr Ngon core::makeNgon(int n, qreal startAngle)
     const auto offset = startAngle - angle * 0.5;
 
     Ngon result;
-    for (auto i : std::views::iota(0, n)) {
-        const auto a  = angle * i     + offset;
-        const auto b  = angle * (i+1) + offset;
-        const auto x1 = std::cos(qDegreesToRadians(-a));
-        const auto y1 = std::sin(qDegreesToRadians(-a));
-        const auto x2 = std::cos(qDegreesToRadians(-b));
-        const auto y2 = std::sin(qDegreesToRadians(-b));
+    for (const auto i : std::views::iota(0, n)) {
+        const auto a    = angle * i     + offset;
+        const auto b    = angle * (i+1) + offset;
+        const auto x1   = std::cos(qDegreesToRadians(-a));
+        const auto y1   = std::sin(qDegreesToRadians(-a));
+        const auto x2   = std::cos(qDegreesToRadians(-b));
+        const auto y2   = std::sin(qDegreesToRadians(-b));
+        const auto side = QLineF(QPointF(x2, y2), QPointF(x1, y1));
 
-        result.emplace_back(QPointF(x2, y2), QPointF(x1, y1));
+        result.emplace_back(side, side.normalVector());
     }
 
     return result;
 }
 
-constexpr QLineF core::lineOf(const QGraphicsItem* a, const QGraphicsItem* b)
+NgonVector core::makeNgons(int N)
 {
-    return QLineF(QPointF(0, 0), a->mapFromItem(b, QPointF(0, 0)));
-}
+    auto result = NgonVector{};
+    result.push_back({}); // 0
+    result.push_back({}); // 1
 
-constexpr std::vector<QLineF> core::linesOf(const QGraphicsItem* a, const std::vector<const QGraphicsItem*>& items)
-{
-    std::vector<QLineF> result;
-
-    for (const auto* i : items) {
-        result.push_back(lineOf(a, i));
+    for (int i = 2; i <= N; ++i) {
+        result.push_back(makeNgon(i, 0));
     }
 
     return result;
 }
 
-Ngon core::guideLines(const NodeItem* node)
+Ngon core::getNgon(int n)
 {
+    static const auto ngons = makeNgons(NodeItem::NODE_CHILD_COUNT+2);
+
+    Q_ASSERT(n < ngons.size());
+
+    return ngons[n];
+}
+
+QLineF core::getNgonSideNorm(int i, int n)
+{
+    Q_ASSERT(i < getNgon(n).size());
+    Q_ASSERT(i < n);
+
+    return getNgon(n)[i].norm;
+}
+
+Ngon core::getGuides(const NodeItem* node, const QGraphicsItem* ignore)
+{
+    using namespace std;
+
     const auto sides = node->childEdges().size()
         + 1  // for node->parentEdge()
         + 1; // for node->knot()
 
-    return guideLines(node, sides);
-}
-
-Ngon core::guideLines(const NodeItem* node, int sides, bool ignoreGrabber)
-{
-    using namespace std;
-
-    auto excludedItems = node->childEdges()
+    auto fixedItems = node->childEdges()
         | asNotClosedTargetNodes
         | ranges::to<std::vector<const QGraphicsItem*>>()
         ;
 
-    if (!ignoreGrabber) {
-        if (auto* mg = node->scene()->mouseGrabberItem(); mg != node) {
-            if (qgraphicsitem_cast<NodeItem*>(mg)) {
-                excludedItems.push_back(mg);
+    if (ignore && ignore != node) {
+        if (ranges::find(fixedItems, ignore) == fixedItems.end()) {
+            fixedItems.push_back(ignore);
+        }
+    }
+    fixedItems.push_back(node->parentEdge()->source());
+    fixedItems.push_back(node->knot());
+
+    return getGuides(node, sides, fixedItems);
+}
+
+Ngon core::getGuides(const NodeItem* node, int sides, const std::vector<const QGraphicsItem*>& fixed)
+{
+    auto ngon = getNgon(sides);
+
+    for (const auto* item : fixed) {
+        const auto line = lineOf(node, item);
+        Q_ASSERT(!line.isNull());
+        for (auto& side : ngon) {
+            if (!side.norm.isNull() && side.edge.intersects(line) == QLineF::BoundedIntersection) {
+                side.norm = QLineF();
+                break;
             }
         }
     }
-    excludedItems.push_back(node->parentEdge()->source());
-    excludedItems.push_back(node->knot());
 
-    return guideLines(node, sides, excludedItems);
-}
-
-Ngon core::guideLines(const NodeItem* node, int sides, const std::vector<const QGraphicsItem*>& excluded)
-{
-    using namespace std;
-
-    auto intersectsWith = [](const QLineF& line)
-    {
-        return [line](const QLineF& other) -> bool
-        {
-            return other.intersects(line) == QLineF::BoundedIntersection;
-        };
-    };
-
-    auto removeIfIntersects = [intersectsWith](Ngon& lines, const QLineF& line) {
-        /// using find_if b/c only one guide line per intersecting line should
-        /// be removed. e.g., when 'lines' contains only two lines, parentEdge
-        /// will most likely intersect with two.
-        const auto found = ranges::find_if(lines, intersectsWith(line));
-        if (found != lines.end()) {
-            lines.erase(found);
-        }
-    };
-
-    auto result = makeNgon(sides, lineOf(node, node->knot()).angle());
-
-    for (const auto& line : linesOf(node, excluded)) {
-        removeIfIntersects(result, line);
-    }
-
-    return result;
+    return ngon;
 }
