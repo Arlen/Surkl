@@ -68,7 +68,6 @@ AbstractWindowArea *Window::areaWidget() const
 
 void Window::resizeEvent(QResizeEvent *event)
 {
-    core::SessionManager::us()->saveWindow(this);
     emit stateChanged(this);
 
     QWidget::resizeEvent(event);
