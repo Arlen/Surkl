@@ -58,6 +58,8 @@ void EdgeLabelItem::alignToAxis(const QLineF& axis)
 /// sets this label's text so that it fits within length the of given segment.
 /// computes a normal that is perpendicular to the segment, and it marks the
 /// start of this EdgeLabel's shape().
+///
+/// TODO: this is really slow, specially fmt.elidedText().
 void EdgeLabelItem::alignToAxis(const QLineF& axis, const QString& newText)
 {
     _axis = axis;
@@ -74,12 +76,6 @@ void EdgeLabelItem::alignToAxis(const QLineF& axis, const QString& newText)
         ? axis.p2()
         : axis.pointAt(std::max(0.0, 1.0 - advance / length));
 
-    if (length >= advance) {
-        setText(newText);
-    } else {
-        setText(fmt.elidedText(newText, Qt::ElideRight, length));
-    }
-
     const auto h   = boundingRect().height() * 0.5;
     const auto uv  = axis.normalVector().unitVector();
     const auto vec = QPointF(uv.dx(), uv.dy());
@@ -87,17 +83,19 @@ void EdgeLabelItem::alignToAxis(const QLineF& axis, const QString& newText)
     const auto b   = pt1 + vec * h;
 
     _normal = QLineF(b, a);
+
+    if (length >= advance) {
+        setText(newText);
+    } else {
+        setText(fmt.elidedText(newText, Qt::ElideRight, length));
+    }
 }
 
 void EdgeLabelItem::updatePos()
 {
     const auto left = _axis.angle() >= 90 && _axis.angle() <= 270;
-    const auto p1   = _normal.p1();
-    const auto p2   = _normal.p2();
 
-    const auto pathOfMovement = left ? QLineF(p2, p1) : QLineF(p1, p2);
-
-    setPos(pathOfMovement.pointAt(0));
+    setPos(left ? _normal.p2() : _normal.p1());
     setScale(left ? -1 : 1);
     setRotation(-_axis.angle());
 }
