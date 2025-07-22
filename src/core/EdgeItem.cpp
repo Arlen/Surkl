@@ -41,13 +41,9 @@ namespace
 /// EdgeLabel ///
 /////////////////
 EdgeLabelItem::EdgeLabelItem(QGraphicsItem* parent)
-    : QGraphicsSimpleTextItem(parent)
+    : QGraphicsItem(parent)
 {
-    const auto* tm = SessionManager::tm();
-
-    setPen(Qt::NoPen);
-    setBrush(tm->edgeTextColor());
-    setFont(nodeFont());
+    _rec = QRectF(0, 0, 1, 20);
 }
 
 void EdgeLabelItem::alignToAxis(const QLineF& axis)
@@ -55,49 +51,48 @@ void EdgeLabelItem::alignToAxis(const QLineF& axis)
     alignToAxis(axis, _text);
 }
 
-/// sets this label's text so that it fits within length the of given segment.
-/// computes a normal that is perpendicular to the segment, and it marks the
-/// start of this EdgeLabel's shape().
-///
-/// TODO: this is really slow, specially fmt.elidedText().
 void EdgeLabelItem::alignToAxis(const QLineF& axis, const QString& newText)
 {
     _axis = axis;
     _text = newText;
-
-    auto opt = QTextOption(Qt::AlignVCenter | Qt::AlignRight);
-    opt.setWrapMode(QTextOption::NoWrap);
-
-    const auto fmt      = QFontMetricsF(font());
-    const auto length   = axis.length();
-    const auto advance  = fmt.horizontalAdvance(newText, opt);
-    const auto leftSide = axis.angle() >= 90 && axis.angle() <= 270;
-    const auto pt1      = leftSide
-        ? axis.p2()
-        : axis.pointAt(std::max(0.0, 1.0 - advance / length));
-
-    const auto h   = boundingRect().height() * 0.5;
-    const auto uv  = axis.normalVector().unitVector();
-    const auto vec = QPointF(uv.dx(), uv.dy());
-    const auto a   = pt1 - vec * h;
-    const auto b   = pt1 + vec * h;
-
-    _normal = QLineF(b, a);
-
-    if (length >= advance) {
-        setText(newText);
-    } else {
-        setText(fmt.elidedText(newText, Qt::ElideRight, length));
-    }
+    _rec.setWidth(axis.length());
 }
 
 void EdgeLabelItem::updatePos()
 {
+    const auto leftSide = _axis.angle() >= 90 && _axis.angle() <= 270;
+
+    auto xform = QTransform();
+    if (leftSide) {
+        xform.translate(_axis.p2().x(), _axis.p2().y());
+        xform.rotate(-_axis.angle() + 180);
+        xform.translate(0, -_rec.height()/2);
+    } else {
+        xform.translate(_axis.p1().x(), _axis.p1().y());
+        xform.rotate(-_axis.angle());
+        xform.translate(0, -_rec.height()/2);
+    }
+
+    setTransform(xform);
+}
+
+QRectF EdgeLabelItem::boundingRect() const
+{
+    return _rec;
+}
+
+void EdgeLabelItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
+{
+    const auto* tm = SessionManager::tm();
+    painter->setPen(tm->edgeTextColor());
+    painter->setFont(nodeFont());
+
     const auto left = _axis.angle() >= 90 && _axis.angle() <= 270;
 
-    setPos(left ? _normal.p2() : _normal.p1());
-    setScale(left ? -1 : 1);
-    setRotation(-_axis.angle());
+    auto opt = QTextOption(Qt::AlignVCenter | (left ? Qt::AlignLeft : Qt::AlignRight));
+    opt.setWrapMode(QTextOption::NoWrap);
+
+    painter->drawText(boundingRect(), _text, opt);
 }
 
 

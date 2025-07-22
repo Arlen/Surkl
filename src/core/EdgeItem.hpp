@@ -8,7 +8,7 @@
 
 namespace  core
 {
-    class EdgeLabelItem final : public QGraphicsSimpleTextItem
+    class EdgeLabelItem final : public QGraphicsItem
     {
     public:
         enum { Type = UserType + 5 };
@@ -20,9 +20,13 @@ namespace  core
 
         [[nodiscard]] int type() const override { return Type; }
 
+    protected:
+        QRectF boundingRect() const override;
+        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
     private:
-        QLineF _normal;
         QLineF _axis;
+        QRectF _rec;
         QString _text;
     };
 
