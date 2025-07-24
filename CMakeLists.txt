@@ -55,6 +55,25 @@ if (IPOSupported)
 endif()
 
 
+## Tracy
+if (FALSE)
+include(FetchContent)
+
+FetchContent_Declare(
+        tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG v0.11.0
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+)
+
+FetchContent_MakeAvailable(tracy)
+include_directories(tracy/public)
+target_link_libraries(surkl PRIVATE Tracy::TracyClient)
+endif()
+
+
+
 ### Testing
 enable_testing(true)
 file(GLOB TEST_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "src/test/*.cpp")
