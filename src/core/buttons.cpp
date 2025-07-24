@@ -10,6 +10,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
+#include <QTimeLine>
 
 #include <ranges>
 
@@ -38,6 +39,10 @@ SceneButton::SceneButton(const QPointF& pos)
 
     setZValue(0);
 
+    _timeline = new QTimeLine(2000, this);
+    connect(_timeline, &QTimeLine::valueChanged, this , [this] {
+        update();
+    });
     _buttons.insert(this);
 }
 
@@ -67,6 +72,7 @@ void SceneButton::mousePressEvent(QGraphicsSceneMouseEvent *event)
         emit pressed();
     } else if (_deleteTimerId == 0 && event->button() == Qt::RightButton) {
         _deleteTimerId = startTimer(2000);
+        _timeline->start();
     }
 
     QGraphicsObject::mousePressEvent(event);
@@ -79,6 +85,8 @@ void SceneButton::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
     if (_deleteTimerId) {
         killTimer(_deleteTimerId);
         _deleteTimerId = 0;
+        _timeline->stop();
+        update();
     }
 
     if (auto* shadow = qobject_cast<QGraphicsDropShadowEffect*>(graphicsEffect())) {
@@ -131,8 +139,15 @@ void SceneButton::paint(QPainter *painter, const QStyleOptionGraphicsItem *optio
     painter->setRenderHint(QPainter::Antialiasing);
     painter->setPen(QPen(tm->sceneLightColor(), 2));
     painter->setBrush(tm->sceneDarkColor());
-
     painter->drawEllipse(rec.adjusted(1, 1, -1, -1));
+
+    if (_timeline->state() == QTimeLine::Running) {
+        painter->setBrush(Qt::NoBrush);
+        auto pen = QPen(tm->sceneDarkColor(), 2);
+        pen.setStyle(Qt::PenStyle::DotLine);
+        painter->setPen(pen);
+        painter->drawArc(rec.adjusted(1, 1, -1, -1), 0, _timeline->currentValue() * 360 * 16);
+    }
 }
 
 

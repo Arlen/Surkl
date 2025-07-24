@@ -9,6 +9,8 @@
 #include <unordered_set>
 
 
+class QTimeLine;
+
 namespace core
 {
     class SceneButton : public QGraphicsObject
@@ -53,6 +55,7 @@ namespace core
 
     private:
         int _deleteTimerId{0};
+        QTimeLine* _timeline{nullptr};
         inline static std::unordered_set<SceneButton*> _buttons;
     };
 
