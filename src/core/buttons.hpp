@@ -13,6 +13,8 @@ class QTimeLine;
 
 namespace core
 {
+    /// TODO: I'm not sure if these scene buttons are a good idea, so for now
+    /// just leave them be.
     class SceneButton : public QGraphicsObject
     {
         Q_OBJECT
@@ -38,7 +40,8 @@ namespace core
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
         virtual SceneButton* clone(const QPointF& pos) const = 0;
-        virtual void deleteMe() = 0;
+        virtual void startToDelete() = 0;
+        QTimeLine* timeline() const { return _timeline; }
 
         static const std::unordered_set<SceneButton*>& buttons()
         {
@@ -53,8 +56,9 @@ namespace core
             });
         }
 
-    private:
         int _deleteTimerId{0};
+
+    private:
         QTimeLine* _timeline{nullptr};
         inline static std::unordered_set<SceneButton*> _buttons;
     };
@@ -74,7 +78,7 @@ namespace core
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
         SceneButton* clone(const QPointF& pos) const override;
-        void deleteMe() override;
+        void startToDelete() override;
     };
 
 
@@ -92,6 +96,6 @@ namespace core
         void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
         SceneButton* clone(const QPointF& pos) const override;
-        void deleteMe() override;
+        void startToDelete() override;
     };
 }

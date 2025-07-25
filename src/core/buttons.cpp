@@ -71,8 +71,7 @@ void SceneButton::mousePressEvent(QGraphicsSceneMouseEvent *event)
 
         emit pressed();
     } else if (_deleteTimerId == 0 && event->button() == Qt::RightButton) {
-        _deleteTimerId = startTimer(2000);
-        _timeline->start();
+        startToDelete();
     }
 
     QGraphicsObject::mousePressEvent(event);
@@ -112,7 +111,8 @@ void SceneButton::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 void SceneButton::timerEvent(QTimerEvent *event)
 {
     if (event->timerId() == _deleteTimerId) {
-        deleteMe();
+        _deleteTimerId = 0;
+        deleteLater();
     }
 
     QGraphicsObject::timerEvent(event);
@@ -151,6 +151,7 @@ void SceneButton::paint(QPainter *painter, const QStyleOptionGraphicsItem *optio
 }
 
 
+
 /// AboutButton
 AboutButton::AboutButton(const QPointF &pos)
     : SceneButton(pos)
@@ -172,12 +173,15 @@ SceneButton* AboutButton::clone(const QPointF& pos) const
     return new AboutButton(pos);
 }
 
-void AboutButton::deleteMe()
+void AboutButton::startToDelete()
 {
     if (std::ranges::distance(siblings<AboutButton>()) > 1) {
-        deleteLater();
+        Q_ASSERT(_deleteTimerId == 0);
+        _deleteTimerId = startTimer(2000);
+        timeline()->start();
     }
 }
+
 
 
 /// ThemeButton
@@ -201,9 +205,11 @@ SceneButton* ThemeButton::clone(const QPointF& pos) const
     return new ThemeButton(pos);
 }
 
-void ThemeButton::deleteMe()
+void ThemeButton::startToDelete()
 {
     if (std::ranges::distance(siblings<ThemeButton>()) > 1) {
-        deleteLater();
+        Q_ASSERT(_deleteTimerId == 0);
+        _deleteTimerId = startTimer(2000);
+        timeline()->start();
     }
 }
