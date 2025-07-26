@@ -199,3 +199,35 @@ namespace stmt::theme
         = DELETE_TPL.arg(COLORS_TABLE)
             .arg(PALETTE_ID);
 }
+namespace stmt::surkl
+{
+    constexpr auto SURKL_TABLE     = "Surkl"_L1;
+    constexpr auto ATTRIBUTE_KEY   = "attr_key"_L1;
+    constexpr auto ATTRIBUTE_VALUE = "attr_value"_L1;
+
+
+    constexpr auto CREATE_SURKL_TABLE_TPL
+        = R"(CREATE TABLE IF NOT EXISTS %1
+             ( %2 TEXT NOT NULL PRIMARY KEY
+             , %3 )
+            )"_L1;
+
+    constexpr auto INSERT_TPL = "INSERT OR REPLACE INTO %1 ( %2, %3 ) VALUES( ?, ? )"_L1;
+    constexpr auto SELECT_TPL = "SELECT %3,%2 FROM %1"_L1;
+
+
+    static const auto CREATE_SURKL_TABLE
+        = CREATE_SURKL_TABLE_TPL.arg(SURKL_TABLE)
+            .arg(ATTRIBUTE_KEY)
+            .arg(ATTRIBUTE_VALUE);
+
+    static const auto INSERT_ATTRIBUTE
+        = INSERT_TPL.arg(SURKL_TABLE)
+            .arg(ATTRIBUTE_KEY)
+            .arg(ATTRIBUTE_VALUE);
+
+    static const auto SELECT_ATTRIBUTE
+        = SELECT_TPL.arg(SURKL_TABLE)
+            .arg(ATTRIBUTE_KEY)
+            .arg(ATTRIBUTE_VALUE);
+}
