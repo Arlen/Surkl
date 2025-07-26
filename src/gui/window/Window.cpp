@@ -5,6 +5,7 @@
 #include "AbstractWindowArea.hpp"
 #include "TitleBar.hpp"
 #include "core/SessionManager.hpp"
+#include "gui/AboutSurkl.hpp"
 #include "gui/Splitter.hpp"
 #include "gui/UiStorage.hpp"
 #include "theme/ThemeArea.hpp"
@@ -323,6 +324,9 @@ void Window::setupMenu()
     Q_ASSERT(_titleBar->menuButton());
 
     if (auto *button = qobject_cast<QPushButton *>(_titleBar->menuButton())) {
+        if (button->menu()) {
+            button->menu()->deleteLater();
+        }
         auto *menu = new QMenu(this);
 
         if (qobject_cast<view::ViewArea *>(_areaWidget) == nullptr) {
@@ -342,8 +346,17 @@ void Window::setupMenu()
         connect(moveTo, &QAction::triggered, this, &Window::moveToNewMainWindow);
         menu->addAction(moveTo);
 
-        if (button->menu()) {
-            button->menu()->deleteLater();
+        {
+            menu->addSeparator();
+
+            auto* about = new QAction("About Surkl");
+            menu->addAction(about);
+
+            connect(about, &QAction::triggered, [] {
+                auto* dialog = new gui::AboutDialog();
+                connect(dialog, &QDialog::finished, dialog, &QDialog::deleteLater);
+                dialog->show();
+            });
         }
         button->setMenu(menu);
         button->show();
