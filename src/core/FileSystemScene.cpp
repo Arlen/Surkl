@@ -244,15 +244,6 @@ FileSystemScene::FileSystemScene(QObject* parent)
     }
 }
 
-FileSystemScene::~FileSystemScene()
-{
-    /// Need to disconnect this because, otherwise, if there is a selected node
-    /// before exit, then we get a runtime error:
-    /// "downcast of address 0x5cedde11db10 which does not point to an object
-    /// of type 'typename FuncType::Object' (aka 'core::Scene')"
-    disconnect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
-}
-
 QPersistentModelIndex FileSystemScene::rootIndex() const
 {
     auto index = _model->index(_model->rootPath());
@@ -345,25 +336,6 @@ void FileSystemScene::halfCloseSelectedNodes() const
     for (const auto selection = selectedItems(); auto* node : selection | filterNodes) {
         node->closeOrHalfClose(true);
     }
-}
-
-/// updates the items in the scene after a change in ThemeManager for changes to
-/// take effect.
-void FileSystemScene::refreshItems()
-{
-    const auto* tm = SessionManager::tm();
-
-    for (const auto xs = items(); auto* x : xs) {
-        if (auto* label = qgraphicsitem_cast<EdgeLabelItem*>(x); label) {
-            /// Need to set the brush for EdgeLabels directly. Other item types
-            /// don't have this problem because theme values are used directly
-            /// in paint(), and update() triggers a repaint.
-            label->setBrush(tm->edgeTextColor());
-        }
-    }
-
-    /// other item types.
-    update();
 }
 
 void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& name)

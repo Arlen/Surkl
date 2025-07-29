@@ -28,7 +28,6 @@ namespace core
 
     public:
         explicit FileSystemScene(QObject* parent = nullptr);
-        ~FileSystemScene() override;
         [[nodiscard]] QPersistentModelIndex rootIndex() const;
         bool isDir(const QModelIndex& index) const;
         [[nodiscard]] QString filePath(const QPersistentModelIndex& index) const;
@@ -44,7 +43,6 @@ namespace core
         void openSelectedNodes() const;
         void closeSelectedNodes() const;
         void halfCloseSelectedNodes() const;
-        void refreshItems();
         void addSceneBookmark(const QPoint& clickPos, const QString& name);
 
     protected:
