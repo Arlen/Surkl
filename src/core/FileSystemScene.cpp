@@ -227,6 +227,7 @@ FileSystemScene::FileSystemScene(QObject* parent)
 
     _model = new QFileSystemModel(this);
     _model->setRootPath(QDir::rootPath());
+    _model->setReadOnly(false);
 
     _proxyModel = new QSortFilterProxyModel(this);
     _proxyModel->setSourceModel(_model);
