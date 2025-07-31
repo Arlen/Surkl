@@ -3,6 +3,7 @@
 
 #include "FileSystemScene.hpp"
 #include "BookmarkItem.hpp"
+#include "DeleteDialog.hpp"
 #include "EdgeItem.hpp"
 #include "GraphicsView.hpp"
 #include "NodeItem.hpp"
@@ -218,6 +219,18 @@ namespace
 
     auto filterNodes = std::views::transform(toNode) | std::views::filter(notNull);
     auto filterEdges = std::views::transform(toEdge) | std::views::filter(notNull);
+
+    DeletionDialog* createDeleteDialog(const QGraphicsScene* scene)
+    {
+        for (auto* view: scene->views()) {
+            if (view->hasFocus()) {
+                auto* dialog = new DeletionDialog(view);
+                return dialog;
+            }
+        }
+
+        return nullptr;
+    }
 }
 
 FileSystemScene::FileSystemScene(QObject* parent)
@@ -367,7 +380,16 @@ void FileSystemScene::keyPressEvent(QKeyEvent *event)
     const auto key = event->key();
 
     if (key == Qt::Key_Delete) {
-        deleteSelection();
+        if (!event->isAutoRepeat()) {
+            auto selection = selectedItems() | filterNodes;
+            if (std::ranges::distance(selection) > 0) {
+                auto* dialog = createDeleteDialog(this);
+                connect(dialog, &QDialog::accepted, this, &FileSystemScene::deleteSelection);
+                dialog->exec();
+            } else {
+                deleteSelection();
+            }
+        }
     } else if (key == Qt::Key_A) {
         rotateSelection(Rotation::CCW, event->modifiers() == Qt::ShiftModifier);
     } else if (key == Qt::Key_D) {
