@@ -254,37 +254,38 @@ namespace
     }
 }
 
-SpreadAnimationData core::spreadWithAnimation(const NodeItem* node)
+SpreadAnimationData core::spreadWithAnimation(const NodeItem* parent)
 {
-    Q_ASSERT(node->parentEdge());
-    Q_ASSERT(node->knot());
+    Q_ASSERT(parent->parentEdge());
+    Q_ASSERT(parent->knot());
 
     SpreadAnimationData result;
 
-    const auto sides = node->childEdges().size()
-        + 1  // for node->parentEdge()
-        + 1; // for node->knot()
+    auto includedNodes = parent->childEdges() | asFilesOrClosedTargetNodes;
 
-    auto includedNodes = node->childEdges() | asFilesOrClosedTargetNodes;
+    const auto gl = getGuides(parent);
 
-    for (auto gl = guideLines(node, sides, true); auto* child : includedNodes) {
-        if (gl.empty()) {
+    for (int i = 0; auto* child : includedNodes) {
+        while (i < gl.size() && gl[i].norm.isNull()) {
+            ++i;
+        }
+        if (i >= gl.size()) {
             break;
         }
-        const auto oldPos = child->scenePos();
-        const auto norm   = gl.front().normalVector();
+
+        const auto norm = gl[i].norm;
 
         /// TODO: node lengths are unique to each File/Folder, and have default
         /// value of 144 for now.  If the edge length is changed by the user, it
         /// is saved in the Model and then in the DB.
-        auto childLine = QLineF(node->pos(), node->pos() + QPointF(1, 1));
+        auto childLine = QLineF(parent->pos(), parent->pos() + QPointF(norm.dx(), norm.dy()));
         childLine.setLength(144);
-        childLine.setAngle(norm.angle());
+        const auto oldPos = child->scenePos();
 
         if (const auto newPos = childLine.p2(); oldPos != newPos) {
             result.movement.insert(child, {oldPos, newPos});
         }
-        gl.pop_front();
+        ++i;
     }
 
     return result;
@@ -1260,33 +1261,60 @@ void NodeItem::skipTo(int row)
 /// dxy is used only for the node that is being moved by the mouse.  Without
 /// dxy, the child nodes get scattered all over when the parent node is moved
 /// too quickly or rapidly.
-void NodeItem::spread(QPointF dxy)
+void NodeItem::spread(const QPointF& dxy)
 {
     if (_childEdges.empty()) { return; }
 
     const auto* grabber = scene()->mouseGrabberItem();
+    auto includedNodes = _childEdges | asFilesOrClosedTargetNodes;
 
-    auto includedNodes = _childEdges
-        | asFilesOrClosedTargetNodes
-        | views::filter([grabber](const NodeItem* node)
-            { return node != grabber; })
-        ;
+    const auto guides = getGuides(this);
 
-    for (auto gl = guideLines(this); auto* node : includedNodes) {
-        if (gl.empty()) {
+    for (int i = 0; auto* node : includedNodes) {
+        while (i < guides.size() && guides[i].norm.isNull()) {
+            ++i;
+        }
+        if (i >= guides.size()) {
             break;
         }
 
-        const auto norm = gl.front().normalVector();
+        const auto norm = guides[i].norm;
 
-        /// TODO: node lengths are unique to each File/Folder, and have default
-        /// value of 144 for now.  If the edge length is changed by the user, it
-        /// is saved in the Model and then in the DB.
-        auto nodeLine = QLineF(pos(), pos() + QPointF(1, 1));
+        auto nodeLine = QLineF(pos(), pos() + QPointF(norm.dx(), norm.dy()));
         nodeLine.setLength(144);
-        nodeLine.setAngle(norm.angle());
         node->setPos(nodeLine.p2() + dxy);
-        gl.pop_front();
+        i++;
+    }
+}
+
+void NodeItem::spread(const NodeItem* child)
+{
+
+    Q_ASSERT(child);
+    Q_ASSERT(!_childEdges.empty());
+
+    auto includedNodes = _childEdges
+        | asFilesOrClosedTargetNodes
+        | views::filter([child](const NodeItem* node) {
+            return node != child;
+        });
+
+    const auto guides = getGuides(this, child);
+
+    for (int i = 0; auto* node : includedNodes) {
+        while (i < guides.size() && guides[i].norm.isNull()) {
+            ++i;
+        }
+        if (i >= guides.size()) {
+            break;
+        }
+
+        const auto norm = guides[i].norm;
+
+        auto nodeLine = QLineF(pos(), pos() + QPointF(norm.dx(), norm.dy()));
+        nodeLine.setLength(144);
+        node->setPos(nodeLine.p2());
+        i++;
     }
 }
 

@@ -171,7 +171,8 @@ namespace  core
         InternalRotationAnimationData doInternalRotation(Rotation rot);
         void skipTo(int row);
 
-        void spread(QPointF dxy = QPointF(0,0));
+        void spread(const QPointF& dxy = QPointF(0, 0));
+        void spread(const NodeItem* child);
 
         NodeType _nodeType{NodeType::ClosedNode};
         int _firstRow{-1};
@@ -193,7 +194,7 @@ namespace  core
     void adjustAllEdges(const NodeItem* node);
     void updateAllChildNodes(const NodeItem* node);
     void setAllEdgeState(const NodeItem* node, EdgeItem::State state);
-    SpreadAnimationData spreadWithAnimation(const NodeItem* node);
+    SpreadAnimationData spreadWithAnimation(const NodeItem* parent);
 
 
     class Animator final : public QObject
