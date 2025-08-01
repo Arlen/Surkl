@@ -97,8 +97,6 @@ void SessionManager::init()
     _mw = gui::MainWindow::loadUi();
 
     connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);
-
-    connect(_tm, &gui::theme::ThemeManager::themeChanged, _sc, &FileSystemScene::refreshItems);
 }
 
 SessionManager* SessionManager::session()
