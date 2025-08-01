@@ -946,21 +946,16 @@ FileSystemScene* NodeItem::fsScene() const
 /// recursively destroys all child nodes and edges.
 void NodeItem::destroyChildren()
 {
-    //animator->stop(this);
-
     /// QGraphicsScene will remove an item from the scene upon delete, but
     /// "it is more efficient to remove the item from the QGraphicsScene
     /// before destroying the item." -- Qt docs
 
-    auto destroyEdge = [this](EdgeItem* edge, bool storage = true) {
+    auto destroyEdge = [this](EdgeItem* edge) {
         auto* node = edge->target();
 
         Q_ASSERT(scene()->items().contains(node));
         Q_ASSERT(scene()->items().contains(edge));
 
-        if (storage) {
-            SessionManager::ss()->deleteNode(asNodeItem(node));
-        }
         scene()->removeItem(node);
         scene()->removeItem(edge);
         delete node;
@@ -986,7 +981,7 @@ void NodeItem::destroyChildren()
         node->_childEdges.clear();
 
         if (node->_extra) {
-            destroyEdge(node->_extra, false);
+            destroyEdge(node->_extra);
         }
         destroyEdge(edge);
     }
@@ -994,8 +989,12 @@ void NodeItem::destroyChildren()
     _childEdges.clear();
     _firstRow = -1;
 
-    destroyEdge(_extra, false);
+    destroyEdge(_extra);
     _extra = nullptr;
+
+    /// removes this directory and all the child file/directories from the
+    /// Nodes table.
+    SessionManager::ss()->deleteNode(this);
 }
 
 /// finds the row number of the first child node that is either a file or a

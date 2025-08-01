@@ -63,8 +63,9 @@ void SceneStorage::deleteNode(const NodeItem *node)
     Q_ASSERT(node != nullptr);
 
     const auto id = _scene->filePath(node->index());
+    const auto isDir = _scene->isDir(node->index());
 
-    _queue.push_back(QVariant::fromValue<DeleteData>({id}));
+    _queue.push_back(QVariant::fromValue<DeleteData>({id, isDir}));
     _timer->start(125);
 }
 
@@ -264,20 +265,28 @@ void SceneStorage::consume(const QList<QVariant>& data)
 {
     if (auto db = db::get(); db.isOpen()) {
         db.transaction();
-        QSqlQuery qDel(db);
+        QSqlQuery qDelFile(db);
+        QSqlQuery qDelDir(db);
         QSqlQuery qIns(db);
 
-        qDel.prepare(stmt::scene::DELETE_NODE);
+        qDelFile.prepare(stmt::scene::DELETE_FILE_NODE);
+        qDelDir.prepare(stmt::scene::DELETE_DIR_NODE);
         qIns.prepare(stmt::scene::INSERT_NODE);
 
         for (const auto& d : data) {
             if (d.canConvert<DeleteData>()) {
-                const auto [id] = d.value<DeleteData>();
+                const auto [id, isDir] = d.value<DeleteData>();
 
-                qDel.addBindValue(id);
-
-                if (!qDel.exec()) {
-                    qWarning() << qDel.lastError();
+                if (isDir) {
+                    qDelDir.addBindValue(id + "%");
+                    if (!qDelDir.exec()) {
+                        qWarning() << qDelDir.lastError();
+                    }
+                } else {
+                    qDelFile.addBindValue(id);
+                    if (!qDelFile.exec()) {
+                        qWarning() << qDelFile.lastError();
+                    }
                 }
             } else if (d.canConvert<SaveData>()) {
                 const auto [id, nodeType, firstRow, pos, length] = d.value<SaveData>();

@@ -28,6 +28,7 @@ namespace core
     struct DeleteData
     {
         QString id;
+        bool isDir;
     };
 
     class SceneStorage final : public QObject

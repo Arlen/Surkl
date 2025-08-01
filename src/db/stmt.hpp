@@ -71,9 +71,10 @@ namespace stmt::scene
              , %7 REAL)
             )"_L1;
 
-    constexpr auto SELECT_TPL = "SELECT * FROM %1"_L1;
-    constexpr auto INSERT_TPL = "INSERT OR REPLACE INTO %1 ( %2, %3, %4, %5, %6, %7 ) VALUES ( ?, ?, ?, ?, ?, ? )"_L1;
-    constexpr auto DELETE_TPL = "DELETE FROM %1 WHERE %2=?"_L1;
+    constexpr auto SELECT_TPL      = "SELECT * FROM %1"_L1;
+    constexpr auto INSERT_TPL      = "INSERT OR REPLACE INTO %1 ( %2, %3, %4, %5, %6, %7 ) VALUES ( ?, ?, ?, ?, ?, ? )"_L1;
+    constexpr auto DELETE_FILE_TPL = "DELETE FROM %1 WHERE %2=?"_L1;
+    constexpr auto DELETE_DIR_TPL  = "DELETE FROM %1 WHERE %2 LIKE ?"_L1;
 
     static const auto CREATE_NODES_TABLE
         = CREATE_TABLE_TPL.arg(NODES_TABLE)
@@ -96,8 +97,12 @@ namespace stmt::scene
             .arg(NODE_YPOS)
             .arg(EDGE_LEN);
 
-    static const auto DELETE_NODE
-        = DELETE_TPL.arg(NODES_TABLE)
+    static const auto DELETE_FILE_NODE
+        = DELETE_FILE_TPL.arg(NODES_TABLE)
+            .arg(NODE_ID);
+
+    static const auto DELETE_DIR_NODE
+        = DELETE_DIR_TPL.arg(NODES_TABLE)
             .arg(NODE_ID);
 }
 
