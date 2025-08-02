@@ -44,8 +44,12 @@ GraphicsView::GraphicsView(core::FileSystemScene *scene, QWidget *parent)
     _timeline->setEasingCurve(QEasingCurve::OutExpo);
 
     setAcceptDrops(false);
+}
 
-    emit stateChanged(this);
+void GraphicsView::focusOn(const QPointF& focus, qreal zoom)
+{
+    scale(zoom, zoom);
+    centerOn(QPointF(focus.x(), focus.y()));
 }
 
 void GraphicsView::requestSceneBookmark()
@@ -179,6 +183,8 @@ void GraphicsView::resizeEvent(QResizeEvent* event)
     auto rec = _quadrantButton->rect();
     rec.moveTopRight(rect().topRight() + QPoint(-16, 16));
     _quadrantButton->setGeometry(rec);
+
+    emit stateChanged(this);
 }
 
 void GraphicsView::configure()

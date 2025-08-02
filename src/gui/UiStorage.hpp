@@ -42,11 +42,12 @@ namespace gui::storage
     constexpr auto WINDOW_TYPE   = QLatin1String("type");
 
     constexpr auto GRAPHICS_VIEWS_TABLE   = QLatin1String("GraphicsViews");
-    // the parent Window which contains the ViewArea that contains a GraphicsView widget.
+    /// the parent Window which contains the ViewArea that contains a GraphicsView widget.
     constexpr auto GRAPHICS_VIEW_PARENT   = QLatin1String("parent_id");
-    // the scene pos of the center of GraphicsView widget.
-    constexpr auto GRAPHICS_VIEW_CENTER_X = QLatin1String("center_x");
-    constexpr auto GRAPHICS_VIEW_CENTER_Y = QLatin1String("center_y");
+    /// GraphicsView data to center on and zoom.
+    constexpr auto GRAPHICS_VIEW_FOCUS_X = QLatin1String("focus_x");
+    constexpr auto GRAPHICS_VIEW_FOCUS_Y = QLatin1String("focus_y");
+    constexpr auto GRAPHICS_VIEW_ZOOM    = QLatin1String("zoom");
 
     using MainWindowId = qint32;
     using SplitterId = qint32;
@@ -55,9 +56,10 @@ namespace gui::storage
 
     struct View
     {
-        QPoint center;
+        QPointF focus;
+        qreal zoom;
     };
-    using Views = std::unordered_map<WindowId, QPoint>;
+    using Views = std::unordered_map<WindowId, View>;
 
     struct Window
     {

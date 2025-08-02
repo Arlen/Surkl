@@ -33,6 +33,7 @@ namespace gui::view
 
     public:
         explicit GraphicsView(core::FileSystemScene* scene, QWidget* parent = nullptr);
+        void focusOn(const QPointF& focus, qreal zoom);
 
     public slots:
         void requestSceneBookmark();

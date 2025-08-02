@@ -146,12 +146,14 @@ void UiStorage::createTables()
         ok = q.exec(
             QLatin1String(R"(CREATE TABLE IF NOT EXISTS %1
                             ( %2 INTEGER PRIMARY KEY
-                            , %3 INTEGER
-                            , %4 INTEGER) )")
+                            , %3 REAL
+                            , %4 REAL
+                            , %5 REAL) )")
             .arg(GRAPHICS_VIEWS_TABLE)
             .arg(GRAPHICS_VIEW_PARENT)
-            .arg(GRAPHICS_VIEW_CENTER_X)
-            .arg(GRAPHICS_VIEW_CENTER_Y));
+            .arg(GRAPHICS_VIEW_FOCUS_X)
+            .arg(GRAPHICS_VIEW_FOCUS_Y)
+            .arg(GRAPHICS_VIEW_ZOOM));
 
         if (!ok) { qWarning() << q.lastError() << q.executedQuery(); }
     }
@@ -183,15 +185,18 @@ void UiStorage::readTable(storage::UiState& state)
     if (q.exec()) {
         const auto rec = q.record();
         const auto parentIdx = rec.indexOf(GRAPHICS_VIEW_PARENT);
-        const auto cxIdx     = rec.indexOf(GRAPHICS_VIEW_CENTER_X);
-        const auto cyIdx     = rec.indexOf(GRAPHICS_VIEW_CENTER_Y);
+        const auto focusxIdx = rec.indexOf(GRAPHICS_VIEW_FOCUS_X);
+        const auto focusyIdx = rec.indexOf(GRAPHICS_VIEW_FOCUS_Y);
+        const auto zoomIdx   = rec.indexOf(GRAPHICS_VIEW_ZOOM);
 
         while (q.next()) {
             const auto parent = q.value(parentIdx).toInt(&ok); Q_ASSERT(ok);
-            const auto cx = q.value(cxIdx).toInt(&ok); Q_ASSERT(ok);
-            const auto cy = q.value(cyIdx).toInt(&ok); Q_ASSERT(ok);
+            const auto focusx = q.value(focusxIdx).toDouble(&ok); Q_ASSERT(ok);
+            const auto focusy = q.value(focusyIdx).toDouble(&ok); Q_ASSERT(ok);
+            const auto zoom   = q.value(zoomIdx).toDouble(&ok); Q_ASSERT(ok);
+
             Q_ASSERT(!state.views.contains(parent));
-            state.views[parent] = QPoint(cx, cy);
+            state.views[parent] = {QPointF(focusx, focusy), zoom};
         }
     }
 
@@ -295,14 +300,16 @@ void UiStorage::saveView(const view::GraphicsView* gv)
             if (auto db = db::get(); db.isOpen()) {
                 QSqlQuery q(db);
 
-                const auto id = window->widgetId();
-                const auto center = gv->mapToScene(gv->rect().center());
+                const auto id    = window->widgetId();
+                const auto focus = gv->mapToScene(gv->rect().center());
+                const auto zoom  = gv->viewportTransform().m11();
 
-                if (!q.exec(QLatin1String("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4)")
+                if (!q.exec(QLatin1String("INSERT OR REPLACE INTO %1 VALUES (%2, %3, %4, %5)")
                     .arg(storage::GRAPHICS_VIEWS_TABLE)
                     .arg(id)
-                    .arg(center.x())
-                    .arg(center.y()))) {
+                    .arg(focus.x())
+                    .arg(focus.y())
+                    .arg(zoom))) {
 
                     qWarning() << db.lastError();
                 }
