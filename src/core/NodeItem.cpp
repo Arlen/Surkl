@@ -1025,6 +1025,8 @@ void NodeItem::updateFirstRow()
     if (auto rows = _childEdges | asFilesOrClosedTargetNodes | asIndexRow; !rows.empty()) {
         _firstRow = *rows.begin();
     }
+
+    SessionManager::ss()->saveNode(this);
 }
 
 /// repositions a closed node.
