@@ -447,9 +447,10 @@ void NodeItem::createChildNodes(QList<NodeData>& data)
     Q_ASSERT(_childEdges.empty());
     Q_ASSERT(_index.isValid());
     Q_ASSERT(_extra == nullptr);
+    Q_ASSERT(!_nodeFlags.testAnyFlag(FileNode));
 
     _knot->show();
-    setNodeType(NodeType::OpenNode);
+    setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(OpenNode));
 
     const auto count = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
@@ -494,11 +495,11 @@ void NodeItem::reload(int start, int end)
             Q_UNUSED(i)
         }
 
-        if (_nodeType == NodeType::OpenNode) {
+        if (isOpen()) {
             skipTo(start);
             spread();
         }
-        else if (_nodeType == NodeType::HalfClosedNode) {
+        else if (isHalfClosed()) {
             for (const auto* n : nodes) {
                 n->parentEdge()->setState(EdgeItem::CollapsedState);
             }
@@ -520,7 +521,7 @@ void NodeItem::reload(int start, int end)
         }
     }
 
-    if (_nodeType == NodeType::OpenNode) {
+    if (isOpen()) {
         auto rows = _childEdges
             | asFilesOrClosedTargetNodes
             | asIndexRow
@@ -551,7 +552,9 @@ void NodeItem::unload(int start, int end)
             /// This is close() without the internalRotationAfterClose();
             node->_knot->hide();
             node->destroyChildren();
-            node->setNodeType(NodeType::ClosedNode);
+            Q_ASSERT(!node->_nodeFlags.testAnyFlag(FileNode));
+            node->setNodeFlags(node->_nodeFlags & NodeFlags(LinkNode) | NodeFlags(ClosedNode));
+
             shrink(node);
         }
     }
@@ -624,11 +627,15 @@ void NodeItem::setIndex(const QPersistentModelIndex& index)
     _index = index;
 
     if (SessionManager::scene()->isDir(index)) {
-        _nodeType = NodeType::ClosedNode;
+        _nodeFlags = NodeType::ClosedNode;
     } else {
-        _nodeType = NodeType::FileNode;
+        _nodeFlags = NodeType::FileNode;
         const auto size = SessionManager::scene()->fileSize(_index);
         setData(FileSizeKey, size > 0 ? std::log2(size) : 0.0);
+    }
+
+    if (SessionManager::scene()->isLink(index)) {
+        _nodeFlags |= NodeType::LinkNode;
     }
 }
 
@@ -646,19 +653,14 @@ QRectF NodeItem::boundingRect() const
 {
     qreal side = 1.0;
 
-    switch (_nodeType) {
-    case NodeType::FileNode:
+    if (isFile()) {
         side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
-        break;
-    case NodeType::OpenNode:
+    } else if (isOpen()) {
         side = NODE_OPEN_DIAMETER + NODE_OPEN_PEN_WIDTH;
-        break;
-    case NodeType::ClosedNode:
+    } else if (isClosed()) {
         side = NODE_CLOSED_DIAMETER + NODE_CLOSED_PEN_WIDTH;
-        break;
-    case NodeType::HalfClosedNode:
+    } else if (isHalfClosed()) {
         side = NODE_HALF_CLOSED_DIAMETER + NODE_HALF_CLOSED_PEN_WIDTH;
-        break;
     }
 
     /// half of the pen is drawn inside the shape and the other half is drawn
@@ -673,19 +675,14 @@ QPainterPath NodeItem::shape() const
 {
     QPainterPath path;
 
-    switch (_nodeType) {
-    case NodeType::FileNode:
+    if (isFile()) {
         path = fileNodeShape(this, boundingRect());
-        break;
-    case NodeType::OpenNode:
+    } else if (isOpen()) {
         path.addEllipse(boundingRect());
-        break;
-    case NodeType::ClosedNode:
+    } else if (isClosed()) {
         path = closedNodeShape(this, boundingRect());
-        break;
-    case NodeType::HalfClosedNode:
+    } else if (isHalfClosed()) {
         path.addEllipse(boundingRect());
-        break;
     }
 
     return path;
@@ -713,15 +710,15 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
         tm->openNodeMidlightColor() : tm->openNodeColor());
 
     qreal radius = 0;
-    if (_nodeType == NodeType::FileNode) {
+    if (isFile()) {
         paintFile(p, option, this);
-    } else if (_nodeType == NodeType::OpenNode) {
+    } else if (isOpen()) {
         radius = rec.width() * 0.5 - NODE_OPEN_PEN_WIDTH * 0.5;
         p->setPen(QPen(tm->openNodeLightColor(), NODE_OPEN_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
-    } else if (_nodeType == NodeType::ClosedNode) {
+    } else if (isClosed()) {
         paintClosedFolder(p, option, this);
-    } else if (_nodeType == NodeType::HalfClosedNode) {
+    } else if (isHalfClosed()) {
         radius = rec.width() * 0.5 - NODE_HALF_CLOSED_PEN_WIDTH * 0.5;
         p->setPen(QPen(tm->closedNodeDarkColor(), NODE_HALF_CLOSED_PEN_WIDTH, Qt::SolidLine));
         p->drawEllipse(rec.center(), radius, radius);
@@ -738,7 +735,7 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
             }
         }
     }
-    if (auto *pr = asNodeItem(parentEdge()->source()); pr && pr->_nodeType == NodeType::HalfClosedNode) {
+    if (auto *pr = asNodeItem(parentEdge()->source()); pr && pr->isHalfClosed()) {
         /// need to update the half-closed parent to avoid tearing of the
         /// 20-degree arc. A node can be Open, Closed, or Half-Closed and have
         /// a parent that's HalfClosed, so this update is needed for all.
@@ -749,12 +746,13 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 void NodeItem::close()
 {
     Q_ASSERT(isDir() && (isOpen() || isHalfClosed()));
+    Q_ASSERT(!_nodeFlags.testAnyFlag(FileNode));
 
     _knot->hide();
     animator->clearAnimations(this);
 
     destroyChildren();
-    setNodeType(NodeType::ClosedNode);
+    setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(ClosedNode));
 
     shrink(this);
 
@@ -766,10 +764,12 @@ void NodeItem::close()
 void NodeItem::halfClose()
 {
     Q_ASSERT(hasOpenOrHalfClosedChild());
+    Q_ASSERT(!_nodeFlags.testAnyFlag(FileNode));
 
     _knot->hide();
     setAllEdgeState(this, EdgeItem::CollapsedState);
-    setNodeType(NodeType::HalfClosedNode);
+    setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(HalfClosedNode));
+
     adjustAllEdges(this);
 
     SessionManager::ss()->saveNode(this);
@@ -795,8 +795,9 @@ void NodeItem::closeOrHalfClose(bool forceClose)
 void NodeItem::open()
 {
     Q_ASSERT(fsScene()->isDir(_index));
+    Q_ASSERT(!_nodeFlags.testAnyFlag(FileNode));
 
-    if (_nodeType == NodeType::ClosedNode) {
+    if (isClosed()) {
         Q_ASSERT(_childEdges.empty());
         extend(this);
         createChildNodes();
@@ -806,8 +807,8 @@ void NodeItem::open()
         Q_ASSERT(std::ranges::all_of(_childEdges | asTargetNodeIndex,
             &QPersistentModelIndex::isValid));
 
-    } else if (_nodeType == NodeType::HalfClosedNode) {
-        setNodeType(NodeType::OpenNode);
+    } else if (isHalfClosed()) {
+        setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(OpenNode));
         spread();
         setAllEdgeState(this, EdgeItem::ActiveState);
         adjustAllEdges(this);
@@ -855,7 +856,7 @@ QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
             Q_ASSERT(value.canConvert<bool>());
             if (value.toBool()) { setZValue(1); } else { setZValue(0); }
 
-            if (_nodeType == NodeType::FileNode) {
+            if (isFile()) {
                 const auto size = fsScene()->fileSize(_index);
                 setData(FileSizeKey, size > 0 ? std::log2(size) : 0.0);
             }
@@ -928,11 +929,11 @@ void NodeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsItem::mouseMoveEvent(event);
 }
 
-void NodeItem::setNodeType(NodeType type)
+void NodeItem::setNodeFlags(const NodeFlags flags)
 {
-    if (_nodeType != type) {
+    if (_nodeFlags != flags) {
         prepareGeometryChange();
-        _nodeType = type;
+        _nodeFlags = flags;
     }
 }
 
@@ -1028,7 +1029,7 @@ void NodeItem::repositionAfterClose(EdgeItem* closed)
         | ranges::to<std::deque>()
         ;
 
-    if (_nodeType == NodeType::HalfClosedNode) {
+    if (isHalfClosed()) {
         Q_ASSERT(closed->state() == EdgeItem::ActiveState);
         closed->setState(EdgeItem::CollapsedState);
         /// need to call both adjustAllEdges() and spread(). closedEdge is about

@@ -30,6 +30,7 @@ namespace core
         explicit FileSystemScene(QObject* parent = nullptr);
         [[nodiscard]] QPersistentModelIndex rootIndex() const;
         bool isDir(const QModelIndex& index) const;
+        bool isLink(const QModelIndex& index) const;
         [[nodiscard]] QString filePath(const QPersistentModelIndex& index) const;
         [[nodiscard]] QPersistentModelIndex index(const QString& paht) const;
 

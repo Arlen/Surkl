@@ -31,7 +31,8 @@ namespace
                 QList<NodeData> r, e;
                 while (data.first().index.row() != firstRow) {
                     const auto first = data.takeFirst();
-                    if  (first.type == NodeType::OpenNode || first.type == NodeType::HalfClosedNode) {
+                    if  (NodeFlags(first.type).testAnyFlag(NodeType::OpenNode)
+                            || NodeFlags(first.type).testAnyFlag(NodeType::HalfClosedNode)) {
                         r.push_back(first);
                     } else {
                         e.push_back(first);
@@ -78,7 +79,7 @@ void SceneStorage::saveNode(const NodeItem *node)
     Q_ASSERT(node != nullptr);
 
     const auto id       = _scene->filePath(node->index());
-    const auto nodeType = static_cast<int>(node->nodeType());
+    const auto nodeType = static_cast<int>(node->nodeFlags());
     const auto firstRow = node->firstRow();
     const auto pos      = node->scenePos();
     const auto length   = node->parentEdge()->line().length();
@@ -197,7 +198,7 @@ void SceneStorage::loadScene(FileSystemScene* scene)
         }
         parentNode->setPos(parent.pos);
 
-        if (parent.type == NodeType::HalfClosedNode) {
+        if (NodeFlags(parent.type).testAnyFlag(NodeType::HalfClosedNode)) {
             halfOpenNodes.push_back(parentNode);
         }
     }
@@ -241,7 +242,7 @@ void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
             Q_ASSERT(node != nullptr);
             if (node->index().isValid()) {
                 q.addBindValue(_scene->filePath(node->index()));
-                q.addBindValue(static_cast<int>(node->nodeType()));
+                q.addBindValue(static_cast<int>(node->nodeFlags()));
                 q.addBindValue(node->firstRow());
                 const auto pos = node->scenePos();
                 q.addBindValue(pos.x());

@@ -273,6 +273,14 @@ bool FileSystemScene::isDir(const QModelIndex& index) const
     return _model->isDir(_proxyModel->mapToSource(index));
 }
 
+bool FileSystemScene::isLink(const QModelIndex& index) const
+{
+    Q_ASSERT(index.isValid());
+    Q_ASSERT(index.model() == _proxyModel);
+
+    return _model->fileInfo(_proxyModel->mapToSource(index)).isSymbolicLink();
+}
+
 QString FileSystemScene::filePath(const QPersistentModelIndex& index) const
 {
     Q_ASSERT(index.isValid());
@@ -405,18 +413,14 @@ void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 
     if (auto* item = itemAt(event->scenePos(), QTransform())) {
         if (auto* node = asNodeItem(item)) {
-            switch (node->nodeType()) {
-                case NodeType::FileNode: {
-                    const auto ret = openFile(node);
-                    Q_UNUSED(ret);
-                } break;
-                case NodeType::OpenNode:
-                    node->closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
-                    break;
-                case NodeType::ClosedNode:
-                case NodeType::HalfClosedNode:
-                    node->open();
-                    break;
+            if (node->isFile()) {
+                /// Remove call to fetchMore in openFile and move it to FileSystemScene???
+                const auto ret = openFile(node);
+                Q_UNUSED(ret);
+            } else if (node->isOpen()) {
+                node->closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
+            } else if (node->isClosed() || node->isHalfClosed()) {
+                node->open();
             }
         }
     }

@@ -26,15 +26,19 @@ namespace  core
         CCW, CW ///, NoRotation
     };
 
-    enum class NodeType
+    enum NodeType
     {
-        OpenNode = 0,
-        ClosedNode,
+        OpenNode       = 0x0001,
+        ClosedNode     = 0x0002,
         /// half-closed b/c half opening doesn't make sense.
         /// Closing a folder closes the entire subtree.
-        HalfClosedNode,
-        FileNode,
+        HalfClosedNode = 0x0004,
+        DirNode        = HalfClosedNode | ClosedNode | OpenNode,
+        FileNode       = 0x0010,
+        LinkNode       = 0x0020,
     };
+
+    Q_DECLARE_FLAGS(NodeFlags, NodeType)
 
 
     /// RootItem is just for visualizes so that the parent InodeEdge of the
@@ -133,12 +137,13 @@ namespace  core
         [[nodiscard]] QPainterPath shape() const override;
         [[nodiscard]] bool hasOpenOrHalfClosedChild() const;
 
-        [[nodiscard]] bool isDir() const            { return _nodeType != NodeType::FileNode; }
-        [[nodiscard]] bool isFile() const           { return _nodeType == NodeType::FileNode; }
-        [[nodiscard]] bool isClosed() const         { return _nodeType == NodeType::ClosedNode; }
-        [[nodiscard]] bool isOpen() const           { return _nodeType == NodeType::OpenNode; }
-        [[nodiscard]] bool isHalfClosed() const     { return _nodeType == NodeType::HalfClosedNode; }
-        [[nodiscard]] NodeType nodeType() const     { return _nodeType; }
+        [[nodiscard]] bool isDir() const            { return _nodeFlags.testAnyFlag(DirNode); }
+        [[nodiscard]] bool isFile() const           { return _nodeFlags.testAnyFlag(FileNode); }
+        [[nodiscard]] bool isClosed() const         { return _nodeFlags.testAnyFlag(ClosedNode); }
+        [[nodiscard]] bool isOpen() const           { return _nodeFlags.testAnyFlag(OpenNode); }
+        [[nodiscard]] bool isHalfClosed() const     { return _nodeFlags.testAnyFlag(HalfClosedNode); }
+        [[nodiscard]] bool isLink() const           { return _nodeFlags.testAnyFlag(LinkNode); }
+        [[nodiscard]] NodeFlags nodeFlags() const   { return _nodeFlags; }
         [[nodiscard]] bool hasChildren() const      { return !_childEdges.empty(); }
         [[nodiscard]] int type() const override     { return Type; }
         [[nodiscard]] EdgeItem* parentEdge() const  { return _parentEdge; }
@@ -160,7 +165,7 @@ namespace  core
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
         void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
         void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
-        void setNodeType(NodeType type);
+        void setNodeFlags(NodeFlags flags);
 
     private:
         FileSystemScene* fsScene() const;
@@ -174,7 +179,7 @@ namespace  core
         void spread(const QPointF& dxy = QPointF(0, 0));
         void spread(const NodeItem* child);
 
-        NodeType _nodeType{NodeType::ClosedNode};
+        NodeFlags _nodeFlags{NodeType::ClosedNode};
         int _firstRow{-1};
         QPersistentModelIndex _index;
         EdgeItem* _parentEdge{nullptr};
