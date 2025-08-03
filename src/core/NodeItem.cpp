@@ -162,7 +162,7 @@ namespace
 
         const auto rec    = node->boundingRect();
         const auto center = rec.center();
-        const auto shape  = node->shape();
+              auto shape  = node->shape();
         const auto top    = QLineF(shape.elementAt(1), shape.elementAt(2));
         const auto bot    = QLineF(shape.elementAt(0), shape.elementAt(3));
         const auto spine  = QLineF(bot.pointAt(0.5), top.pointAt(0.5));
@@ -186,12 +186,19 @@ namespace
         p->drawLine(QLineF(spine.pointAt(0.1), spine.pointAt(0.5)));
 
         p->setBrush(tm->closedNodeDarkColor());
-        const auto rec2 = QRectF(-6, -6, 12, 12);
+        constexpr auto rec2 = QRectF(-6, -6, 12, 12);
         p->drawEllipse(rec2);
 
         p->setPen(Qt::NoPen);
         p->setBrush(color1);
         p->drawPolygon(tri);
+
+        if (node->isLink()) {
+            p->setBrush(Qt::NoBrush);
+            p->setPen(QPen(tm->closedNodeMidlightColor(), 1, Qt::DotLine));
+            shape.closeSubpath();
+            p->drawPath(shape);
+        }
     }
 
     void paintFile(QPainter* p, const QStyleOptionGraphicsItem *option, const NodeItem* node)
@@ -208,7 +215,7 @@ namespace
         } else if (option->state & QStyle::State_MouseOver) {
             p->setBrush(tm->fileNodeMidarkColor());
         }
-        p->setPen(Qt::NoPen);
+        p->setPen(node->isLink() ? QPen(tm->fileNodeLightColor(), 1, Qt::DotLine) : Qt::NoPen);
         p->drawPath(shape);
 
         /// draw file size indicator
