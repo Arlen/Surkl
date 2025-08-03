@@ -135,7 +135,7 @@ namespace
         const auto center = rec.center();
         const auto angle  = node->parentEdge()->line().angle() + 180;
 
-        auto guide = QLineF(center, center + QPointF(rec.width()*0.5, 0));
+        auto guide = QLineF(center, center + QPointF(rec.width()*0.4, 0));
         guide.setAngle(angle);
         auto path = QPainterPath();
 
@@ -205,7 +205,17 @@ namespace
     {
         const auto* tm   = SessionManager::tm();
         const auto shape = node->shape();
+        const auto axis  = QLineF(shape.elementAt(2), shape.elementAt(0));
 
+        /// 1. draw spine
+        p->setPen(QPen(tm->fileNodeDarkColor(), 4, Qt::SolidLine, Qt::SquareCap));
+        p->setBrush(Qt::NoBrush);
+        auto spine = axis;
+        spine.setLength(spine.length() + 2);
+        spine = QLineF(axis.p2(), spine.p2());
+        p->drawLine(spine);
+
+        /// 2. draw body
         p->setBrush(tm->fileNodeDarkColor());
         auto sizeColor = tm->fileNodeLightColor();
 
@@ -215,11 +225,10 @@ namespace
         } else if (option->state & QStyle::State_MouseOver) {
             p->setBrush(tm->fileNodeMidarkColor());
         }
-        p->setPen(node->isLink() ? QPen(tm->fileNodeLightColor(), 1, Qt::DotLine) : Qt::NoPen);
+        p->setPen(node->isLink() ? QPen(tm->fileNodeMidlightColor(), 1, Qt::DotLine) : Qt::NoPen);
         p->drawPath(shape);
 
-        /// draw file size indicator
-        const auto axis    = QLineF(shape.elementAt(2), shape.elementAt(0));
+        /// 3. draw file size indicator
         const auto axisLen = 1.0 / axis.length();
 
         const auto lhs = QLineF(shape.elementAt(2), shape.elementAt(1)).normalVector().unitVector();
@@ -232,7 +241,7 @@ namespace
 
         auto ok = false;
         if (const auto sizel2 = node->data(NodeItem::FileSizeKey).toDouble(&ok); ok && sizel2 > 0.0) {
-            const int full = std::floor(sizel2 / 10.0);
+            const int full = std::floor(sizel2 * 0.1);
             auto t = 0.15;
             auto p1 = axis.pointAt(t);
 
