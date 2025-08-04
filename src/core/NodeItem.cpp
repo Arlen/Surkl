@@ -531,7 +531,7 @@ void NodeItem::reload(int start, int end)
             skipTo(start);
 
             setAllEdgeState(this, EdgeItem::CollapsedState);
-            //setNodeType(NodeType::HalfClosed);
+            //setNodeFlags(HalfClosed);
             spread();
             adjustAllEdges(this);
         }
@@ -575,36 +575,6 @@ void NodeItem::unload(int start, int end)
         }
     }
 
-    const auto ghostNodes = static_cast<int>(_childEdges.size()) -
-                            _index.model()->rowCount(_index);
-
-    /// 2. destroy excessive nodes.
-    if (EdgeDeque edges; ghostNodes > 0) {
-        for (int deletedNodes = 0; auto* node : all) {
-            if (deletedNodes >= ghostNodes) {
-                edges.push_back(node->parentEdge());
-                continue;
-            }
-            if (!node->index().isValid()) {
-                deletedNodes++;
-                Q_ASSERT(node->isClosed() || node->isFile());
-
-                SessionManager::ss()->deleteNode(node);
-                scene()->removeItem(node);
-                scene()->removeItem(node->parentEdge());
-                delete node->parentEdge();
-                delete node;
-            } else {
-                edges.push_back(node->parentEdge());
-            }
-        }
-        _childEdges.swap(edges);
-        if (_childEdges.empty()) {
-            return close();
-        }
-        spread();
-    }
-
     const auto openOrHalfClosedRows = _childEdges
         | asNotClosedTargetNodes
         | asIndexRow
@@ -634,6 +604,39 @@ void NodeItem::unload(int start, int end)
             rebuilt.pop_front();
         }
     }
+}
+
+void NodeItem::onRowsAboutToBeRemoved(int start, int end)
+{
+    /// clear animations, if any, to avoid deleting child nodes that are being
+    /// animated.
+    animator->clearAnimations(this);
+
+    const auto targetNodes = _childEdges | asTargetNode;
+    EdgeDeque edges;
+
+    for (auto* node : targetNodes) {
+        Q_ASSERT(node->index().isValid());
+        if (const auto row = node->index().row(); row >= start && row <= end) {
+            if (node->isDir() && !node->isClosed()) {
+                node->close();
+            }
+            SessionManager::ss()->deleteNode(node);
+            scene()->removeItem(node);
+            scene()->removeItem(node->parentEdge());
+            delete node->parentEdge();
+            delete node;
+        } else {
+            edges.push_back(node->parentEdge());
+        }
+    }
+    _childEdges.swap(edges);
+    if (_childEdges.empty()) {
+        close();
+        relayoutParent();
+        return;
+    }
+    spread();
 }
 
 void NodeItem::setIndex(const QPersistentModelIndex& index)
@@ -771,10 +774,6 @@ void NodeItem::close()
     setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(ClosedNode));
 
     shrink(this);
-
-    if (auto* pr = asNodeItem(_parentEdge->source())) {
-        animator->animateRelayout(pr, _parentEdge);
-    }
 }
 
 void NodeItem::halfClose()
@@ -800,11 +799,13 @@ void NodeItem::closeOrHalfClose(bool forceClose)
         /// force closing.
         if (forceClose) {
             close();
+            relayoutParent();
         } else {
             halfClose();
         }
     } else {
         close();
+        relayoutParent();
     }
 }
 
@@ -1333,6 +1334,13 @@ void NodeItem::spread(const NodeItem* child)
         nodeLine.setLength(144);
         node->setPos(nodeLine.p2());
         i++;
+    }
+}
+
+void NodeItem::relayoutParent() const
+{
+    if (auto* parentNode = asNodeItem(_parentEdge->source())) {
+        animator->animateRelayout(parentNode, _parentEdge);
     }
 }
 

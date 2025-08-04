@@ -56,6 +56,7 @@ namespace core
     private slots:
         void onSelectionChange();
         void onRowsInserted(const QModelIndex& parent, int start, int end) const;
+        void onRowsAboutToBeRemoved(const QModelIndex& parent, int start, int end) const;
         void onRowsRemoved(const QModelIndex& parent, int start, int end) const;
 
     private:

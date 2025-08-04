@@ -130,6 +130,7 @@ namespace  core
 
         void reload(int start, int end);
         void unload(int start, int end);
+        void onRowsAboutToBeRemoved(int start, int end);
 
         void setIndex(const QPersistentModelIndex& index);
         [[nodiscard]] QString name() const;
@@ -178,6 +179,8 @@ namespace  core
 
         void spread(const QPointF& dxy = QPointF(0, 0));
         void spread(const NodeItem* child);
+
+        void relayoutParent() const;
 
         NodeFlags _nodeFlags{NodeType::ClosedNode};
         int _firstRow{-1};

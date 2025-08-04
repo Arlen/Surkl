@@ -248,6 +248,8 @@ FileSystemScene::FileSystemScene(QObject* parent)
     _proxyModel->sort(0);
 
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
+
+    connect(_proxyModel, &QAbstractItemModel::rowsAboutToBeRemoved, this, &FileSystemScene::onRowsAboutToBeRemoved);
     connect(_proxyModel, &QAbstractItemModel::rowsInserted, this, &FileSystemScene::onRowsInserted);
     connect(_proxyModel, &QAbstractItemModel::rowsRemoved, this, &FileSystemScene::onRowsRemoved);
 
@@ -500,6 +502,15 @@ void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int e
         if (node->index() == parent) {
             node->reload(start, end);
             break;
+        }
+    }
+}
+
+void FileSystemScene::onRowsAboutToBeRemoved(const QModelIndex& parent, int start, int end) const
+{
+    for (const auto nodes = items(); auto* node : nodes | filterNodes) {
+        if (node->index() == parent) {
+            node->onRowsAboutToBeRemoved(start, end);
         }
     }
 }
