@@ -427,22 +427,18 @@ void NodeItem::createChildNodes()
 
     const auto* model = _index.model();
     const auto count  = std::min(NODE_CHILD_COUNT, model->rowCount(_index));
-
-    const auto sides = count
+    const auto sides  = count
         + 1  // for parentEdge()
         + 1; // for knot()
 
-    auto gl = guideLines(this, sides, true);
-
     QList<NodeData> data;
 
-    for (auto i : std::views::iota(0, count)) {
+    for (const auto i : std::views::iota(0, count)) {
         const auto index = model->index(i, 0, _index);
-        const auto norm  = gl.front().normalVector();
+        const auto norm  = getNgonSideNorm(i, sides);
 
-        auto nodeLine = QLineF(pos(), pos() + QPointF(1, 1));
+        auto nodeLine = QLineF(pos(), pos() + QPointF(norm.dx(), norm.dy()));
         nodeLine.setLength(144);
-        nodeLine.setAngle(norm.angle());
 
         data.push_back(
             { .index    = index,
@@ -451,7 +447,6 @@ void NodeItem::createChildNodes()
               .pos      = nodeLine.p2(),
               .length   = 0
             });
-        gl.pop_front();
     }
 
     createChildNodes(data);
