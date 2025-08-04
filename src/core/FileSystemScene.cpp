@@ -519,18 +519,18 @@ void FileSystemScene::onRowsAboutToBeRemoved(const QModelIndex& parent, int star
 
 void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int end) const
 {
-    std::vector<NodeItem*> toBeUnloaded;
+    std::vector<NodeItem*> parentNodes;
 
     /// can't call Node::unload() while traversing items() because Node::unload()
     /// deletes child nodes and subtrees of items still in items().
-    for (const auto _items = items(); auto* node : _items | filterNodes) {
+    for (const auto nodes = items(); auto* node : nodes | filterNodes) {
         if (node->index() == parent) {
-            toBeUnloaded.push_back(node);
+            parentNodes.push_back(node);
         }
     }
 
-    for (auto* node : toBeUnloaded) {
-        node->unload(start, end);
+    for (auto* node : parentNodes) {
+        node->onRowsRemoved(start, end);
     }
 
     reportStats();
@@ -670,8 +670,6 @@ QString FileSystemScene::gatherStats(const QModelIndexList& indices) const
     const auto folderItems   = folderCount == 1 ? "item" : "items";
     const auto fileItems     = selectedItems == 1 ? "item" : "items";
     const auto formattedSize = locale.formattedDataSize(fileBytes);
-
-    qDebug() << selectedFolders << selectedItems;
 
     auto msg = QString();
     if (selectedFolders > 0) {

@@ -555,24 +555,39 @@ void NodeItem::reload(int start, int end)
     }
 }
 
-void NodeItem::unload(int start, int end)
+void NodeItem::onRowsRemoved(int start, int end)
 {
-    Q_UNUSED(start);
-    Q_UNUSED(end);
+    Q_UNUSED(start)
+    Q_UNUSED(end)
+
+    if (isClosed()) {
+        return;
+    }
 
     auto targetNodes = _childEdges | asTargetNode;
 
-    /// 1. close all invalid nodes that are not closed.
-    for (auto* node : targetNodes) {
-        if (!node->index().isValid() && (node->isOpen() || node->isHalfClosed())) {
-            /// This is close() without the internalRotationAfterClose();
-            node->_knot->hide();
-            node->destroyChildren();
-            Q_ASSERT(!node->_nodeFlags.testAnyFlag(FileNode));
-            node->setNodeFlags(node->_nodeFlags & NodeFlags(LinkNode) | NodeFlags(ClosedNode));
+    const auto ghostNodes = static_cast<int>(_childEdges.size()) - _index.model()->rowCount(_index);
 
-            shrink(node);
+    /// 2. destroy excess nodes.
+    if (EdgeDeque edges; ghostNodes > 0) {
+        for (auto* node : targetNodes) {
+            if (!node->index().isValid()) {
+                Q_ASSERT(node->isClosed() || node->isFile());
+                scene()->removeItem(node);
+                scene()->removeItem(node->parentEdge());
+                delete node->parentEdge();
+                delete node;
+            } else {
+                edges.push_back(node->parentEdge());
+            }
         }
+        _childEdges.swap(edges);
+        if (_childEdges.empty()) {
+            close();
+            relayoutParent();
+            return;
+        }
+        spread();
     }
 
     const auto openOrHalfClosedRows = _childEdges
@@ -601,13 +616,20 @@ void NodeItem::unload(int start, int end)
             /// have changed.
             node->setIndex(rebuilt.front());
             node->parentEdge()->setText(node->name());
+            SessionManager::ss()->saveNode(node);
+            node->parentEdge()->adjust();
             rebuilt.pop_front();
         }
     }
+    updateFirstRow();
 }
 
 void NodeItem::onRowsAboutToBeRemoved(int start, int end)
 {
+    if (isClosed()) {
+        return;
+    }
+
     /// clear animations, if any, to avoid deleting child nodes that are being
     /// animated.
     animator->clearAnimations(this);
@@ -622,21 +644,8 @@ void NodeItem::onRowsAboutToBeRemoved(int start, int end)
                 node->close();
             }
             SessionManager::ss()->deleteNode(node);
-            scene()->removeItem(node);
-            scene()->removeItem(node->parentEdge());
-            delete node->parentEdge();
-            delete node;
-        } else {
-            edges.push_back(node->parentEdge());
         }
     }
-    _childEdges.swap(edges);
-    if (_childEdges.empty()) {
-        close();
-        relayoutParent();
-        return;
-    }
-    spread();
 }
 
 void NodeItem::setIndex(const QPersistentModelIndex& index)
@@ -1168,7 +1177,6 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
         ;
 
     if (candidates.empty()) {
-        _firstRow = -1;
         return {};
     }
 
