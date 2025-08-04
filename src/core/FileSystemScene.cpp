@@ -504,6 +504,8 @@ void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int e
             break;
         }
     }
+
+    reportStats();
 }
 
 void FileSystemScene::onRowsAboutToBeRemoved(const QModelIndex& parent, int start, int end) const
@@ -530,6 +532,8 @@ void FileSystemScene::onRowsRemoved(const QModelIndex& parent, int start, int en
     for (auto* node : toBeUnloaded) {
         node->unload(start, end);
     }
+
+    reportStats();
 }
 
 void FileSystemScene::onSelectionChange()
@@ -555,14 +559,7 @@ void FileSystemScene::onSelectionChange()
     }
 
     if (selectedNodes.size() > 0) {
-        const auto indices = selectedNodes
-            | asIndex
-            | std::views::transform(
-                [this](const QPersistentModelIndex& i) {
-                    return _proxyModel->mapToSource(i);
-                })
-            | std::ranges::to<QList>();
-        SessionManager::ib()->setMsgR(gatherStats(indices));
+        reportStats();
     } else {
         SessionManager::ib()->clear();
     }
@@ -697,4 +694,19 @@ QString FileSystemScene::gatherStats(const QModelIndexList& indices) const
     }
 
     return msg;
+}
+
+void FileSystemScene::reportStats() const
+{
+    const auto indices = selectedItems()
+        | filterNodes
+        | asIndex
+        | std::views::transform(
+            [this](const QPersistentModelIndex& i) {
+                return _proxyModel->mapToSource(i);
+            })
+        | std::ranges::to<QList>()
+        ;
+
+    SessionManager::ib()->setMsgR(gatherStats(indices));
 }
