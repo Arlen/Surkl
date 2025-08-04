@@ -500,7 +500,7 @@ void FileSystemScene::onRowsInserted(const QModelIndex& parent, int start, int e
 {
     for (const auto _items = items(); auto* node : _items | filterNodes) {
         if (node->index() == parent) {
-            node->reload(start, end);
+            node->onRowsInserted(start, end);
             break;
         }
     }

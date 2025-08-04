@@ -488,13 +488,12 @@ void NodeItem::createChildNodes(QList<NodeData>& data)
     _extra->hide();
 }
 
-void NodeItem::reload(int start, int end)
+void NodeItem::onRowsInserted(int start, int end)
 {
     Q_UNUSED(end)
 
-    if (_nodeType == NodeType::ClosedNode) {
-       open();
-       return;
+    if (isClosed()) {
+        return;
     }
 
     const auto rowCount = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
@@ -546,8 +545,8 @@ void NodeItem::reload(int start, int end)
         const auto highest = *std::ranges::max_element(rows);
 
         /// only skipt to if the new rows are within range of existing rows; it's
-        /// less annonying, and it prevents a reload() from quickly overwriting
-        /// SceneStorage::loadScene.
+        /// less annonying, and it prevents a onRowsInserted() from quickly
+        /// overwriting SceneStorage::loadScene.
         if (lowest == -1 || (start >= lowest && start <= highest)) {
             skipTo(start);
             adjustAllEdges(this);

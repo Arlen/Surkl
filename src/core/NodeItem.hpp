@@ -128,8 +128,7 @@ namespace  core
         void createChildNodes();
         void createChildNodes(QList<NodeData>& data);
 
-        void reload(int start, int end);
-        void unload(int start, int end);
+        void onRowsInserted(int start, int end);
         void onRowsRemoved(int start, int end);
         void onRowsAboutToBeRemoved(int start, int end);
 
