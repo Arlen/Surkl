@@ -818,6 +818,7 @@ void NodeItem::open()
         Q_ASSERT(_childEdges.empty());
         extend(this);
         createChildNodes();
+        spread();
         adjustAllEdges(this);
         fsScene()->fetchMore(_index);
 
