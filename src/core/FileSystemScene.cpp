@@ -665,13 +665,12 @@ QString FileSystemScene::gatherStats(const QModelIndexList& indices) const
             dir.cd(fi.baseName());
 
             return QString("\"%1\" selected (containing %2 items)")
-                        .arg(fi.fileName())
+                        .arg(fi.isRoot() ? QDir::separator() : fi.fileName())
                         .arg(dir.count());
-        } else {
-            return QString("\"%1\" selected (%2)")
-                        .arg(fi.fileName())
-                        .arg(locale.formattedDataSize(fi.size()));
         }
+        return QString("\"%1\" selected (%2)")
+                    .arg(fi.fileName())
+                    .arg(locale.formattedDataSize(fi.size()));
     }
 
     qint64 selectedFolders = 0;
