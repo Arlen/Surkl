@@ -71,9 +71,6 @@ gui::theme::ThemeManager* SessionManager::tm()
 void SessionManager::cleanup() const
 {
     BookmarkManager::saveToDatabase(_bm);
-
-    /// TODO: interactive save does not cover everything.
-    _ss->saveScene();
 }
 
 void SessionManager::init()
