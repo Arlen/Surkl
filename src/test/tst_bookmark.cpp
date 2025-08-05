@@ -5,7 +5,7 @@
 
 #include "core/SessionManager.hpp"
 #include "core/bookmark.hpp"
-#include "core/db.hpp"
+#include "db/db.hpp"
 
 #include <QTest>
 

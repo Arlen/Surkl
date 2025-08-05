@@ -5,7 +5,7 @@
 #include "AboutSurkl.hpp"
 #include "SurklStyle.hpp"
 #include "core/SessionManager.hpp"
-#include "db.hpp"
+#include "db/db.hpp"
 #include "db/stmt.hpp"
 #include "version.hpp"
 

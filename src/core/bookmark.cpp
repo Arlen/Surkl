@@ -2,7 +2,7 @@
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "bookmark.hpp"
-#include "db.hpp"
+#include "db/db.hpp"
 #include "db/stmt.hpp"
 
 #include <QSqlRecord>

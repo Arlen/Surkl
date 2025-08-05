@@ -2,8 +2,8 @@
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "tst_theme.hpp"
-#include "core/db.hpp"
 #include "core/SessionManager.hpp"
+#include "db/db.hpp"
 #include "gui/theme/ThemeSettings.hpp"
 
 #include <QRandomGenerator>

@@ -5,7 +5,7 @@
 #include "FileSystemScene.hpp"
 #include "SceneStorage.hpp"
 #include "bookmark.hpp"
-#include "db.hpp"
+#include "db/db.hpp"
 #include "gui/InfoBar.hpp"
 #include "gui/MainWindow.hpp"
 #include "gui/UiStorage.hpp"

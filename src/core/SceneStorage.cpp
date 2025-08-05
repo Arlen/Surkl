@@ -5,7 +5,7 @@
 #include "FileSystemScene.hpp"
 #include "NodeItem.hpp"
 #include "SessionManager.hpp"
-#include "db.hpp"
+#include "db/db.hpp"
 #include "db/stmt.hpp"
 
 #include <QDir>

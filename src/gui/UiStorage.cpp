@@ -2,14 +2,14 @@
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "UiStorage.hpp"
+#include "MainWindow.hpp"
 #include "Splitter.hpp"
-#include "core/db.hpp"
+#include "db/db.hpp"
 #include "theme/ThemeArea.hpp"
 #include "view/GraphicsView.hpp"
 #include "view/ViewArea.hpp"
 #include "window/AbstractWindowArea.hpp"
 #include "window/Window.hpp"
-#include "MainWindow.hpp"
 
 #include <QSqlRecord>
 

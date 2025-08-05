@@ -6,7 +6,7 @@
 #include "core/NodeItem.hpp"
 #include "core/SceneStorage.hpp"
 #include "core/SessionManager.hpp"
-#include "core/db.hpp"
+#include "db/db.hpp"
 
 #include <QFileSystemModel>
 #include <QRandomGenerator>

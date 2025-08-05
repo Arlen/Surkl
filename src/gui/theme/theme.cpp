@@ -2,7 +2,7 @@
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "theme/theme.hpp"
-#include "core/db.hpp"
+#include "db/db.hpp"
 #include "db/stmt.hpp"
 
 #include <QApplication>
