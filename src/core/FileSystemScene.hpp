@@ -35,7 +35,6 @@ namespace core
         [[nodiscard]] QPersistentModelIndex index(const QString& paht) const;
 
         void setRootPath(const QString& newPath) const;
-        bool openFile(const NodeItem* node) const;
         void openTo(const QString &targetPath) const;
         void fetchMore(const QPersistentModelIndex& index) const;
         qint64 fileSize(const QPersistentModelIndex& index) const;
@@ -60,6 +59,7 @@ namespace core
         void onRowsRemoved(const QModelIndex& parent, int start, int end) const;
 
     private:
+        bool openFile(const NodeItem* node) const;
         void deleteSelection();
         void rotateSelection(Rotation rot, bool page) const;
         QString gatherStats(const QModelIndexList& indices) const;

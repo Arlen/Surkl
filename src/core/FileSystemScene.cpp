@@ -301,19 +301,6 @@ void FileSystemScene::setRootPath(const QString& newPath) const
     _model->setRootPath(newPath);
 }
 
-bool FileSystemScene::openFile(const NodeItem* node) const
-{
-    bool success = false;
-    if (const auto& index = node->index(); index.isValid()) {
-        Q_ASSERT(!isDir(index));
-        Q_ASSERT(index.model() == _proxyModel);
-
-        const auto info = _model->filePath(_proxyModel->mapToSource(index));
-        success = QDesktopServices::openUrl(QUrl::fromLocalFile(info));
-    }
-    return success;
-}
-
 void FileSystemScene::openTo(const QString &targetPath) const
 {
     auto idx = index(QDir::rootPath());
@@ -441,21 +428,21 @@ void FileSystemScene::keyPressEvent(QKeyEvent *event)
 
 void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
-    QGraphicsScene::mouseDoubleClickEvent(event);
-
-    if (auto* item = itemAt(event->scenePos(), QTransform())) {
+    if (auto* item = itemAt(event->scenePos(), QTransform()); event->button() == Qt::LeftButton) {
         if (auto* node = asNodeItem(item)) {
-            if (node->isFile()) {
-                /// Remove call to fetchMore in openFile and move it to FileSystemScene???
-                const auto ret = openFile(node);
-                Q_UNUSED(ret);
-            } else if (node->isOpen()) {
+            if (node->isFile() && openFile(node)) {
+                node->setSelected(false);
+                return;
+            }
+            if (node->isOpen()) {
                 node->closeOrHalfClose(event->modifiers() & Qt::ShiftModifier);
             } else if (node->isClosed() || node->isHalfClosed()) {
                 node->open();
             }
         }
     }
+
+    QGraphicsScene::mouseDoubleClickEvent(event);
 }
 
 void FileSystemScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
@@ -595,6 +582,20 @@ void FileSystemScene::onSelectionChange()
     }
 
     connect(this, &QGraphicsScene::selectionChanged, this, &FileSystemScene::onSelectionChange);
+}
+
+bool FileSystemScene::openFile(const NodeItem* node) const
+{
+    if (const auto& index = node->index(); index.isValid()) {
+        Q_ASSERT(!isDir(index));
+        Q_ASSERT(index.model() == _proxyModel);
+
+        const auto info = _model->filePath(_proxyModel->mapToSource(index));
+
+        return QDesktopServices::openUrl(QUrl::fromLocalFile(info));
+    }
+
+    return false;
 }
 
 void FileSystemScene::deleteSelection()
