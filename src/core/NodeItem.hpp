@@ -161,6 +161,7 @@ namespace  core
         void open();
         void rotate(Rotation rot);
         void rotatePage(Rotation rot);
+        void skipTo(int row);
 
     protected:
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
@@ -175,7 +176,6 @@ namespace  core
 
         void repositionAfterClose(EdgeItem* closed);
         InternalRotationAnimationData doInternalRotation(Rotation rot);
-        void skipTo(int row);
 
         void spread(const QPointF& dxy = QPointF(0, 0));
         void spread(const NodeItem* child);

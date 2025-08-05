@@ -865,6 +865,69 @@ void NodeItem::rotatePage(Rotation rot)
     }
 }
 
+void NodeItem::skipTo(int row)
+{
+    const auto rowCount = _index.model()->rowCount(_index);
+
+    Q_ASSERT(std::ssize(_childEdges) <= rowCount);
+
+    auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
+
+    if (availableNodes.empty()) {
+        _firstRow = -1;
+        return;
+    }
+
+    auto target = _index.model()->index(row, 0, _index);
+
+    if (!target.isValid()) {
+        return;
+    }
+
+    const auto openOrHalfClosedRows = _childEdges
+        | asNotClosedTargetNodes
+        | asIndexRow
+        | ranges::to<std::unordered_set>()
+        ;
+
+    const auto rows = ranges::distance(availableNodes);
+
+    std::deque<QPersistentModelIndex> newIndices;
+
+    do {
+        if (!target.isValid()) { break; }
+        if (openOrHalfClosedRows.contains(target.row())) {
+            target = target.sibling(target.row() + 1, 0);
+            continue;
+        }
+        newIndices.push_back(target);
+        target = target.sibling(target.row() + 1, 0);
+    } while (std::ssize(newIndices) < rows);
+
+    target = _index.model()->index(row - 1, 0, _index);
+
+    while (std::ssize(newIndices) < rows) {
+        if (!target.isValid()) { break; }
+        if (openOrHalfClosedRows.contains(target.row())) {
+            target = target.sibling(target.row() - 1, 0);
+            continue;
+        }
+        newIndices.push_front(target);
+        target = target.sibling(target.row() - 1, 0);
+    }
+
+    Q_ASSERT(std::ssize(newIndices) == rows);
+
+    for (auto* node : availableNodes) {
+        if (auto newIndex = newIndices.front(); node->index() != newIndex) {
+            node->setIndex(newIndex);
+            node->parentEdge()->setText(node->name());
+        }
+        newIndices.pop_front();
+    }
+    updateFirstRow();
+}
+
 QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     switch (change) {
@@ -1215,69 +1278,6 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
     updateFirstRow();
 
     return { rot, this, toGrow, toShrink, angularDisplacements, angles };
-}
-
-void NodeItem::skipTo(int row)
-{
-    const auto rowCount = _index.model()->rowCount(_index);
-
-    Q_ASSERT(std::ssize(_childEdges) <= rowCount);
-
-    auto availableNodes = _childEdges | asFilesOrClosedTargetNodes;
-
-    if (availableNodes.empty()) {
-        _firstRow = -1;
-        return;
-    }
-
-    auto target = _index.model()->index(row, 0, _index);
-
-    if (!target.isValid()) {
-        return;
-    }
-
-    const auto openOrHalfClosedRows = _childEdges
-        | asNotClosedTargetNodes
-        | asIndexRow
-        | ranges::to<std::unordered_set>()
-        ;
-
-    const auto rows = ranges::distance(availableNodes);
-
-    std::deque<QPersistentModelIndex> newIndices;
-
-    do {
-        if (!target.isValid()) { break; }
-        if (openOrHalfClosedRows.contains(target.row())) {
-            target = target.sibling(target.row() + 1, 0);
-            continue;
-        }
-        newIndices.push_back(target);
-        target = target.sibling(target.row() + 1, 0);
-    } while (std::ssize(newIndices) < rows);
-
-    target = _index.model()->index(row - 1, 0, _index);
-
-    while (std::ssize(newIndices) < rows) {
-        if (!target.isValid()) { break; }
-        if (openOrHalfClosedRows.contains(target.row())) {
-            target = target.sibling(target.row() - 1, 0);
-            continue;
-        }
-        newIndices.push_front(target);
-        target = target.sibling(target.row() - 1, 0);
-    }
-
-    Q_ASSERT(std::ssize(newIndices) == rows);
-
-    for (auto* node : availableNodes) {
-        if (auto newIndex = newIndices.front(); node->index() != newIndex) {
-            node->setIndex(newIndex);
-            node->parentEdge()->setText(node->name());
-        }
-        newIndices.pop_front();
-    }
-    updateFirstRow();
 }
 
 /// dxy is used only for the node that is being moved by the mouse.  Without
