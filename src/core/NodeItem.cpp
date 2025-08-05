@@ -966,7 +966,9 @@ void NodeItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 
 void NodeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-    if (scene()->mouseGrabberItem() == this) {
+    const auto selects = scene()->selectedItems();
+
+    if (selects.indexOf(this) != -1) {
         if (event->modifiers() & Qt::ShiftModifier) {
             if (_ancestorPos.empty()) {
                 _ancestorPos = getAncestorPos(this);
@@ -994,13 +996,25 @@ void NodeItem::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
                 pos     = newPos;
             }
         } else {
-            /// 1. spread the parent node.
-            if (auto* node = asNodeItem(_parentEdge->source())) {
-                node->spread();
+            /// spread this NodeItem and all the other NodeItems that are
+            /// selected.  More than one nodeItem can be selected and moved,
+            /// but the other ones do not recieve this event.
+            auto selectedNodes = scene()->selectedItems()
+                | views::transform(&asNodeItem)
+                | views::filter([](const NodeItem* item) { return item != nullptr; })
+                ;
+
+            /// 1. spread the parent node(s).
+            for (auto* selected : selectedNodes) {
+                if (auto* parent = asNodeItem(selected->parentEdge()->source())) {
+                    parent->spread(selected);
+                }
             }
-            /// 2. spread this node, which is moving.
+            /// 2. spread this and other selected nodes.
             const auto dxy = event->scenePos() - event->lastScenePos();
-            spread(dxy);
+            for (auto* selected : selectedNodes) {
+                selected->spread(dxy);
+            }
             /// 3. spread the child nodes.
             for (const auto* edge : _childEdges) {
                 if (auto* node = asNodeItem(edge->target()); node->isOpen() || node->isHalfClosed()) {
@@ -1287,7 +1301,6 @@ void NodeItem::spread(const QPointF& dxy)
 {
     if (_childEdges.empty()) { return; }
 
-    const auto* grabber = scene()->mouseGrabberItem();
     auto includedNodes = _childEdges | asFilesOrClosedTargetNodes;
 
     const auto guides = getGuides(this);
