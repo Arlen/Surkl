@@ -122,6 +122,7 @@ void SceneStorage::loadScene(FileSystemScene* scene)
     auto G = readTable(scene);
 
     if (G.empty()) {
+        enableStorage();
         auto* edge = NodeItem::createRootNode(scene->rootIndex());
         scene->addItem(edge->source());
         scene->addItem(edge->target());
@@ -129,7 +130,6 @@ void SceneStorage::loadScene(FileSystemScene* scene)
         edge->adjust();
 
         scene->openTo(QDir::homePath());
-        enableStorage();
         return;
     }
 
@@ -156,7 +156,9 @@ void SceneStorage::loadScene(FileSystemScene* scene)
             m.edge->target()->setPos(m.pos);
             m.edge->adjust();
             scene->fetchMore(m.index);
-            S.push_back(m);
+            if (!NodeFlags(m.type).testAnyFlag(NodeType::ClosedNode)) {
+                S.push_back(m);
+            }
         }
     }
     /// Minor Bug: if the DB contains only the root ("/") directory, after
