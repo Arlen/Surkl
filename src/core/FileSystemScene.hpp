@@ -64,6 +64,7 @@ namespace core
         void rotateSelection(Rotation rot, bool page) const;
         QString gatherStats(const QModelIndexList& indices) const;
         void reportStats() const;
+        NodeItem* nodeFromIndex(const QModelIndex& index) const;
 
         QFileSystemModel* _model{nullptr};
         QSortFilterProxyModel* _proxyModel{nullptr};

@@ -314,11 +314,41 @@ bool FileSystemScene::openFile(const NodeItem* node) const
     return success;
 }
 
-/// This fetches the path, which then triggers onRowsInserted(), and then
-/// NodeItem::reload() are called to open all the nodes to the path.
 void FileSystemScene::openTo(const QString &targetPath) const
 {
-    fetchMore(index(targetPath));
+    auto idx = index(QDir::rootPath());
+
+    if (auto* root = nodeFromIndex(idx); root) {
+        if (root->isClosed()) {
+            root->open();
+            QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+        }
+
+        auto dirs = targetPath.split(QDir::separator(), Qt::SkipEmptyParts);
+        auto* parent = root;
+        QString subPath;
+
+        while (!dirs.empty()) {
+            subPath += QDir::separator() + dirs.first();
+            dirs.pop_front();
+            idx = index(subPath);
+            parent->skipTo(idx.row());
+
+            /// TODO: instnead of nodeFromIndex(), it would be cheaper to have
+            /// the parent get the child node from an index.  Or just refactore
+            /// NodeItem::skipTo() to return the node?
+            if (auto* nextNode = nodeFromIndex(idx); nextNode) {
+                parent = nextNode;
+                if (parent->isClosed()) {
+                    parent->open();
+                    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+                }
+                continue;
+            }
+
+            return;
+        }
+    }
 }
 
 void FileSystemScene::fetchMore(const QPersistentModelIndex& index) const
@@ -707,4 +737,15 @@ void FileSystemScene::reportStats() const
         ;
 
     SessionManager::ib()->setMsgR(gatherStats(indices));
+}
+
+NodeItem* FileSystemScene::nodeFromIndex(const QModelIndex& index) const
+{
+    for (const auto nodes = items(); auto* node : nodes | filterNodes) {
+        if (node->index() == index) {
+            return node;
+        }
+    }
+
+    return nullptr;
 }

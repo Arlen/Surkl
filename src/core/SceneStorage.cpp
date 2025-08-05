@@ -128,7 +128,6 @@ void SceneStorage::loadScene(FileSystemScene* scene)
         scene->addItem(edge);
         edge->adjust();
 
-        asNodeItem(edge->target())->open();
         scene->openTo(QDir::homePath());
         enableStorage();
         return;
