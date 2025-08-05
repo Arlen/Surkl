@@ -19,6 +19,7 @@ namespace  core
         void updatePos();
 
         [[nodiscard]] int type() const override { return Type; }
+        [[nodiscard]] const QString& text() const { return _text; }
 
     protected:
         QRectF boundingRect() const override;
