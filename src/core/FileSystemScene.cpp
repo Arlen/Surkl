@@ -428,7 +428,7 @@ void FileSystemScene::keyPressEvent(QKeyEvent *event)
 
 void FileSystemScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 {
-    if (auto* item = itemAt(event->scenePos(), QTransform()); event->button() == Qt::LeftButton) {
+    if (auto* item = itemAt(event->scenePos(), QTransform()); item && event->button() == Qt::LeftButton) {
         if (auto* node = asNodeItem(item)) {
             if (node->isFile() && openFile(node)) {
                 node->setSelected(false);
