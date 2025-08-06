@@ -343,6 +343,7 @@ QVariant RootItem::itemChange(GraphicsItemChange change, const QVariant& value)
     switch (change) {
         case ItemScenePositionHasChanged:
             _childEdge->adjust();
+            asNodeItem(_childEdge->target())->update();
             break;
 
         default:
