@@ -232,7 +232,7 @@ void UiStorage::readTable(storage::UiState& state)
             const auto orientation = static_cast<Qt::Orientation>(ori);
             Q_ASSERT(!state.splitters.contains(id));
             Q_ASSERT(orientation == Qt::Horizontal || orientation == Qt::Vertical);
-            state.splitters[id] = storage::Splitter{size, orientation};
+            state.splitters[id] = storage::Splitter{size, orientation, {}};
         }
     }
 

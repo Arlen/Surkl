@@ -282,10 +282,10 @@ SpreadAnimationData core::spreadWithAnimation(const NodeItem* parent)
     const auto gl = getGuides(parent);
 
     for (int i = 0; auto* child : includedNodes) {
-        while (i < gl.size() && gl[i].norm.isNull()) {
+        while (i < std::ssize(gl) && gl[i].norm.isNull()) {
             ++i;
         }
-        if (i >= gl.size()) {
+        if (i >= std::ssize(gl)) {
             break;
         }
 
@@ -461,7 +461,7 @@ void NodeItem::createChildNodes(QList<NodeData>& data)
     Q_ASSERT(!_nodeFlags.testAnyFlag(FileNode));
 
     _knot->show();
-    setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(OpenNode));
+    setNodeFlags((_nodeFlags & NodeFlags(LinkNode)) | NodeFlags(OpenNode));
 
     const auto count = std::min(NODE_CHILD_COUNT, _index.model()->rowCount(_index));
 
@@ -776,7 +776,7 @@ void NodeItem::close()
     animator->clearAnimations(this);
 
     destroyChildren();
-    setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(ClosedNode));
+    setNodeFlags((_nodeFlags & NodeFlags(LinkNode)) | NodeFlags(ClosedNode));
 
     shrink(this);
 }
@@ -788,7 +788,7 @@ void NodeItem::halfClose()
 
     _knot->hide();
     setAllEdgeState(this, EdgeItem::CollapsedState);
-    setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(HalfClosedNode));
+    setNodeFlags((_nodeFlags & NodeFlags(LinkNode)) | NodeFlags(HalfClosedNode));
 
     adjustAllEdges(this);
 
@@ -834,7 +834,7 @@ void NodeItem::open()
             &QPersistentModelIndex::isValid));
 
     } else if (isHalfClosed()) {
-        setNodeFlags(_nodeFlags & NodeFlags(LinkNode) | NodeFlags(OpenNode));
+        setNodeFlags((_nodeFlags & NodeFlags(LinkNode)) | NodeFlags(OpenNode));
         spread();
         setAllEdgeState(this, EdgeItem::ActiveState);
         adjustAllEdges(this);
@@ -1311,10 +1311,10 @@ void NodeItem::spread(const QPointF& dxy)
     const auto guides = getGuides(this);
 
     for (int i = 0; auto* node : includedNodes) {
-        while (i < guides.size() && guides[i].norm.isNull()) {
+        while (i < std::ssize(guides) && guides[i].norm.isNull()) {
             ++i;
         }
-        if (i >= guides.size()) {
+        if (i >= std::ssize(guides)) {
             break;
         }
 
@@ -1342,10 +1342,10 @@ void NodeItem::spread(const NodeItem* child)
     const auto guides = getGuides(this, child);
 
     for (int i = 0; auto* node : includedNodes) {
-        while (i < guides.size() && guides[i].norm.isNull()) {
+        while (i < std::ssize(guides) && guides[i].norm.isNull()) {
             ++i;
         }
-        if (i >= guides.size()) {
+        if (i >= std::ssize(guides)) {
             break;
         }
 

@@ -16,15 +16,15 @@ namespace gui
         {
             static ValueType counter{0};
 
-            _id = counter++;
+            _widgetId = counter++;
         }
 
         [[nodiscard]] ValueType widgetId() const noexcept
         {
-            return _id;
+            return _widgetId;
         }
 
     private:
-        ValueType _id{-1};
+        ValueType _widgetId{-1};
     };
 }

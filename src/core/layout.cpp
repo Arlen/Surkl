@@ -59,14 +59,14 @@ Ngon core::getNgon(int n)
 {
     static const auto ngons = makeNgons(NodeItem::NODE_CHILD_COUNT+2);
 
-    Q_ASSERT(n < ngons.size());
+    Q_ASSERT(n < std::ssize(ngons));
 
     return ngons[n];
 }
 
 QLineF core::getNgonSideNorm(int i, int n)
 {
-    Q_ASSERT(i < getNgon(n).size());
+    Q_ASSERT(i < std::ssize(getNgon(n)));
     Q_ASSERT(i < n);
 
     return getNgon(n)[i].norm;

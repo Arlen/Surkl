@@ -43,6 +43,8 @@ void DeletionDialog::keyReleaseEvent(QKeyEvent *event)
 
 void DeletionDialog::paintEvent(QPaintEvent *event)
 {
+    Q_UNUSED(event);
+
     const auto* tm = SessionManager::tm();
     const auto rec = rect();
 

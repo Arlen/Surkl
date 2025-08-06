@@ -83,6 +83,9 @@ QRectF EdgeLabelItem::boundingRect() const
 
 void EdgeLabelItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
+    Q_UNUSED(option);
+    Q_UNUSED(widget);
+
     const auto* tm = SessionManager::tm();
     painter->setPen(tm->edgeTextColor());
     painter->setFont(nodeFont());

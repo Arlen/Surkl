@@ -21,6 +21,8 @@ TriggerButton::TriggerButton(const QString& text, Qt::Alignment alignment, QWidg
 
 void TriggerButton::paintEvent(QPaintEvent* event)
 {
+    Q_UNUSED(event);
+
     QPainter p(this);
     QStyleOptionButton option;
     initStyleOption(&option);
