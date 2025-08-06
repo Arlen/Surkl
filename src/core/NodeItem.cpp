@@ -767,7 +767,9 @@ void NodeItem::paint(QPainter *p, const QStyleOptionGraphicsItem *option, QWidge
 
 void NodeItem::close()
 {
-    Q_ASSERT(isDir() && (isOpen() || isHalfClosed()));
+    if (isClosed()) {
+        return;
+    }
     Q_ASSERT(!_nodeFlags.testAnyFlag(FileNode));
 
     _knot->hide();
@@ -795,7 +797,10 @@ void NodeItem::halfClose()
 
 void NodeItem::closeOrHalfClose(bool forceClose)
 {
-    Q_ASSERT(isDir() && (isOpen() || isHalfClosed()));
+    if (isClosed()) {
+        return;
+    }
+    Q_ASSERT(!_nodeFlags.testAnyFlag(FileNode));
 
     if (hasOpenOrHalfClosedChild()) {
         /// pick half closing as it is less destructive, unless the user is
@@ -803,7 +808,7 @@ void NodeItem::closeOrHalfClose(bool forceClose)
         if (forceClose) {
             close();
             relayoutParent();
-        } else {
+        } else if (isOpen()) {
             halfClose();
         }
     } else {
