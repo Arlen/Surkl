@@ -244,7 +244,7 @@ namespace  core
     {
         const auto* node = asNodeItem(item->target());
 
-        return !node->isDir() || node->isClosed();
+        return node->isFile() || node->isClosed();
     };
 
     inline auto asTargetNode
@@ -255,7 +255,7 @@ namespace  core
     inline auto asFilesOrClosedTargetNodes
         = asTargetNode
         | std::views::filter([](const NodeItem* node)
-            { return !node->isDir() || node->isClosed(); })
+            { return node->isFile() || node->isClosed(); })
         ;
 
     inline auto asNotClosedTargetNodes

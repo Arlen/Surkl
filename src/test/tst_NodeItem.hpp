@@ -35,7 +35,6 @@ private slots:
 
 private:
     void verifyNames(core::NodeItem* node, const QDir& dir);
-    void verifyIndices(const core::NodeItem* node);
     void doRandomRotations(core::NodeItem* node, const WeightPair& weights, int count = 1);
 
     void randomOpen(const core::NodeItem* node, int count);

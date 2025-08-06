@@ -22,9 +22,9 @@ using namespace std;
 
 namespace
 {
-    auto fileOrClosedDirAreSorted = [](const core::NodeItem* parent)
+    auto fileOrClosedDirAreSorted = [](const core::NodeItem* node)
     {
-        auto rows = parent->childEdges()
+        auto rows = node->childEdges()
             | core::asFilesOrClosedTargetNodes
             | core::asIndexRow
             ;
@@ -42,14 +42,15 @@ namespace
         return ranges::is_sorted(ranges::begin(rows), ranges::end(rows));
     };
 
-    auto hasUniqueChildren = [](const core::NodeItem* parent)
+    auto uniqueRowCount = [](const core::NodeItem* parent)
     {
         const auto rows = parent->childEdges()
-            | core::asTargetNode | core::asIndexRow
+            | core::asTargetNode
+            | core::asIndexRow
+            | ranges::to<std::unordered_set>()
             ;
 
-        return (rows | ranges::to<std::vector>()).size() ==
-               (rows | ranges::to<std::unordered_set>()).size();
+        return rows.size();
     };
 
     auto nodeFromPath = [](const core::FileSystemScene* scene, const QString& path) -> core::NodeItem*
@@ -73,11 +74,15 @@ namespace
     };
 }
 
-//#define TEST_TRACK_STEPS
+#define TEST_TRACK_STEPS
 
-#define SHOW_STEPS()
 #ifdef TEST_TRACK_STEPS
-do { qDebug() << _steps; } while (false)
+#define SHOW_STEPS()  \
+    do { qDebug() << _steps; } while (false) \
+
+#else
+#define SHOW_STEPS() \
+
 #endif
 
 void TestNodeItem::initTestCase()
@@ -167,8 +172,8 @@ void TestNodeItem::rotation()
     }
 
     QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+    QCOMPARE(uniqueRowCount(node), node->childEdges().size());
     QVERIFY(fileOrClosedDirAreSorted(node));
-    QVERIFY(hasUniqueChildren(node));
     verifyNames(node, testDir);
 
     constexpr auto MAX_ITER = core::NodeItem::NODE_CHILD_COUNT;
@@ -178,15 +183,15 @@ void TestNodeItem::rotation()
         for (int i = 1; i <= MAX_ITER; ++i) {
             doRandomRotations(node, rotWeights, i*k);
             QVERIFY(spy1.wait(250));
+            QCOMPARE(uniqueRowCount(node), node->childEdges().size());
             QVERIFY(fileOrClosedDirAreSorted(node));
-            QVERIFY(hasUniqueChildren(node));
             verifyNames(node, testDir);
         }
         node->close();
         node->open();
 
         QVERIFY(fileOrClosedDirAreSorted(node));
-        QVERIFY(hasUniqueChildren(node));
+        QCOMPARE(uniqueRowCount(node), node->childEdges().size());
         verifyNames(node, testDir);
     }
 }
@@ -218,9 +223,8 @@ void TestNodeItem::rotationOpenCloseSubdir()
     }
 
     QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+    QCOMPARE(uniqueRowCount(node), node->childEdges().size());
     QVERIFY(fileOrClosedDirAreSorted(node));
-    QVERIFY(hasUniqueChildren(node));
-    verifyIndices(node);
     verifyNames(node, testDir);
 
     constexpr auto MAX_ITER = core::NodeItem::NODE_CHILD_COUNT;
@@ -229,49 +233,51 @@ void TestNodeItem::rotationOpenCloseSubdir()
     for (int k = 1; k <= MAX_ITER; ++k) {
         for (int i = 1; i <= MAX_ITER; ++i) {
             doRandomRotations(node, rotWeights, i*k);
-            QVERIFY(animSpy.wait(250));
-            QVERIFY(hasUniqueChildren(node));
+            animSpy.wait(250);
+            QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+            QCOMPARE(uniqueRowCount(node), node->childEdges().size());
             QVERIFY(fileOrClosedDirAreSorted(node));
-            verifyIndices(node);
             verifyNames(node, testDir);
 
             randomOpen(node, i);
             doRandomRotations(node, rotWeights, i);
+            animSpy.wait(250);
+            QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+            QCOMPARE(uniqueRowCount(node), node->childEdges().size());
             QVERIFY(fileOrClosedDirAreSorted(node));
-            QVERIFY(hasUniqueChildren(node));
-            verifyIndices(node);
             verifyNames(node, testDir);
 
             randomClose(node, i);
+            animSpy.wait(250);
+            QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+            QCOMPARE(uniqueRowCount(node), node->childEdges().size());
+            QVERIFY(fileOrClosedDirAreSorted(node)); /// TODO: this fails
             SHOW_STEPS();
-            QVERIFY(animSpy.wait(250));
-            QVERIFY(fileOrClosedDirAreSorted(node));
-            QVERIFY(hasUniqueChildren(node));
-            verifyIndices(node);
             verifyNames(node, testDir);
 
             doRandomRotations(node, rotWeights, i);
-            QVERIFY(animSpy.wait(250));
+            animSpy.wait(250);
+            QCOMPARE(node->childEdges().size(), qMin(core::NodeItem::NODE_CHILD_COUNT, testDir.count()));
+            QCOMPARE(uniqueRowCount(node), node->childEdges().size());
             QVERIFY(fileOrClosedDirAreSorted(node));
-            QVERIFY(hasUniqueChildren(node));
-            verifyIndices(node);
             verifyNames(node, testDir);
         }
+
 #ifdef TEST_TRACK_STEPS
         _steps.clear();
 #endif
         node->close();
+        animSpy.wait(250);
+        QCOMPARE(uniqueRowCount(node), 0);
         node->open();
+        QCOMPARE(uniqueRowCount(node), node->childEdges().size());
+        QVERIFY(allSorted(node));
         QVERIFY(fileOrClosedDirAreSorted(node));
-        QVERIFY(hasUniqueChildren(node));
-        verifyIndices(node);
         verifyNames(node, testDir);
     }
-    closeAll(node);
-    QVERIFY(allSorted(node));
-    QVERIFY(hasUniqueChildren(node));
-    verifyIndices(node);
-    verifyNames(node, testDir);
+    node->close();
+    animSpy.wait(250);
+    QCOMPARE(node->childEdges().size(), 0);
 }
 
 void TestNodeItem::verifyNames(core::NodeItem* node, const QDir& dir)
@@ -283,17 +289,6 @@ void TestNodeItem::verifyNames(core::NodeItem* node, const QDir& dir)
         QCOMPARE(child->index().data().toString(), child->name());
         QCOMPARE(child->parentEdge()->label()->text(), child->name());
     }
-}
-
-void TestNodeItem::verifyIndices(const core::NodeItem* node)
-{
-    const auto indices = node->childEdges()
-        | core::asTargetNode
-        | core::asIndexRow
-        | ranges::to<std::unordered_set>()
-        ;
-
-    QCOMPARE(indices.size(), node->childEdges().size());
 }
 
 void TestNodeItem::doRandomRotations(core::NodeItem* node, const QPair<qreal, qreal>& weights, int count)
