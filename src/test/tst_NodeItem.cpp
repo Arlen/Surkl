@@ -74,7 +74,7 @@ namespace
     };
 }
 
-#define TEST_TRACK_STEPS
+//#define TEST_TRACK_STEPS
 
 #ifdef TEST_TRACK_STEPS
 #define SHOW_STEPS()  \
