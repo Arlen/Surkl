@@ -55,47 +55,70 @@ namespace stmt::scene
 {
     constexpr auto NODES_TABLE = "Nodes"_L1;
     constexpr auto NODE_ID     = "node_id"_L1;
-    constexpr auto NODE_TYPE   = "node_type"_L1;
-    constexpr auto FIRST_ROW   = "first_row"_L1; // row number of the first child node.
-    constexpr auto NODE_XPOS   = "node_xpos"_L1;
-    constexpr auto NODE_YPOS   = "node_ypos"_L1;
+    constexpr auto NODE_TYPE   = "type"_L1;
+    constexpr auto NODE_POS_X  = "pos_x"_L1;
+    constexpr auto NODE_POS_Y  = "pos_y"_L1;
     constexpr auto EDGE_LEN    = "edge_len"_L1;
 
-    constexpr auto CREATE_TABLE_TPL
+    constexpr auto NODES_DIR_ATTR_TABLE = "NodesDirAttributes"_L1;
+    constexpr auto FIRST_ROW            = "first_row"_L1; // row number of the first child node.
+    constexpr auto NODE_ROT             = "rotation"_L1;  // angle of external rotation
+
+    constexpr auto CREATE_TABLE_A_TPL
         = R"(CREATE TABLE IF NOT EXISTS %1
              ( %2 TEXT PRIMARY KEY
              , %3 INTEGER
-             , %4 INTEGER
+             , %4 REAL
              , %5 REAL
-             , %6 REAL
-             , %7 REAL)
+             , %6 REAL)
+            )"_L1;
+
+    constexpr auto CREATE_TABLE_B_TPL
+        = R"(CREATE TABLE IF NOT EXISTS %1
+             ( %2 TEXT PRIMARY KEY
+             , %3 INTEGER
+             , %4 REAL)
             )"_L1;
 
     constexpr auto SELECT_TPL      = "SELECT * FROM %1"_L1;
-    constexpr auto INSERT_TPL      = "INSERT OR REPLACE INTO %1 ( %2, %3, %4, %5, %6, %7 ) VALUES ( ?, ?, ?, ?, ?, ? )"_L1;
+    constexpr auto INSERT_A_TPL    = "INSERT OR REPLACE INTO %1 ( %2, %3, %4, %5, %6 ) VALUES ( ?, ?, ?, ?, ? )"_L1;
+    constexpr auto INSERT_B_TPL    = "INSERT OR REPLACE INTO %1 ( %2, %3, %4 ) VALUES ( ?, ?, ? )"_L1;
     constexpr auto DELETE_FILE_TPL = "DELETE FROM %1 WHERE %2=?"_L1;
-    constexpr auto DELETE_DIR_TPL  = "DELETE FROM %1 WHERE %2 LIKE ?"_L1;
+    constexpr auto DELETE_DIR_TPL  = "DELETE FROM %1 WHERE %2 LIKE ? || '%'"_L1;
 
     static const auto CREATE_NODES_TABLE
-        = CREATE_TABLE_TPL.arg(NODES_TABLE)
+        = CREATE_TABLE_A_TPL.arg(NODES_TABLE)
             .arg(NODE_ID)
             .arg(NODE_TYPE)
-            .arg(FIRST_ROW)
-            .arg(NODE_XPOS)
-            .arg(NODE_YPOS)
+            .arg(NODE_POS_X)
+            .arg(NODE_POS_Y)
             .arg(EDGE_LEN);
+
+    static const auto CREATE_NODES_DIR_ATTR_TABLE
+        = CREATE_TABLE_B_TPL.arg(NODES_DIR_ATTR_TABLE)
+            .arg(NODE_ID)
+            .arg(FIRST_ROW)
+            .arg(NODE_ROT);
 
     static const auto SELECT_ALL_NODES
         = SELECT_TPL.arg(NODES_TABLE);
 
+    static const auto SELECT_ALL_NODES_DIR_ATTRS
+        = SELECT_TPL.arg(NODES_DIR_ATTR_TABLE);
+
     static const auto INSERT_NODE
-        = INSERT_TPL.arg(NODES_TABLE)
+        = INSERT_A_TPL.arg(NODES_TABLE)
             .arg(NODE_ID)
             .arg(NODE_TYPE)
-            .arg(FIRST_ROW)
-            .arg(NODE_XPOS)
-            .arg(NODE_YPOS)
+            .arg(NODE_POS_X)
+            .arg(NODE_POS_Y)
             .arg(EDGE_LEN);
+
+    static const auto INSERT_NODE_DIR_ATTR
+        = INSERT_B_TPL.arg(NODES_DIR_ATTR_TABLE)
+            .arg(NODE_ID)
+            .arg(FIRST_ROW)
+            .arg(NODE_ROT);
 
     static const auto DELETE_FILE_NODE
         = DELETE_FILE_TPL.arg(NODES_TABLE)
@@ -103,6 +126,10 @@ namespace stmt::scene
 
     static const auto DELETE_DIR_NODE
         = DELETE_DIR_TPL.arg(NODES_TABLE)
+            .arg(NODE_ID);
+
+    static const auto DELETE_NODE_DIR_ATTR
+        = DELETE_DIR_TPL.arg(NODES_DIR_ATTR_TABLE)
             .arg(NODE_ID);
 }
 

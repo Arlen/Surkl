@@ -57,16 +57,16 @@ void SceneStorage::configure()
     createTable();
 
     Q_ASSERT(core::db::doesTableExists(stmt::scene::NODES_TABLE));
+    Q_ASSERT(core::db::doesTableExists(stmt::scene::NODES_DIR_ATTR_TABLE));
 }
 
 void SceneStorage::deleteNode(const NodeItem *node)
 {
     Q_ASSERT(node != nullptr);
 
-    const auto id = _scene->filePath(node->index());
-    const auto isDir = _scene->isDir(node->index());
+    const auto data = getStorageData(node, StorageData::DeleteOp);
 
-    _queue.push_back(QVariant::fromValue<DeleteData>({id, isDir}));
+    _queue.push_back(QVariant::fromValue<StorageData>(data));
     _timer->start(125);
 }
 
@@ -78,26 +78,21 @@ void SceneStorage::saveNode(const NodeItem *node)
 
     Q_ASSERT(node != nullptr);
 
-    const auto id       = _scene->filePath(node->index());
-    const auto nodeType = static_cast<int>(node->nodeFlags());
-    const auto firstRow = node->firstRow();
-    const auto pos      = node->scenePos();
-    const auto length   = node->parentEdge()->line().length();
-    const auto saveData = SaveData{id, nodeType, firstRow, pos, length};
+    const auto data = getStorageData(node, StorageData::SaveOp);
 
-    Q_ASSERT(!id.isEmpty());
+    Q_ASSERT(!data.id.isEmpty());
 
-    auto match = [id](const QVariant& v) -> bool {
-        if (v.canConvert<SaveData>()) {
-            return id == v.value<SaveData>().id;
-        }
-        return false;
+    auto match = [id=data.id](const QVariant& var) -> bool
+    {
+        const auto sd = var.value<StorageData>();
+
+        return sd.op == StorageData::SaveOp && sd.id == id;
     };
 
     if (auto found = std::ranges::find_if(_queue, match); found != _queue.end()) {
-        *found = QVariant::fromValue<SaveData>(saveData);
+        *found = QVariant::fromValue<StorageData>(data);
     } else {
-        _queue.push_back(QVariant::fromValue<SaveData>(saveData));
+        _queue.push_back(QVariant::fromValue<StorageData>(data));
     }
 
     _timer->start(125);
@@ -241,16 +236,30 @@ void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
 
         for (auto* node : nodes) {
             Q_ASSERT(node != nullptr);
+            Q_ASSERT(node->parentEdge());
             if (node->index().isValid()) {
                 q.addBindValue(_scene->filePath(node->index()));
                 q.addBindValue(static_cast<int>(node->nodeFlags()));
-                q.addBindValue(node->firstRow());
                 const auto pos = node->scenePos();
                 q.addBindValue(pos.x());
                 q.addBindValue(pos.y());
-                if (const auto* pe  = node->parentEdge(); pe) {
-                    q.addBindValue(pe->line().length());
+                q.addBindValue(node->length());
+
+                if (!q.exec()) {
+                    qWarning() << q.lastError();
                 }
+            }
+        }
+
+        q.prepare(stmt::scene::INSERT_NODE_DIR_ATTR);
+
+        for (auto* node : nodes) {
+            if (node->index().isValid()) {
+                q.addBindValue(_scene->filePath(node->index()));
+                q.addBindValue(node->firstRow());
+                /// TODO: q.addBindValue(node->rotation());
+                q.addBindValue(0.0); // set angle of rotation to zero for now.
+
                 if (!q.exec()) {
                     qWarning() << q.lastError();
                 }
@@ -263,45 +272,73 @@ void SceneStorage::saveNodes(const QList<const NodeItem*>& nodes) const
     }
 }
 
+StorageData SceneStorage::getStorageData(const NodeItem* node, StorageData::OperationType op) const
+{
+    return
+        {
+            .op       = op,
+            .id       = _scene->filePath(node->index()),
+            .nodeType = static_cast<int>(node->nodeFlags()),
+            .firstRow = node->firstRow(),
+            .pos      = node->scenePos(),
+            .length   = node->length(),
+            .rotation = 0.0, // TODO: node->rotation()
+            .isDir    = node->isDir()
+        };
+}
+
 void SceneStorage::consume(const QList<QVariant>& data)
 {
     if (auto db = db::get(); db.isOpen()) {
         db.transaction();
         QSqlQuery qDelFile(db);
         QSqlQuery qDelDir(db);
-        QSqlQuery qIns(db);
+        QSqlQuery qDelNodeDirAttr(db);
+        QSqlQuery qInsNode(db);
+        QSqlQuery qInsNodeDirAttr(db);
 
         qDelFile.prepare(stmt::scene::DELETE_FILE_NODE);
         qDelDir.prepare(stmt::scene::DELETE_DIR_NODE);
-        qIns.prepare(stmt::scene::INSERT_NODE);
+        qDelNodeDirAttr.prepare(stmt::scene::DELETE_NODE_DIR_ATTR);
+        qInsNode.prepare(stmt::scene::INSERT_NODE);
+        qInsNodeDirAttr.prepare(stmt::scene::INSERT_NODE_DIR_ATTR);
 
         for (const auto& d : data) {
-            if (d.canConvert<DeleteData>()) {
-                const auto [id, isDir] = d.value<DeleteData>();
+            const auto [op, id, nodeType, firstRow, pos, length, rotation, isDir] = d.value<StorageData>();
 
+            if (op == StorageData::DeleteOp) {
                 if (isDir) {
-                    qDelDir.addBindValue(id + "%");
+                    qDelDir.addBindValue(id);
                     if (!qDelDir.exec()) {
-                        qWarning() << qDelDir.lastError();
+                        qWarning() << db.lastError();
+                    }
+                    qDelNodeDirAttr.addBindValue(id);
+                    if (!qDelNodeDirAttr.exec()) {
+                        qWarning() << db.lastError();
                     }
                 } else {
                     qDelFile.addBindValue(id);
                     if (!qDelFile.exec()) {
-                        qWarning() << qDelFile.lastError();
+                        qWarning() << db.lastError();
                     }
                 }
-            } else if (d.canConvert<SaveData>()) {
-                const auto [id, nodeType, firstRow, pos, length] = d.value<SaveData>();
-
-                qIns.addBindValue(id);
-                qIns.addBindValue(nodeType);
-                qIns.addBindValue(firstRow);
-                qIns.addBindValue(pos.x());
-                qIns.addBindValue(pos.y());
-                qIns.addBindValue(length);
-
-                if (!qIns.exec()) {
+            } else if (op == StorageData::SaveOp) {
+                qInsNode.addBindValue(id);
+                qInsNode.addBindValue(nodeType);
+                qInsNode.addBindValue(pos.x());
+                qInsNode.addBindValue(pos.y());
+                qInsNode.addBindValue(length);
+                if (!qInsNode.exec()) {
                     qWarning() << db.lastError();
+                }
+
+                if (isDir) {
+                    qInsNodeDirAttr.addBindValue(id);
+                    qInsNodeDirAttr.addBindValue(firstRow);
+                    qInsNodeDirAttr.addBindValue(rotation);
+                    if (!qInsNodeDirAttr.exec()) {
+                        qWarning() << db.lastError();
+                    }
                 }
             }
         }
@@ -320,6 +357,10 @@ void SceneStorage::createTable()
         if (!q.exec(stmt::scene::CREATE_NODES_TABLE)) {
             qWarning() << "failed to create nodes table" << q.lastError();
         }
+
+        if (!q.exec(stmt::scene::CREATE_NODES_DIR_ATTR_TABLE)) {
+            qWarning() << "failed to create node dir-attributes table" << q.lastError();
+        }
     }
 }
 
@@ -331,32 +372,84 @@ QHash<QPersistentModelIndex, QList<NodeData>> SceneStorage::readTable(const File
         return {};
     }
 
-    QHash<QPersistentModelIndex, QList<NodeData>> graph;
+    struct Attribute
+    {
+        int firstRow{0};
+        qreal rotation{0};
+    };
 
     QSqlQuery q(db);
-    q.prepare(stmt::scene::SELECT_ALL_NODES);
+
+    q.prepare(stmt::scene::SELECT_ALL_NODES_DIR_ATTRS);
+    QHash<QPersistentModelIndex, Attribute> attributes;
 
     if (q.exec()) {
-        const auto rec       = q.record();
-        const auto idIndex   = rec.indexOf(stmt::scene::NODE_ID);
-        const auto typeIndex = rec.indexOf(stmt::scene::NODE_TYPE);
-        const auto rowIndex  = rec.indexOf(stmt::scene::FIRST_ROW);
-        const auto xposIndex = rec.indexOf(stmt::scene::NODE_XPOS);
-        const auto yposIndex = rec.indexOf(stmt::scene::NODE_YPOS);
-        const auto lenIndex  = rec.indexOf(stmt::scene::EDGE_LEN);
+        const auto rec    = q.record();
+        const auto idIdx  = rec.indexOf(stmt::scene::NODE_ID);
+        const auto rowIdx = rec.indexOf(stmt::scene::FIRST_ROW);
+        const auto rotIdx = rec.indexOf(stmt::scene::NODE_ROT);
         auto ok = false;
 
         while (q.next()) {
-            const auto path  = q.value(idIndex).toString();
+            const auto path  = q.value(idIdx).toString();
             const auto index = scene->index(path);
-            const auto type  = static_cast<NodeType>(q.value(typeIndex).toInt(&ok)); Q_ASSERT(ok);
-            const auto row   = q.value(rowIndex).toInt(&ok);   Q_ASSERT(ok);
-            const auto x     = q.value(xposIndex).toReal(&ok); Q_ASSERT(ok);
-            const auto y     = q.value(yposIndex).toReal(&ok); Q_ASSERT(ok);
-            const auto len   = q.value(lenIndex).toReal(&ok);  Q_ASSERT(ok);
+            const auto row   = q.value(rowIdx).toInt(&ok);   Q_ASSERT(ok);
+            const auto rot   = q.value(rotIdx).toReal(&ok);  Q_ASSERT(ok);
 
             if (index.isValid()) {
-                graph[index.parent()].push_back(NodeData{ index, type, row, QPointF(x, y), len });
+                /// QModelIndex and QPersistentModelIndex behave differently
+                /// when it comes to uniqueness.
+                /// QModelIndex: two link directories pointing to the same directory are considered the same.
+                /// QPersistentModelIndex: "" not the same.
+                Q_ASSERT(!attributes.contains(index));
+
+                attributes[index] = {row, rot};
+            }
+        }
+    }
+
+    q.prepare(stmt::scene::SELECT_ALL_NODES);
+    QHash<QPersistentModelIndex, QList<NodeData>> graph;
+
+    if (q.exec()) {
+        const auto rec     = q.record();
+        const auto idIdx   = rec.indexOf(stmt::scene::NODE_ID);
+        const auto typeIdx = rec.indexOf(stmt::scene::NODE_TYPE);
+        const auto posxIdx = rec.indexOf(stmt::scene::NODE_POS_X);
+        const auto posyIdx = rec.indexOf(stmt::scene::NODE_POS_Y);
+        const auto lenIdx  = rec.indexOf(stmt::scene::EDGE_LEN);
+        auto ok = false;
+
+        while (q.next()) {
+            const auto path  = q.value(idIdx).toString();
+            const auto index = scene->index(path);
+            const auto type  = static_cast<NodeType>(q.value(typeIdx).toInt(&ok)); Q_ASSERT(ok);
+            const auto x     = q.value(posxIdx).toReal(&ok); Q_ASSERT(ok);
+            const auto y     = q.value(posyIdx).toReal(&ok); Q_ASSERT(ok);
+            const auto len   = q.value(lenIdx).toReal(&ok);  Q_ASSERT(ok);
+
+            if (index.isValid()) {
+                auto nd = NodeData
+                    {
+                        .index    = index,
+                        .type     = type,
+                        .firstRow = 0,
+                        .pos      = QPointF(x, y),
+                        .length   = len,
+                        .rotation = 0
+                    };
+
+                if (attributes.contains(index)) {
+                    const auto [row, rot] = attributes[index];
+                    nd.firstRow = row;
+                    nd.rotation = rot;
+                }
+
+                if (index.isValid()) {
+                    graph[index.parent()].push_back(nd);
+                } else {
+                    qWarning() << "read invalid index!";
+                }
             }
         }
     }

@@ -16,18 +16,22 @@ namespace core
     class FileSystemScene;
     class NodeData;
 
-    struct SaveData
+    struct StorageData
     {
+        enum OperationType
+        {
+            SaveOp = 0,
+            DeleteOp,
+            NoOp
+        };
+
+        OperationType op;
         QString id;
         int nodeType;
         int firstRow;
         QPointF pos;
         qreal length;
-    };
-
-    struct DeleteData
-    {
-        QString id;
+        qreal rotation;
         bool isDir;
     };
 
@@ -55,6 +59,8 @@ namespace core
         void enableStorage();
 
         void saveNodes(const QList<const NodeItem*>& nodes) const;
+
+        StorageData getStorageData(const NodeItem* node, StorageData::OperationType op) const;
 
         static void consume(const QList<QVariant>& data);
 
