@@ -405,6 +405,7 @@ void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
 void FileSystemScene::keyPressEvent(QKeyEvent *event)
 {
     const auto key = event->key();
+    const auto mod = event->modifiers();
 
     if (key == Qt::Key_Delete) {
         if (!event->isAutoRepeat()) {
@@ -421,6 +422,18 @@ void FileSystemScene::keyPressEvent(QKeyEvent *event)
         rotateSelection(Rotation::CCW, event->modifiers() == Qt::ShiftModifier);
     } else if (key == Qt::Key_D) {
         rotateSelection(Rotation::CW, event->modifiers() == Qt::ShiftModifier);
+    } else if (key == Qt::Key_Plus || key == Qt::Key_Minus) {
+        auto amount = mod & Qt::ShiftModifier ? 10 : 2;
+        amount *= key == Qt::Key_Minus ? -1 : 1;
+        const auto selection     = selectedItems();
+        const auto selectedNodes = std::ranges::to<QList>(selection | filterNodes);
+        for (auto* node : selectedNodes) {
+            if (!node->childEdges().empty()) {
+                node->growChildren(amount);
+            } else {
+                node->grow(amount);
+            }
+        }
     }
 
     QGraphicsScene::keyPressEvent(event);

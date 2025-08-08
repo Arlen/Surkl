@@ -9,6 +9,7 @@
 #include <QPersistentModelIndex>
 
 #include <deque>
+#include <numbers>
 #include <ranges>
 #include <unordered_map>
 #include <vector>
@@ -82,6 +83,8 @@ namespace  core
         QGraphicsItem* node{nullptr};
         EdgeItem* toGrow{nullptr};
         EdgeItem* toShrink{nullptr};
+        float toGrowLength{1};
+        float toShrinkLength{1};
         QHash<QGraphicsItem*, qreal> angularDisplacement;
         QHash<QGraphicsItem*, qreal> angles;
     };
@@ -104,14 +107,29 @@ namespace  core
         int firstRow;
         QPointF pos;
         qreal length;
+        qreal rotation;
         EdgeItem* edge{nullptr};
     };
 
     class NodeItem final : public QGraphicsItem
     {
+        static constexpr qreal GOLDEN                     = 1.0 / std::numbers::phi;
+        static constexpr qreal NODE_OPEN_RADIUS           = 32.0;
+        static constexpr qreal NODE_OPEN_DIAMETER         = NODE_OPEN_RADIUS * 2.0;
+        //static constexpr qreal NODE_CLOSED_RADIUS       = NODE_OPEN_RADIUS * GOLDEN;
+        static constexpr qreal NODE_CLOSED_DIAMETER       = NODE_OPEN_DIAMETER * GOLDEN;
+        static constexpr qreal NODE_HALF_CLOSED_DIAMETER  = NODE_OPEN_DIAMETER * (1.0 - GOLDEN*GOLDEN*GOLDEN);
+        static constexpr qreal EDGE_WIDTH                 = 4.0;
+        static constexpr qreal NODE_OPEN_PEN_WIDTH        = 4.0;
+        static constexpr qreal NODE_CLOSED_PEN_WIDTH      = EDGE_WIDTH * GOLDEN;
+        static constexpr qreal NODE_HALF_CLOSED_PEN_WIDTH = NODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
+
     public:
-        /// fixed for now.
-        static constexpr int NODE_CHILD_COUNT = 13;
+        static constexpr int NODE_CHILD_COUNT      = 24;  /// fixed for now.
+        static constexpr float NODE_MIN_LENGTH     = 128;
+        static constexpr float NODE_MAX_LENGTH     = 512;
+        static constexpr float NODE_DEFAULT_LENGTH = 150;
+        static constexpr float NODE_DEFAULT_EXTENT = NODE_DEFAULT_LENGTH + NODE_OPEN_RADIUS;
 
         enum
         {
@@ -150,6 +168,7 @@ namespace  core
         [[nodiscard]] EdgeItem* parentEdge() const  { return _parentEdge; }
         [[nodiscard]] KnotItem* knot() const        { return _knot; }
         [[nodiscard]] int firstRow() const          { return _firstRow; }
+        [[nodiscard]] float length() const          { return _length; }
 
         [[nodiscard]] const QPersistentModelIndex& index() const { return _index; }
         [[nodiscard]] const EdgeDeque& childEdges() const        { return _childEdges; }
@@ -162,6 +181,9 @@ namespace  core
         void rotate(Rotation rot);
         void rotatePage(Rotation rot);
         void skipTo(int row);
+        void grow(float amount);
+        void growChildren(float amount);
+        float childLength(const QPersistentModelIndex& index) const;
 
     protected:
         QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
@@ -184,11 +206,13 @@ namespace  core
 
         NodeFlags _nodeFlags{NodeType::ClosedNode};
         int _firstRow{-1};
+        float _length{NODE_DEFAULT_LENGTH};
         QPersistentModelIndex _index;
         EdgeItem* _parentEdge{nullptr};
         KnotItem* _knot{nullptr};
         EdgeItem* _extra{nullptr};
         EdgeDeque _childEdges;
+        QHash<QPersistentModelIndex, float> _childLengths;
 
         inline static std::vector<std::pair<QGraphicsItem*, QPointF>> _ancestorPos;
 
@@ -197,8 +221,8 @@ namespace  core
 
     using NodeVector = std::vector<NodeItem*>;
 
-    void extend(NodeItem* node, qreal distance = 144.0);
-    void shrink(NodeItem* node, qreal distance = 144.0);
+    void extend(NodeItem* node, qreal distance = NodeItem::NODE_DEFAULT_EXTENT);
+    void shrink(NodeItem* node, qreal distance = NodeItem::NODE_DEFAULT_EXTENT);
     void adjustAllEdges(const NodeItem* node);
     void updateAllChildNodes(const NodeItem* node);
     void setAllEdgeState(const NodeItem* node, EdgeItem::State state);

@@ -58,7 +58,7 @@ namespace stmt::scene
     constexpr auto NODE_TYPE   = "type"_L1;
     constexpr auto NODE_POS_X  = "pos_x"_L1;
     constexpr auto NODE_POS_Y  = "pos_y"_L1;
-    constexpr auto EDGE_LEN    = "edge_len"_L1;
+    constexpr auto NODE_LEN    = "length"_L1;
 
     constexpr auto NODES_DIR_ATTR_TABLE = "NodesDirAttributes"_L1;
     constexpr auto FIRST_ROW            = "first_row"_L1; // row number of the first child node.
@@ -92,7 +92,7 @@ namespace stmt::scene
             .arg(NODE_TYPE)
             .arg(NODE_POS_X)
             .arg(NODE_POS_Y)
-            .arg(EDGE_LEN);
+            .arg(NODE_LEN);
 
     static const auto CREATE_NODES_DIR_ATTR_TABLE
         = CREATE_TABLE_B_TPL.arg(NODES_DIR_ATTR_TABLE)
@@ -112,7 +112,7 @@ namespace stmt::scene
             .arg(NODE_TYPE)
             .arg(NODE_POS_X)
             .arg(NODE_POS_Y)
-            .arg(EDGE_LEN);
+            .arg(NODE_LEN);
 
     static const auto INSERT_NODE_DIR_ATTR
         = INSERT_B_TPL.arg(NODES_DIR_ATTR_TABLE)

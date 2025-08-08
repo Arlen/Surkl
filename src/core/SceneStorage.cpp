@@ -417,7 +417,7 @@ QHash<QPersistentModelIndex, QList<NodeData>> SceneStorage::readTable(const File
         const auto typeIdx = rec.indexOf(stmt::scene::NODE_TYPE);
         const auto posxIdx = rec.indexOf(stmt::scene::NODE_POS_X);
         const auto posyIdx = rec.indexOf(stmt::scene::NODE_POS_Y);
-        const auto lenIdx  = rec.indexOf(stmt::scene::EDGE_LEN);
+        const auto lenIdx  = rec.indexOf(stmt::scene::NODE_LEN);
         auto ok = false;
 
         while (q.next()) {

@@ -17,7 +17,6 @@
 #include <QStyleOptionGraphicsItem>
 #include <QVariantAnimation>
 
-#include <numbers>
 #include <ranges>
 #include <stack>
 #include <unordered_set>
@@ -28,18 +27,6 @@ using namespace std;
 
 namespace
 {
-    constexpr qreal GOLDEN = 1.0 / std::numbers::phi;
-    /// These don't change, because the scene view offers zoom feature.
-    constexpr qreal NODE_OPEN_RADIUS           = 32.0;
-    constexpr qreal NODE_OPEN_DIAMETER         = NODE_OPEN_RADIUS * 2.0;
-    //constexpr qreal NODE_CLOSED_RADIUS       = NODE_OPEN_RADIUS * GOLDEN;
-    constexpr qreal NODE_CLOSED_DIAMETER       = NODE_OPEN_DIAMETER * GOLDEN;
-    constexpr qreal NODE_HALF_CLOSED_DIAMETER  = NODE_OPEN_DIAMETER * (1.0 - GOLDEN*GOLDEN*GOLDEN);
-    constexpr qreal EDGE_WIDTH                 = 4.0;
-    constexpr qreal NODE_OPEN_PEN_WIDTH        = 4.0;
-    constexpr qreal NODE_CLOSED_PEN_WIDTH      = EDGE_WIDTH * GOLDEN;
-    constexpr qreal NODE_HALF_CLOSED_PEN_WIDTH = NODE_OPEN_PEN_WIDTH * (1.0 - GOLDEN*GOLDEN*GOLDEN);
-
     bool isRoot(const QGraphicsItem* node)
     {
         return qgraphicsitem_cast<const RootItem*>(node) != nullptr;
@@ -290,12 +277,8 @@ SpreadAnimationData core::spreadWithAnimation(const NodeItem* parent)
         }
 
         const auto norm = gl[i].norm;
-
-        /// TODO: node lengths are unique to each File/Folder, and have default
-        /// value of 144 for now.  If the edge length is changed by the user, it
-        /// is saved in the Model and then in the DB.
         auto childLine = QLineF(parent->pos(), parent->pos() + QPointF(norm.dx(), norm.dy()));
-        childLine.setLength(144);
+        childLine.setLength(child->length());
         const auto oldPos = child->scenePos();
 
         if (const auto newPos = childLine.p2(); oldPos != newPos) {
@@ -439,14 +422,14 @@ void NodeItem::createChildNodes()
         const auto norm  = getNgonSideNorm(i, sides);
 
         auto nodeLine = QLineF(pos(), pos() + QPointF(norm.dx(), norm.dy()));
-        nodeLine.setLength(144);
+        nodeLine.setLength(NODE_DEFAULT_LENGTH);
 
         data.push_back(
             { .index    = index,
               .type     = NodeType::ClosedNode,
               .firstRow = 0,
               .pos      = nodeLine.p2(),
-              .length   = 0
+              .length   = NODE_DEFAULT_LENGTH
             });
     }
 
@@ -470,9 +453,14 @@ void NodeItem::createChildNodes(QList<NodeData>& data)
         d.edge = createNode(d.index, this);
         scene()->addItem(d.edge->target());
         scene()->addItem(d.edge);
+        asNodeItem(d.edge->target())->_length = d.length;
         d.edge->target()->setPos(d.pos);
         d.edge->adjust();
         _childEdges.emplace_back(d.edge);
+    }
+
+    for (const auto& d : data) {
+        _childLengths.insert(d.index, d.length);
     }
 
     updateFirstRow();
@@ -934,6 +922,34 @@ void NodeItem::skipTo(int row)
     updateFirstRow();
 }
 
+void NodeItem::grow(float amount)
+{
+    if (isClosed() || isFile()) {
+        const auto newLen = _length + amount;
+        _length = qBound(NODE_MIN_LENGTH, newLen, NODE_MAX_LENGTH);
+        if (auto* pn = asNodeItem(parentEdge()->source()); pn) {
+            pn->_childLengths[index()] = _length;
+            pn->spread();
+        }
+    }
+}
+
+void NodeItem::growChildren(float amount)
+{
+    for (auto* node : _childEdges | asFilesOrClosedTargetNodes) {
+        const auto newLen = node->_length + amount;
+        node->_length = qBound(NODE_MIN_LENGTH, newLen, NODE_MAX_LENGTH);
+        _childLengths[node->index()] = node->_length;
+    }
+
+    spread();
+}
+
+float NodeItem::childLength(const QPersistentModelIndex& index) const
+{
+    return _childLengths.value(index, NODE_DEFAULT_LENGTH);
+}
+
 QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     switch (change) {
@@ -961,9 +977,15 @@ QVariant NodeItem::itemChange(GraphicsItemChange change, const QVariant &value)
 
 void NodeItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
-    if (scene()->mouseGrabberItem() == this) {
+    if (event->button() == Qt::LeftButton &&  scene()->mouseGrabberItem() == this) {
         if (!_ancestorPos.empty()) {
             _ancestorPos.clear();
+        }
+        if (isClosed() || isFile()) {
+            _length = QLineF(parentEdge()->source()->pos(), parentEdge()->target()->pos()).length();
+            if (auto* parent = asNodeItem(parentEdge()->source()); parent) {
+                parent->_childLengths[index()] = _length;
+            }
         }
     }
 
@@ -1092,6 +1114,7 @@ void NodeItem::destroyChildren()
     }
 
     _childEdges.clear();
+    _childLengths.clear();
     _firstRow = -1;
 
     destroyEdge(_extra);
@@ -1261,6 +1284,8 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
     asNodeItem(_extra->target())->setIndex(sibling);
     _extra->setText(asNodeItem(_extra->target())->name());
 
+    float toGrowLen    = 1;
+    float toShrinkLen  = 1;
     EdgeItem* toGrow   = nullptr;
     EdgeItem* toShrink = nullptr;
 
@@ -1281,6 +1306,10 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
     Q_ASSERT(isFileOrClosed(_extra));
     if (auto found = ranges::find(_childEdges, insertPos); found != _childEdges.end()) {
         _extra->target()->setPos((*found)->target()->scenePos());
+        if (auto* node = asNodeItem(_extra->target()); node) {
+            node->_length = childLength(node->index());
+            toGrowLen = node->_length;
+        }
         toGrow = _extra;
 
         /// insert after if going CW, or insert before if going CCW.
@@ -1290,14 +1319,16 @@ InternalRotationAnimationData NodeItem::doInternalRotation(Rotation rot)
 
     if (auto found = ranges::find(_childEdges, toErase); found != _childEdges.end()) {
         _extra = *found;
-        asNodeItem(_extra->target())->_index = QModelIndex();
+        auto* extraNode = asNodeItem(_extra->target());
+        toShrinkLen = extraNode->length();
+        extraNode->_index = QModelIndex();
         _childEdges.erase(found);
         toShrink = _extra;
     } else { Q_ASSERT(false); }
     Q_ASSERT(isFileOrClosed(_extra));
     updateFirstRow();
 
-    return { rot, this, toGrow, toShrink, angularDisplacements, angles };
+    return { rot, this, toGrow, toShrink, toGrowLen, toShrinkLen, angularDisplacements, angles };
 }
 
 /// dxy is used only for the node that is being moved by the mouse.  Without
@@ -1322,7 +1353,7 @@ void NodeItem::spread(const QPointF& dxy)
         const auto norm = guides[i].norm;
 
         auto nodeLine = QLineF(pos(), pos() + QPointF(norm.dx(), norm.dy()));
-        nodeLine.setLength(144);
+        nodeLine.setLength(node->length());
         node->setPos(nodeLine.p2() + dxy);
         i++;
     }
@@ -1353,7 +1384,7 @@ void NodeItem::spread(const NodeItem* child)
         const auto norm = guides[i].norm;
 
         auto nodeLine = QLineF(pos(), pos() + QPointF(norm.dx(), norm.dy()));
-        nodeLine.setLength(144);
+        nodeLine.setLength(node->length());
         node->setPos(nodeLine.p2());
         i++;
     }
@@ -1690,6 +1721,9 @@ void Animator::interpolate(qreal t, const InternalRotationAnimationData& data)
     auto* toGrow      = data.toGrow;
     auto* toShrink    = data.toShrink;
 
+    const auto toGrowLen   = data.toGrowLength;
+    const auto toShrinkLen = data.toShrinkLength;
+
     QHashIterator ca(angles);
 
     while (ca.hasNext()) {
@@ -1708,7 +1742,7 @@ void Animator::interpolate(qreal t, const InternalRotationAnimationData& data)
     }
 
     auto line = QLineF(node->scenePos(), toGrow->target()->scenePos());
-    line.setLength(t * 144);
+    line.setLength(t * toGrowLen);
     toGrow->target()->setPos(line.p2());
     if (t >= 0.4) {
         toGrow->setOpacity(t);
@@ -1723,7 +1757,7 @@ void Animator::interpolate(qreal t, const InternalRotationAnimationData& data)
     } else {
         const auto t1 = 1.0 - t;
         line = QLineF(node->scenePos(), toShrink->target()->scenePos());
-        line.setLength(t1 * 144);
+        line.setLength(t1 * toShrinkLen);
         toShrink->target()->setPos(line.p2());
         toShrink->setOpacity(t1);
         toShrink->target()->setOpacity(t1);
