@@ -5,10 +5,9 @@
 
 #include "WidgetId.hpp"
 
+#include <QPushButton>
 #include <QWidget>
 
-
-class QPushButton;
 
 namespace gui
 {
@@ -59,5 +58,17 @@ namespace gui
         Splitter* _splitter{nullptr};
         InfoBar* _infoBar{nullptr};
         QPushButton* _showInfoBar{nullptr};
+    };
+
+
+    class LockButton final : public QPushButton
+    {
+        Q_OBJECT
+
+    public:
+        explicit LockButton(bool locked, QWidget* parent);
+
+    private slots:
+        void setLocked(bool locked);
     };
 }

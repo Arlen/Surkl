@@ -5,6 +5,7 @@
 #include "InfoBar.hpp"
 #include "Splitter.hpp"
 #include "UiStorage.hpp"
+#include "core/FileSystemScene.hpp"
 #include "core/SessionManager.hpp"
 #include "version.hpp"
 #include "view/GraphicsView.hpp"
@@ -56,7 +57,74 @@ namespace
 
         return mw;
     }
+
+
+    using XpmData = const char* const[];
+
+    XpmData lockedIcon =
+    {
+        "24 24 2 1",
+        ". c None",
+        "a c #000000",
+        ".......aaaaaa...........",
+        ".....aaaaaaaaaa.........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        "....aaa......aaa........",
+        ".aaaaaaaaaaaaaaaaaa.....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+      };
+
+
+    XpmData unlockedIcon =
+    {
+        "24 24 2 1",
+        ". c None",
+        "a c #000000",
+        "........................",
+        "................aaaaa...",
+        "..............aaaaaaaaa.",
+        ".............aaa.....aaa",
+        ".............aaa.....aaa",
+        ".............aaa.....aaa",
+        ".............aaa.....aaa",
+        ".............aaa.....aaa",
+        ".............aaa.....aaa",
+        ".............aaa.....aaa",
+        ".............aaa........",
+        ".aaaaaaaaaaaaaaaaaa.....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaa..aaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+        "aaaaaaaaaaaaaaaaaaaa....",
+      };
 }
+
 
 /// The first MainWindow that's created is considered to be the main, and all
 /// the other MainWindows are siblings of the main.
@@ -80,13 +148,27 @@ MainWindow::MainWindow(Splitter* splitter)
     _showInfoBar->setFixedSize(48, 12);
     _showInfoBar->hide();
 
+    auto* botLayout = new QHBoxLayout();
+    botLayout->setContentsMargins(0, 0, 0, 0);
+    botLayout->setSpacing(2);
+
+    auto* lockButton = new LockButton(core::SessionManager::scene()->isReadOnly(), this);
+    botLayout->addWidget(lockButton);
+
     _infoBar = new InfoBar(this);
-    layout->addWidget(_infoBar);
+    botLayout->addWidget(_infoBar);
+    layout->addLayout(botLayout);
 
     connect(_infoBar, &InfoBar::hidden, _showInfoBar, &QPushButton::show);
+    connect(_infoBar, &InfoBar::hidden, lockButton, &QPushButton::hide);
     connect(_showInfoBar, &QPushButton::pressed, _showInfoBar, &QPushButton::hide);
     connect(_showInfoBar, &QPushButton::pressed, _infoBar, &QWidget::show);
+    connect(_showInfoBar, &QPushButton::pressed, lockButton, &QWidget::show);
 
+    connect(lockButton, &QPushButton::clicked, core::SessionManager::scene(),
+        &core::FileSystemScene::toggleReadOnly);
+    connect(core::SessionManager::scene(), &core::FileSystemScene::readOnlyToggled,
+        lockButton, &QPushButton::setChecked);
 
     setTitle();
 
@@ -272,4 +354,25 @@ void MainWindow::setTitle()
 {
     setWindowTitle(QString("@ Window %1")
         .arg(getMainWindows().size()));
+}
+
+
+LockButton::LockButton(bool locked, QWidget *parent)
+    : QPushButton(parent)
+{
+    setFixedSize(32, 30);
+    setCheckable(true);
+    setChecked(locked);
+    setLocked(locked);
+
+    connect(this, &QPushButton::toggled, this, &LockButton::setLocked);
+}
+
+void LockButton::setLocked(bool locked)
+{
+    if (locked) {
+        setIcon(QPixmap(lockedIcon));
+    } else {
+        setIcon(QPixmap(unlockedIcon));
+    }
 }

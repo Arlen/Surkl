@@ -25,6 +25,8 @@ namespace core
     signals:
         void sequenceFinished();
 #endif
+    signals:
+        void readOnlyToggled(bool enabled);
 
     public:
         explicit FileSystemScene(QObject* parent = nullptr);
@@ -33,6 +35,7 @@ namespace core
         bool isLink(const QModelIndex& index) const;
         [[nodiscard]] QString filePath(const QPersistentModelIndex& index) const;
         [[nodiscard]] QPersistentModelIndex index(const QString& paht) const;
+        [[nodiscard]] bool isReadOnly() const;
 
         void setRootPath(const QString& newPath) const;
         void openTo(const QString &targetPath) const;
@@ -44,6 +47,7 @@ namespace core
         void closeSelectedNodes() const;
         void halfCloseSelectedNodes() const;
         void addSceneBookmark(const QPoint& clickPos, const QString& name);
+        void toggleReadOnly();
 
     protected:
         void drawBackground(QPainter* p, const QRectF& rec) override;

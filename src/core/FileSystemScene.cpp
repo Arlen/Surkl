@@ -240,7 +240,7 @@ FileSystemScene::FileSystemScene(QObject* parent)
 
     _model = new QFileSystemModel(this);
     _model->setRootPath(QDir::rootPath());
-    _model->setReadOnly(false);
+    _model->setReadOnly(true);
 
     _proxyModel = new QSortFilterProxyModel(this);
     _proxyModel->setSourceModel(_model);
@@ -294,6 +294,11 @@ QString FileSystemScene::filePath(const QPersistentModelIndex& index) const
 QPersistentModelIndex FileSystemScene::index(const QString& path) const
 {
     return _proxyModel->mapFromSource(_model->index(path));
+}
+
+bool FileSystemScene::isReadOnly() const
+{
+    return _model->isReadOnly();
 }
 
 void FileSystemScene::setRootPath(const QString& newPath) const
@@ -393,6 +398,17 @@ void FileSystemScene::addSceneBookmark(const QPoint& clickPos, const QString& na
     } else {
         delete bookmarkItem;
     }
+}
+
+void FileSystemScene::toggleReadOnly()
+{
+    _model->setReadOnly(!_model->isReadOnly());
+
+    const auto enabled = _model->isReadOnly();
+    const auto msg = QString("Real-Only Mode: %1").arg(enabled ? "On":"Off");
+    SessionManager::ib()->setTimedMsgL(msg, 2000);
+
+    emit readOnlyToggled(_model->isReadOnly());
 }
 
 void FileSystemScene::drawBackground(QPainter *p, const QRectF& rec)
