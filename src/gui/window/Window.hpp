@@ -82,6 +82,8 @@ namespace gui::window
 
         void switchToThemeSettings();
 
+        void switchToHelp();
+
         void moveToNewMainWindow();
 
     private:

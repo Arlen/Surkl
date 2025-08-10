@@ -232,6 +232,8 @@ MainWindow* MainWindow::loadUi()
                     childSizes.push_back(state.windows[childId].size);
                     if (state.windows[childId].type == window::AbstractWindowArea::ThemeArea) {
                         win->switchToThemeSettings();
+                    } else if (state.windows[childId].type == window::AbstractWindowArea::HelpArea) {
+                        win->switchToHelp();
                     } else {
                         if (auto* view = qobject_cast<view::GraphicsView*>(win->areaWidget()->widget())) {
                             const auto [focus, zoom] = state.views[childId];

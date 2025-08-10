@@ -8,6 +8,7 @@
 #include "gui/AboutSurkl.hpp"
 #include "gui/Splitter.hpp"
 #include "gui/UiStorage.hpp"
+#include "help/HelpArea.hpp"
 #include "theme/ThemeArea.hpp"
 #include "theme/theme.hpp"
 #include "view/GraphicsView.hpp"
@@ -274,6 +275,12 @@ void Window::switchToThemeSettings()
     titleBar()->titleButton()->setText("Theme Settings");
 }
 
+void Window::switchToHelp()
+{
+    setAreaWidget(new help::HelpArea(this));
+    titleBar()->titleButton()->setText("Help");
+}
+
 void Window::moveToNewMainWindow()
 {
     core::SessionManager::mw()->moveToNewMainWindow(this);
@@ -338,6 +345,12 @@ void Window::setupMenu()
         if (qobject_cast<theme::ThemeArea *>(_areaWidget) == nullptr) {
             auto *action = new QAction("Switch to Theme Settings", menu);
             connect(action, &QAction::triggered, this, &Window::switchToThemeSettings);
+            menu->addAction(action);
+        }
+
+        if (qobject_cast<help::HelpArea *>(_areaWidget) == nullptr) {
+            auto *action = new QAction("Switch to Help", menu);
+            connect(action, &QAction::triggered, this, &Window::switchToHelp);
             menu->addAction(action);
         }
         menu->addSeparator();

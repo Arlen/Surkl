@@ -17,6 +17,7 @@ namespace gui::window
         {
             ViewArea = 0,
             ThemeArea,
+            HelpArea,
             /// others...
 
             InvalidArea,
