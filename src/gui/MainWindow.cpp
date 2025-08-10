@@ -311,6 +311,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     } else {
         Q_ASSERT(mainWindows.indexOf(this) != -1);
         emit closed(widgetId());
+        deleteLater();
     }
 }
 
