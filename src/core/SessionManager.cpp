@@ -48,9 +48,9 @@ SceneStorage* SessionManager::ss()
     return session()->_ss;
 }
 
-gui::InfoBar* SessionManager::ib()
+gui::InfoBarController* SessionManager::ib()
 {
-    return mw()->infoBar();
+    return session()->_ib;
 }
 
 gui::MainWindow* SessionManager::mw()
@@ -91,6 +91,7 @@ void SessionManager::init()
     _us = new gui::UiStorage(this);
     _us->configure();
 
+    _ib = new gui::InfoBarController(this);
     _mw = gui::MainWindow::loadUi();
 
     connect(qApp, &QApplication::aboutToQuit, this, &SessionManager::cleanup);

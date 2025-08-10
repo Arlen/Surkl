@@ -2,6 +2,7 @@
 /// SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "InfoBar.hpp"
+#include "core/SessionManager.hpp"
 
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -10,6 +11,35 @@
 
 
 using namespace gui;
+
+InfoBarController::InfoBarController(QObject* parent)
+    : QObject(parent)
+{
+    _timer = new QTimer(this);
+    _timer->setSingleShot(true);
+    connect(_timer, &QTimer::timeout, this, &InfoBarController::cleared);
+}
+
+void InfoBarController::clear()
+{
+    emit cleared();
+}
+
+void InfoBarController::postMsgR(const QString& text)
+{
+    emit rightMsgPosted(text);
+}
+
+void InfoBarController::postMsgL(const QString& text, int lifetime)
+{
+    emit leftMsgPosted(text);
+
+    if (lifetime > 0) {
+        _timer->start(lifetime);
+    }
+}
+
+
 
 InfoBar::InfoBar(QWidget *parent)
     : QFrame(parent)
@@ -35,39 +65,19 @@ InfoBar::InfoBar(QWidget *parent)
     connect(button, &QPushButton::pressed, this, &QWidget::hide);
     connect(button, &QPushButton::pressed, this, &InfoBar::hidden);
 
-    connect(this, &InfoBar::cleared, lineEdit, &QLineEdit::clear);
+    const auto* controller = core::SessionManager::ib();
 
-    connect(this, &InfoBar::rightMsgPosted, lineEdit,
+    connect(controller, &InfoBarController::cleared, lineEdit, &QLineEdit::clear);
+
+    connect(controller, &InfoBarController::rightMsgPosted, lineEdit,
         [lineEdit](const QString& text) {
             lineEdit->setAlignment(Qt::AlignRight);
             lineEdit->setText(text);
     });
 
-    connect(this, &InfoBar::leftMsgPosted, lineEdit,
+    connect(controller, &InfoBarController::leftMsgPosted, lineEdit,
         [lineEdit](const QString& text) {
             lineEdit->setAlignment(Qt::AlignLeft);
             lineEdit->setText(text);
     });
-
-
-    _timer = new QTimer(this);
-    _timer->setSingleShot(true);
-    connect(_timer, &QTimer::timeout, lineEdit, &QLineEdit::clear);
-}
-
-void InfoBar::clear()
-{
-    emit cleared();
-}
-
-void InfoBar::setMsgR(const QString& text)
-{
-    emit rightMsgPosted(text);
-}
-
-void InfoBar::setTimedMsgL(const QString& text, int lifetime)
-{
-    _timer->start(lifetime);
-
-    emit leftMsgPosted(text);
 }

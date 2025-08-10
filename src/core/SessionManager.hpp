@@ -16,7 +16,7 @@ namespace gui
     }
     class MainWindow;
     class UiStorage;
-    class InfoBar;
+    class InfoBarController;
 }
 
 namespace core
@@ -35,7 +35,7 @@ namespace core
         static BookmarkManager* bm();
         static FileSystemScene* scene();
         static SceneStorage* ss();
-        static gui::InfoBar* ib();
+        static gui::InfoBarController* ib();
         static gui::MainWindow* mw();
         static gui::UiStorage* us();
         static gui::theme::ThemeManager* tm();
@@ -47,11 +47,12 @@ namespace core
         void init();
         static SessionManager* session();
 
-        BookmarkManager*   _bm{nullptr};
-        FileSystemScene*   _sc{nullptr};
-        SceneStorage*      _ss{nullptr};
-        gui::MainWindow*   _mw{nullptr};
-        gui::UiStorage*    _us{nullptr};
+        BookmarkManager*          _bm{nullptr};
+        FileSystemScene*          _sc{nullptr};
+        SceneStorage*             _ss{nullptr};
+        gui::InfoBarController*   _ib{nullptr};
+        gui::MainWindow*          _mw{nullptr};
+        gui::UiStorage*           _us{nullptr};
         gui::theme::ThemeManager* _tm{nullptr};
     };
 }

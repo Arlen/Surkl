@@ -155,14 +155,14 @@ MainWindow::MainWindow(Splitter* splitter)
     auto* lockButton = new LockButton(core::SessionManager::scene()->isReadOnly(), this);
     botLayout->addWidget(lockButton);
 
-    _infoBar = new InfoBar(this);
-    botLayout->addWidget(_infoBar);
+    auto* infoBar = new InfoBar(this);
+    botLayout->addWidget(infoBar);
     layout->addLayout(botLayout);
 
-    connect(_infoBar, &InfoBar::hidden, _showInfoBar, &QPushButton::show);
-    connect(_infoBar, &InfoBar::hidden, lockButton, &QPushButton::hide);
+    connect(infoBar, &InfoBar::hidden, _showInfoBar, &QPushButton::show);
+    connect(infoBar, &InfoBar::hidden, lockButton, &QPushButton::hide);
     connect(_showInfoBar, &QPushButton::pressed, _showInfoBar, &QPushButton::hide);
-    connect(_showInfoBar, &QPushButton::pressed, _infoBar, &QWidget::show);
+    connect(_showInfoBar, &QPushButton::pressed, infoBar, &QWidget::show);
     connect(_showInfoBar, &QPushButton::pressed, lockButton, &QWidget::show);
 
     connect(lockButton, &QPushButton::clicked, core::SessionManager::scene(),

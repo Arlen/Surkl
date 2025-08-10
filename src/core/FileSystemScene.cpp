@@ -406,7 +406,7 @@ void FileSystemScene::toggleReadOnly()
 
     const auto enabled = _model->isReadOnly();
     const auto msg = QString("Real-Only Mode: %1").arg(enabled ? "On":"Off");
-    SessionManager::ib()->setTimedMsgL(msg, 2000);
+    SessionManager::ib()->postMsgL(msg, 2000);
 
     emit readOnlyToggled(_model->isReadOnly());
 }
@@ -525,7 +525,7 @@ void FileSystemScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
             const auto actionName =
                 QString(QMetaEnum::fromType<decltype(action)>().valueToKey(action))
                     .remove("Action");
-            SessionManager::ib()->setTimedMsgL(QString("%1 failed!").arg(actionName), 3000);
+            SessionManager::ib()->postMsgL(QString("%1 failed!").arg(actionName), 3000);
         }
     };
 
@@ -765,7 +765,7 @@ void FileSystemScene::reportStats() const
         | std::ranges::to<QList>()
         ;
 
-    SessionManager::ib()->setMsgR(gatherStats(indices));
+    SessionManager::ib()->postMsgR(gatherStats(indices));
 }
 
 NodeItem* FileSystemScene::nodeFromIndex(const QModelIndex& index) const
