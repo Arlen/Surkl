@@ -19,6 +19,8 @@ The window can be split vertically or horizontally using the split button of the
 | Alt \+ Left click \+ drag | Zoom in/out |
 | B | scene bookmark; left click to position, Delete to delete. |
 
+* Shift + Left-Click drag a node to move all the nodes from root to the selected node.
+
 ---
 **Scene Bookmark**
 
