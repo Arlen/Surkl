@@ -4,7 +4,7 @@
 <img src="share/logo/scalable/surkl.svg" >
 </p>
 
-Surkl 0.2.0
+Surkl 0.3.0
 ===========
 
 A node-based file browser for the desktop.
