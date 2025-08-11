@@ -1,0 +1,46 @@
+name: Linux
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install \
+          build-essential \
+          cmake \
+          qt6-base-dev \
+          libqt6svg6-dev \
+          sqlite3 \
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+
+      - name: cmake
+        run: cmake -B ${{github.workspace}}/build -D CMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+      - name: Build
+        run: cmake --build build --target surkl
+
+      - name: Save, strip and link symbols
+        run: |
+          cd bin
+          strip surkl
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: "surkl-x86_64"
+          path: bin/Surkl
