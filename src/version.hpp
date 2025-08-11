@@ -4,7 +4,7 @@
 #pragma once
 
 #define SURKL_VERSION_MAJOR 0
-#define SURKL_VERSION_MINOR 2
+#define SURKL_VERSION_MINOR 3
 #define SURKL_VERSION_RELEASE 0
 
 #include <QString>
