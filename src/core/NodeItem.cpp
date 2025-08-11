@@ -426,7 +426,7 @@ void NodeItem::createChildNodes()
 
         data.push_back(
             { .index    = index,
-              .type     = NodeType::ClosedNode,
+              .type     = NodeType::ClosedNode,  /// check for LinkNode???
               .firstRow = 0,
               .pos      = nodeLine.p2(),
               .length   = NODE_DEFAULT_LENGTH
@@ -531,7 +531,12 @@ void NodeItem::onRowsInserted(int start, int end)
         /// only skipt to if the new rows are within range of existing rows; it's
         /// less annonying, and it prevents a onRowsInserted() from quickly
         /// overwriting SceneStorage::loadScene.
-        if (lowest == -1 || (start >= lowest && start <= highest)) {
+
+        if (_firstRow != -1) {
+            skipTo(_firstRow);
+            adjustAllEdges(this);
+        }
+        else if (lowest == -1 || (start >= lowest && start <= highest)) {
             skipTo(start);
             adjustAllEdges(this);
         }
