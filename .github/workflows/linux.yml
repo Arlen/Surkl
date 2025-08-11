@@ -20,6 +20,7 @@ jobs:
           build-essential \
           cmake \
           qt6-base-dev \
+          qt6-tools-dev \
           libqt6svg6-dev \
           sqlite3 \
 
