@@ -9,6 +9,8 @@ Surkl 0.3.0
 
 A node-based file browser for the desktop.
 
+⚠ Currently in development. Expect bugs, missing features and breaking changes.! ⚠
+
 </div>
 
 Features
