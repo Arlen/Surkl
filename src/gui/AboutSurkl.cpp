@@ -11,6 +11,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QScreen>
 #include <QVBoxLayout>
 
 
@@ -69,7 +70,11 @@ AboutDialog::AboutDialog()
     mainLayout->setSizeConstraint(QLayout::SetFixedSize);
 
     auto* logoLabel = new QLabel;
-    logoLabel->setPixmap(createLogo(96));
+    const auto scaleFactor = screen()->devicePixelRatio();
+    auto logoPix = createLogo(96 * scaleFactor);
+    logoPix.setDevicePixelRatio(scaleFactor);
+    logoLabel->setPixmap(logoPix);
+    logoLabel->setFixedSize(logoPix.deviceIndependentSize().toSize());
     logoLabel->setContentsMargins(0, 0, 0, 0);
 
     auto* copyRightLabel = new QLabel(aboutInfo());
