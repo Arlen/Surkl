@@ -5,12 +5,18 @@
     </a>
 </p>
 
-[Surkl 0.3.0](https://www.youtube.com/watch?v=FYBRVgq3kfs)
+
+Surkl 0.3.0
 ===========
 
 A node-based file browser for the desktop.
 
 ⚠ Currently in development. Expect bugs, missing features and breaking changes.! ⚠
+
+
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=FYBRVgq3kfs" target="_blank">
+ <img src="http://img.youtube.com/vi/FYBRVgq3kfs/2.jpg" alt="Watch the video" width="640" height="480" border="10" />
+</a>
 
 </div>
 
