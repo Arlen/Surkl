@@ -10,7 +10,8 @@ env:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    ## using self-hosted b/c can't get ubuntu-latest to work (needs GCC 15 and maybe Ubuntu 25.04)
+    runs-on: self-hosted
 
     steps:
       - name: Install packages
@@ -20,28 +21,27 @@ jobs:
           build-essential \
           cmake \
           qt6-base-dev \
-          qt6-tools-dev \
-          libqt6svg6-dev \
-          sqlite3 \
+          qt6-svg-dev
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           fetch-tags: true
 
-      - name: cmake
+      - name: Config
         run: cmake -B ${{github.workspace}}/build -D CMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
       - name: Build
-        run: cmake --build build --target surkl
+        run: cmake --build build --target surkl --parallel
 
-      - name: Save, strip and link symbols
+      - name: Strip Symbols
         run: |
-          cd bin
+          cd build
           strip surkl
 
-      - name: Upload executable
+      - name: Upload Executable
         uses: actions/upload-artifact@v4
         with:
           name: "surkl-x86_64"
-          path: bin/Surkl
+          path: build/surkl
