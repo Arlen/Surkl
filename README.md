@@ -5,7 +5,7 @@
     </a>
 </p>
 
-Surkl 0.3.0
+[Surkl 0.3.0](https://www.youtube.com/watch?v=FYBRVgq3kfs)
 ===========
 
 A node-based file browser for the desktop.
