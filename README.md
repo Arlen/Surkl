@@ -1,7 +1,8 @@
 <div align="center">
-    
 <p>
-<img src="share/logo/scalable/surkl.svg" >
+    <a href="https://www.youtube.com/embed/FYBRVgq3kfs?si=ypbDvkBNWpyWaouh" target="_blank">
+        <img src="share/logo/scalable/surkl.svg"  alt="watch the demo">
+    </a>
 </p>
 
 Surkl 0.3.0
@@ -24,10 +25,10 @@ Features
 Dependencies
 ------------
 * Qt 6.x
+* C++23
 
 Build
 -----
-
 
 ```
 * git clone https://github.com/Arlen/Surkl.git
