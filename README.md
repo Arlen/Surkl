@@ -1,8 +1,6 @@
 <div align="center">
 <p>
-    <a href="https://www.youtube.com/embed/FYBRVgq3kfs?si=ypbDvkBNWpyWaouh" target="_blank">
-        <img src="share/logo/scalable/surkl.svg"  alt="watch the demo">
-    </a>
+    <img src="share/logo/scalable/surkl.svg"  alt="watch the demo">
 </p>
 
 
@@ -15,7 +13,7 @@ A node-based file browser for the desktop.
 
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=FYBRVgq3kfs" target="_blank">
- <img src="http://img.youtube.com/vi/FYBRVgq3kfs/2.jpg" alt="Watch the video" width="640" height="480" border="10" />
+ <img src="http://img.youtube.com/vi/FYBRVgq3kfs/2.jpg" alt="watch the demo" width="640" height="480" border="10" />
 </a>
 
 </div>
